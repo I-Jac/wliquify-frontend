@@ -460,11 +460,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                 <td className="p-2 align-middle text-center">{displayActualPercent}%</td>
                 {/* Target % - Center aligned */} 
                 <td className="p-2 align-middle text-center">{displayTargetPercent}%</td>
-                {/* Your Balance */}
-                <td className="p-2 align-middle text-right">
-                    {/* Display formatted user token balance */}
-                    {displayUserTokenBalance}
-                </td>
                 {/* --- Deposit Column - Revised Layout --- */}
                 <td className="p-2 align-middle">
                     <div className="flex flex-col space-y-1"> 
@@ -496,15 +491,19 @@ export const TokenTable: React.FC<TokenTableProps> = ({
 
                         {/* Middle Row: Input Field */} 
                         <div className="flex items-center">
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder={`Amount (${token.symbol})`}
-                                className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-1.5 px-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
-                                value={currentDepositAmount}
-                                onChange={(e) => handleAmountChange(token.mintAddress, 'deposit', e.target.value)}
-                                disabled={actionDisabled}
-                            />
+                            <div className="relative w-full"> {/* Wrapper for input + label */} 
+                                <input
+                                    id={`deposit-${mintAddress}`}
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    placeholder={`Amount (${symbol})`} // Updated Placeholder
+                                    value={currentDepositAmount}
+                                    onChange={(e) => handleAmountChange(token.mintAddress, 'deposit', e.target.value)}
+                                    className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    disabled={isDepositing || isWithdrawing} // Disable if any action is in progress
+                                />
+                            </div>
                         </div>
 
                         {/* Bottom Row: USD Value (Right Aligned) */}
@@ -514,6 +513,12 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             </div>
                         </div>
                         
+                        {/* Preset Deposit Buttons */} 
+                        <div className="flex space-x-1 w-full justify-end mt-1"> 
+                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 0.5)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || token.userBalance === null || token.userBalance.isZero()}>Half</button>
+                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 1)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || token.userBalance === null || token.userBalance.isZero()}>Max</button>
+                        </div>
+
                         {/* Deposit Button */}
                         <button
                             onClick={handleActualDeposit}
@@ -556,15 +561,19 @@ export const TokenTable: React.FC<TokenTableProps> = ({
 
                         {/* Middle Row: Input Field */} 
                         <div className="flex items-center">
-                             <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="wLQI Amount"
-                                className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-1.5 px-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
-                                value={currentWithdrawAmount}
-                                onChange={(e) => handleAmountChange(token.mintAddress, 'withdraw', e.target.value)}
-                                disabled={actionDisabled}
-                            />
+                             <div className="relative w-full"> {/* Wrapper for input + label */} 
+                                <input
+                                    id={`withdraw-${mintAddress}`}
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    placeholder="Amount (wLQI)" // Updated Placeholder
+                                    value={currentWithdrawAmount}
+                                    onChange={(e) => handleAmountChange(token.mintAddress, 'withdraw', e.target.value)}
+                                    className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                                    disabled={isDepositing || isWithdrawing} // Disable if any action is in progress
+                                />
+                            </div>
                         </div>
 
                         {/* Bottom Row: USD Value (Right Aligned) */} 
@@ -572,6 +581,12 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             <div className="text-gray-400 text-[10px] h-3">
                                 {displayWithdrawInputUsdValue}
                             </div>
+                        </div>
+
+                        {/* Preset Withdraw Buttons */} 
+                        <div className="flex space-x-1 w-full justify-end mt-1"> 
+                            <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || userWlqiBalance === null || userWlqiBalance.isZero()}>Half</button>
+                            <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || userWlqiBalance === null || userWlqiBalance.isZero()}>Max</button>
                         </div>
 
                         {/* Withdraw Button */}
@@ -610,8 +625,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                         <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
                             Target %{getSortIndicator('targetPercent')}
                         </th>
-                        {/* Your Balance */}
-                        <th className="p-2 w-40 text-center">Your Balance</th>
                         {/* Deposit Header - Centered */}
                         <th className="p-2 w-40 text-center">Deposit</th> 
                         {/* Withdraw Header - Centered */}
