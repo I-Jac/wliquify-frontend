@@ -4,9 +4,8 @@ import { PublicKey, AccountInfo } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { BN } from '@coral-xyz/anchor';
 import { USD_SCALE } from "./constants"; // Assuming USD_SCALE is defined here
-import { MintLayout, AccountLayout } from '@solana/spl-token';
-import { PoolConfig, SupportedToken } from '@/types'; // Assuming this defines PoolConfig and SupportedToken structure
 import { formatUnits } from 'ethers';
+import { PoolConfig } from '@/types';
 
 // --- Constants ---
 export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for scaling prices
@@ -35,6 +34,7 @@ export interface ProcessedTokenData {
     mintAddress: string;
     symbol: string;
     targetDominance: BN; // From Oracle Data
+    priceFeedId: string; // ADDED: Price feed account address
     decimals: number | null; // Decimals of the token mint
     vaultBalance: BN | null; // Raw balance from the token vault ATA
     priceData: DecodedPriceData | null; // Decoded from Dynamic Data
@@ -151,7 +151,7 @@ export function calculateTokenValueUsdScaled(amount: bigint | BN, decimals: numb
     // BN.js doesn't handle intermediate large numbers like Rust's u128 well directly.
     // We might need to use BigInt or a different library for very large intermediate values.
     // Sticking to BN for now, assuming intermediates fit.
-    let baseValue = amountBn.mul(price_u128);
+    const baseValue = amountBn.mul(price_u128);
 
     try {
         if (scaleAdjustmentExponent >= 0) {
@@ -369,10 +369,22 @@ export const formatRawAmountString = (
 };
 
 /**
+ * Formats a standard number (representing a percentage) into a percentage string.
+ * Example: 15.23 => "15.23%"
+ */
+export const formatPercentageString = (percentage: number | null | undefined): string => {
+    if (percentage === null || percentage === undefined || isNaN(percentage)) {
+        return '0.00%'; // Or 'N/A' or handle as needed
+    }
+    // Adjust formatting as needed (e.g., precision)
+    return `${percentage.toFixed(2)}%`;
+};
+
+/**
  * Formats a BN scaled by 1,000,000 into a percentage string.
  */
 export function formatScaledToPercentageString(scaledBn: BN | null | undefined): string {
-    if (!scaledBn) return '--,--'; // Use comma for placeholder
+    if (!scaledBn) return '0.00%';
     try {
         const percentage = scaledBn.toNumber() / 10000;
         // Use localeString for consistent decimal separator

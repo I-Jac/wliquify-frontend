@@ -1,6 +1,5 @@
 'use client'; // Required for wallet adapter hooks
 
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css"; // Import wallet adapter styles
@@ -94,12 +93,6 @@ export default function RootLayout({
         // Ensure dependencies are correct, typically empty if adapters don't change
         []
     );
-
-    // State to track client-side mounting
-    const [isMounted, setIsMounted] = useState(false);
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     return (
         <html lang="en">

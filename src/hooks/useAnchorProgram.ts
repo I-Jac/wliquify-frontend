@@ -1,44 +1,65 @@
-import { useMemo } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { WLiquifyPool } from '@/types/w_liquify_pool';
+import { Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
+import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useMemo, useState, useEffect } from 'react';
+import { WLiquifyPool } from '@/types/w_liquify_pool'; 
 import idl from '@/idl/w_liquify_pool.json'; // Import the IDL JSON
-import { W_LIQUIFY_POOL_PROGRAM_ID } from '@/utils/constants';
+import { PublicKey } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
 /**
- * Custom hook to get an Anchor provider and program instance.
- * Ensures the provider and program are updated when connection or wallet changes.
+ * Custom hook to provide initialized Anchor program and provider instances.
  */
-export const useAnchorProgram = () => {
+export function useAnchorProgram() {
     const { connection } = useConnection();
-    const wallet = useWallet(); // Get the full wallet object
+    const wallet = useWallet(); // Use useWallet to get context state
+    const anchorWallet = useAnchorWallet(); // Use useAnchorWallet for provider if connected
+    const [provider, setProviderState] = useState<AnchorProvider | null>(null);
 
-    // Create the Anchor provider
-    const provider = useMemo(() => {
-        // Wallet must be connected to create a provider that can sign transactions
-        if (!wallet || !wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) {
-            // Return a read-only provider if wallet is not fully functional
-            console.log("Wallet not connected or doesn't support signing, creating read-only provider.");
-            return new AnchorProvider(connection, {publicKey: wallet?.publicKey ?? undefined} as any, { commitment: 'confirmed' });
-            // return null; // Alternatively, return null if a signing provider is strictly required
+    // Fallback RPC URL from environment variable or default to devnet
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
+
+    useEffect(() => {
+        if (anchorWallet) {
+            const newProvider = new AnchorProvider(connection, anchorWallet, { commitment: 'confirmed' });
+            setProviderState(newProvider);
+            setProvider(newProvider); // Set globally for anchor commands if needed
+        } else {
+            setProviderState(null);
         }
+    }, [anchorWallet, connection]);
 
-        // The wallet object from useWallet conforms to AnchorWallet
-        return new AnchorProvider(connection, wallet as any, {
-            commitment: 'confirmed',
-            preflightCommitment: 'confirmed',
-        });
-    }, [connection, wallet]);
+    // Create a read-only provider when the wallet is not connected
+    const readOnlyProvider = useMemo(() => {
+        // Correct the condition: create provider if wallet is NOT connected
+        if (!wallet.connected) { 
+            // Use a stable connection object
+            const currentConnection = new Connection(rpcUrl, 'confirmed');
 
-    // Create the program instance
+            // Create a minimal wallet-like object for AnchorProvider read-only mode
+            const readOnlyWallet = {
+                publicKey: wallet.publicKey || PublicKey.default, // Fallback to default PK
+                // Correct signer stubs: no params needed if they just throw
+                signTransaction: async () => { throw new Error("Read-only wallet cannot sign."); },
+                signAllTransactions: async () => { throw new Error("Read-only wallet cannot sign."); },
+            };
+
+            // Provider expects a Wallet interface, but works with this minimal object for read-only
+            return new AnchorProvider(currentConnection, readOnlyWallet, { commitment: 'confirmed' });
+        }
+        // If wallet *is* connected, return null (the standard provider will be used)
+        return null; 
+
+    }, [wallet.connected, wallet.publicKey, rpcUrl]); // Dependencies for read-only provider
+
     const program = useMemo(() => {
-        // Don't create program instance if provider is null (if you choose to return null above)
-        // if (!provider) return null;
+        // Prefer the connected provider if available, otherwise use read-only
+        const currentProvider = provider || readOnlyProvider;
+        if (!currentProvider) return null;
+        
+        return new Program<WLiquifyPool>(idl as WLiquifyPool, currentProvider);
 
-        // Assert IDL type
-        return new Program<WLiquifyPool>(idl as any, provider);
+    // Remove wallet dependency as suggested by linter
+    }, [provider, readOnlyProvider]); 
 
-    }, [provider]); // Re-create program instance only when provider changes
-
-    return { provider, program };
-}; 
+    return { program, provider, readOnlyProvider };
+} 

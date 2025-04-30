@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
 
 export default function Home() {
