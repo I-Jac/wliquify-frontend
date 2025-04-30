@@ -1,0 +1,1885 @@
+{
+  "address": "H9Y1ERhaAzDhKjYuMsbqQ1d3L6Mt7g244U2jfkEXy48Q",
+  "metadata": {
+    "name": "w_liquify_pool",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_supported_token",
+      "discriminator": [
+        109,
+        142,
+        133,
+        205,
+        240,
+        28,
+        197,
+        245
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "pool_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "pool_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "pool_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_history_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_aggregator_account",
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cleanup_historical_data",
+      "discriminator": [
+        235,
+        212,
+        210,
+        216,
+        57,
+        79,
+        109,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "pool_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "fee_recipient",
+          "writable": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "oracle_aggregator_account",
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "historical_token_data",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "token_mint_arg"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "pool_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "pool_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "token_mint_arg",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "deposit",
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_source_ata",
+          "writable": true
+        },
+        {
+          "name": "fee_recipient",
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "pool_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "wli_mint",
+          "writable": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "user_wli_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wli_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "owner_fee_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "fee_recipient"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wli_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "deposit_mint"
+        },
+        {
+          "name": "target_token_vault_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "pool_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "deposit_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "oracle_aggregator_account"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "historical_token_data",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "deposit_mint"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "wli_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  108,
+                  105,
+                  95,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "pubkey"
+        },
+        {
+          "name": "fee_recipient",
+          "type": "pubkey"
+        },
+        {
+          "name": "oracle_program_id",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_lookup_table",
+      "discriminator": [
+        235,
+        249,
+        109,
+        59,
+        171,
+        208,
+        117,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "pool_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lookup_table_account"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_wli_ata",
+          "writable": true
+        },
+        {
+          "name": "user_dest_ata",
+          "docs": [
+            "The ATA owned by the user where they will receive the withdrawn tokens."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "desired_token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "fee_recipient",
+          "writable": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "pool_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pool_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "wli_mint",
+          "writable": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "owner_fee_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "fee_recipient"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wli_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "desired_token_mint"
+        },
+        {
+          "name": "source_token_vault_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "pool_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "desired_token_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "oracle_aggregator_account"
+        },
+        {
+          "name": "historical_token_data",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  104,
+                  105,
+                  115,
+                  116,
+                  111,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "desired_token_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "wli_amount",
+          "type": "u64"
+        },
+        {
+          "name": "desired_token_mint_arg",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "HistoricalTokenData",
+      "discriminator": [
+        83,
+        161,
+        198,
+        218,
+        51,
+        207,
+        25,
+        223
+      ]
+    },
+    {
+      "name": "PoolConfig",
+      "discriminator": [
+        26,
+        108,
+        14,
+        123,
+        116,
+        230,
+        129,
+        43
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "CalculationOverflow",
+      "msg": "Generic calculation error or overflow."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidPriceData",
+      "msg": "Provided price data is too old or invalid."
+    },
+    {
+      "code": 6002,
+      "name": "FeeCalculationError",
+      "msg": "Fee calculation resulted in an error or overflow."
+    },
+    {
+      "code": 6003,
+      "name": "IneligibleToken",
+      "msg": "The provided token is ineligible for deposit (e.g., zero target dominance)."
+    },
+    {
+      "code": 6004,
+      "name": "InvalidOwner",
+      "msg": "Invalid owner for the provided token account."
+    },
+    {
+      "code": 6005,
+      "name": "UnauthorizedAdmin",
+      "msg": "Signer is not the authorized pool admin."
+    },
+    {
+      "code": 6006,
+      "name": "InvalidWliMint",
+      "msg": "Invalid WLI mint provided."
+    },
+    {
+      "code": 6007,
+      "name": "InvalidMint",
+      "msg": "Invalid mint account provided or mismatch."
+    },
+    {
+      "code": 6008,
+      "name": "InvalidFeeRecipient",
+      "msg": "Invalid fee recipient address."
+    },
+    {
+      "code": 6009,
+      "name": "OracleAccountMismatch",
+      "msg": "The provided oracle aggregator account does not match the one in config."
+    },
+    {
+      "code": 6010,
+      "name": "OracleDeserializationFailed",
+      "msg": "Failed to deserialize oracle data."
+    },
+    {
+      "code": 6011,
+      "name": "TokenNotFoundInOracle",
+      "msg": "Required token info not found in oracle data."
+    },
+    {
+      "code": 6012,
+      "name": "InvalidOracleData",
+      "msg": "Oracle data contains invalid UTF-8 or cannot be parsed."
+    },
+    {
+      "code": 6013,
+      "name": "FailedToParsePublicKey",
+      "msg": "Failed to parse public key from string."
+    },
+    {
+      "code": 6014,
+      "name": "FailedToParseFeedId",
+      "msg": "Failed to parse hex string to feed ID."
+    },
+    {
+      "code": 6015,
+      "name": "RequiredAccountNotFound",
+      "msg": "Required account was not found in remaining accounts."
+    },
+    {
+      "code": 6016,
+      "name": "InvalidRemainingAccounts",
+      "msg": "Remaining accounts structure is invalid (e.g., not triplets)."
+    },
+    {
+      "code": 6017,
+      "name": "IncorrectAccountCount",
+      "msg": "Incorrect number of remaining accounts provided."
+    },
+    {
+      "code": 6018,
+      "name": "ZeroAmount",
+      "msg": "Deposit or withdraw amount cannot be zero."
+    },
+    {
+      "code": 6019,
+      "name": "DepositNotAllowed",
+      "msg": "Deposits are not allowed for this token (not whitelisted or target is zero)."
+    },
+    {
+      "code": 6020,
+      "name": "WithdrawalTargetZero",
+      "msg": "Withdrawals target amount is zero."
+    },
+    {
+      "code": 6021,
+      "name": "PriceAccountMismatch",
+      "msg": "The PriceUpdateV2 account for the token does not match expected."
+    },
+    {
+      "code": 6022,
+      "name": "PriceUpdateDeserializationFailed",
+      "msg": "Failed to deserialize PriceUpdateV2 account."
+    },
+    {
+      "code": 6023,
+      "name": "PythPriceValidationFailed",
+      "msg": "Pyth price validation failed (stale, invalid, etc.)."
+    },
+    {
+      "code": 6024,
+      "name": "InvalidPrice",
+      "msg": "Pyth price is invalid (e.g., negative)."
+    },
+    {
+      "code": 6025,
+      "name": "InvalidPriceFeedAccount",
+      "msg": "Pyth price feed account is invalid or has wrong owner."
+    },
+    {
+      "code": 6026,
+      "name": "PythPriceError",
+      "msg": "Error getting price from Pyth SDK."
+    },
+    {
+      "code": 6027,
+      "name": "PythPriceNotTrading",
+      "msg": "Pyth price status is not Trading."
+    },
+    {
+      "code": 6028,
+      "name": "PythInvalidPriceType",
+      "msg": "Pyth account type is not Price."
+    },
+    {
+      "code": 6029,
+      "name": "InsufficientWliBalance",
+      "msg": "Withdrawal amount exceeds user's WLI balance."
+    },
+    {
+      "code": 6030,
+      "name": "InsufficientVaultBalance",
+      "msg": "Calculated withdrawal amount exceeds vault balance."
+    },
+    {
+      "code": 6031,
+      "name": "InsufficientLiquidity",
+      "msg": "Insufficient liquidity in the target token vault."
+    },
+    {
+      "code": 6032,
+      "name": "MaxPoolTokensReached",
+      "msg": "Pool has reached its maximum token capacity."
+    },
+    {
+      "code": 6033,
+      "name": "TokenAlreadyExists",
+      "msg": "Token already exists in the pool configuration."
+    },
+    {
+      "code": 6034,
+      "name": "TokenNotFoundInPool",
+      "msg": "Token not found in pool configuration for removal/update."
+    },
+    {
+      "code": 6035,
+      "name": "OracleDataMissing",
+      "msg": "Oracle data missing required accounts."
+    },
+    {
+      "code": 6036,
+      "name": "ZeroWliAmount",
+      "msg": "Operation resulted in zero WLI amount."
+    },
+    {
+      "code": 6037,
+      "name": "ZeroTokenAmount",
+      "msg": "Operation resulted in zero token amount."
+    },
+    {
+      "code": 6038,
+      "name": "DelistedWithdrawalAmountExceedsLimit",
+      "msg": "Delisted token withdrawal amount exceeds limit."
+    },
+    {
+      "code": 6039,
+      "name": "PdaDerivationError",
+      "msg": "PDA derivation failed"
+    },
+    {
+      "code": 6040,
+      "name": "InvalidMockPdaAddress",
+      "msg": "Provided mock PDA address does not match derived address or has wrong owner."
+    },
+    {
+      "code": 6041,
+      "name": "InvalidFeedId",
+      "msg": "The provided Pyth feed ID does not match the expected ID."
+    },
+    {
+      "code": 6042,
+      "name": "HistoricalDataNotFound",
+      "msg": "Historical token data account not found for the specified mint."
+    },
+    {
+      "code": 6043,
+      "name": "ArithmeticError",
+      "msg": "Arithmetic overflow/underflow during calculation."
+    },
+    {
+      "code": 6044,
+      "name": "IncorrectRemainingAccount",
+      "msg": "Incorrect remaining account passed."
+    },
+    {
+      "code": 6045,
+      "name": "FailedToParsePubkey",
+      "msg": "Failed to parse public key from oracle data string."
+    },
+    {
+      "code": 6046,
+      "name": "FailedToParseHexFeedId",
+      "msg": "Failed to parse hex feed ID from oracle data."
+    },
+    {
+      "code": 6047,
+      "name": "IncorrectPriceFeedAccount",
+      "msg": "Provided mock price feed account PDA does not match expected."
+    },
+    {
+      "code": 6048,
+      "name": "PriceFeedDeserializationFailed",
+      "msg": "Failed to deserialize mock price feed account data."
+    },
+    {
+      "code": 6049,
+      "name": "PriceFeedNotTrading",
+      "msg": "Mock price feed status is not Trading."
+    },
+    {
+      "code": 6050,
+      "name": "PriceFeedStale",
+      "msg": "Mock price feed price data is stale."
+    },
+    {
+      "code": 6051,
+      "name": "InvalidLutOwner",
+      "msg": "Provided address lookup table account has invalid owner."
+    },
+    {
+      "code": 6052,
+      "name": "LutNotInitialized",
+      "msg": "Provided address lookup table account is not initialized."
+    },
+    {
+      "code": 6053,
+      "name": "AdminOnly",
+      "msg": "Operation can only be performed by the pool admin."
+    },
+    {
+      "code": 6054,
+      "name": "InvalidOracleAccount",
+      "msg": "The provided oracle account is invalid or does not match configuration."
+    },
+    {
+      "code": 6055,
+      "name": "MintNotInitialized",
+      "msg": "The provided token mint account is not initialized."
+    },
+    {
+      "code": 6056,
+      "name": "FailedToDeserialize",
+      "msg": "Failed to deserialize account data."
+    },
+    {
+      "code": 6057,
+      "name": "TokenStillWhitelisted",
+      "msg": "Token cannot be cleaned up as it is still whitelisted (or has non-zero dominance)."
+    },
+    {
+      "code": 6058,
+      "name": "VaultNotEmpty",
+      "msg": "Token cannot be cleaned up as its pool vault is not empty."
+    }
+  ],
+  "types": [
+    {
+      "name": "HistoricalTokenData",
+      "docs": [
+        "Historical Token Data",
+        "Stores persistent info about a token that has been deposited.",
+        "Seeds: [b\"token_history\", token_mint.key().as_ref()]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolConfig",
+      "docs": [
+        "Pool Configuration",
+        "Stores global settings for the pool.",
+        "Seeds: [POOL_CONFIG_SEED]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "wli_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool_authority_bump",
+            "type": "u8"
+          },
+          {
+            "name": "oracle_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle_aggregator_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "address_lookup_table",
+            "type": "pubkey"
+          },
+          {
+            "name": "supported_tokens",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "SupportedToken"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SupportedToken",
+      "docs": [
+        "Holds the necessary PDAs and mint address for a supported token."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_history",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_feed",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}
