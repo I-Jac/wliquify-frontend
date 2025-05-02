@@ -14,20 +14,21 @@ const SkeletonTableRow: React.FC = () => {
 
 export const SkeletonTokenTable: React.FC<SkeletonTokenTableProps> = ({ rowCount = 5 }) => {
     return (
-        <div className="overflow-x-auto bg-gray-900 text-gray-200 rounded-lg shadow-md">
-            <table className="min-w-full table-auto">
-                <thead>
-                     {/* Use the same header as the actual TokenTable for consistency */}
-                     <tr className="bg-gray-800 text-left text-xs font-semibold uppercase tracking-wider">
-                         <th className="py-3 px-4">Symbol</th>
-                         <th className="py-3 px-4 text-right">Value</th>
-                         <th className="py-3 px-4 text-right">Actual %</th>
-                         <th className="py-3 px-4 text-right">Target %</th>
-                         <th className="py-3 px-4 text-center">Deposit Action</th>
-                         <th className="py-3 px-4 text-center">Withdraw Action</th>
-                     </tr>
+        <div className="overflow-x-auto animate-pulse">
+            {/* Use table-fixed and consistent background */}
+            <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
+                {/* Match header style and content from TokenTable */}
+                <thead className="bg-gray-600">
+                    <tr>
+                        <th className="p-2 w-16 text-center text-gray-400">Symbol</th>
+                        <th className="p-2 w-32 text-center text-gray-400">Pool Balance</th>
+                        <th className="p-2 w-28 text-center text-gray-400">Actual %</th>
+                        <th className="p-2 w-28 text-center text-gray-400">Target %</th>
+                        <th className="p-2 w-40 text-center text-gray-400">Deposit</th>
+                        <th className="p-2 w-40 text-center text-gray-400">Withdraw</th>
+                    </tr>
                 </thead>
-                <tbody className="text-sm divide-y divide-gray-700">
+                <tbody className="divide-y divide-gray-700">
                     {[...Array(rowCount)].map((_, index) => (
                         <SkeletonTableRow key={index} />
                     ))}

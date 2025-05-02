@@ -18,6 +18,7 @@ import {
     // decodePriceData, // Remove unused
 } from '@/utils/calculations';
 import { USD_SCALE } from '@/utils/constants';
+import { SkeletonTokenTable } from './SkeletonTokenTable'; // Import existing skeleton
 
 // --- Component Props ---
 interface TokenTableProps {
@@ -198,7 +199,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({
 
     // Null check for tokenData before rendering table
     if (!tokenData) {
-        return <div className="text-center text-gray-400 italic p-4">Processing token data...</div>;
+        return <SkeletonTokenTable />; // Use the existing skeleton component
     }
 
     if (sortedTokenData.length === 0) {
@@ -513,12 +514,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             </div>
                         </div>
                         
-                        {/* Preset Deposit Buttons */} 
-                        <div className="flex space-x-1 w-full justify-end mt-1"> 
-                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 0.5)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || token.userBalance === null || token.userBalance.isZero()}>Half</button>
-                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 1)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || token.userBalance === null || token.userBalance.isZero()}>Max</button>
-                        </div>
-
                         {/* Deposit Button */}
                         <button
                             onClick={handleActualDeposit}
@@ -581,12 +576,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             <div className="text-gray-400 text-[10px] h-3">
                                 {displayWithdrawInputUsdValue}
                             </div>
-                        </div>
-
-                        {/* Preset Withdraw Buttons */} 
-                        <div className="flex space-x-1 w-full justify-end mt-1"> 
-                            <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || userWlqiBalance === null || userWlqiBalance.isZero()}>Half</button>
-                            <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} className="text-xs px-1.5 py-0.5 bg-gray-600 hover:bg-gray-500 rounded text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isDepositing || isWithdrawing || userWlqiBalance === null || userWlqiBalance.isZero()}>Max</button>
                         </div>
 
                         {/* Withdraw Button */}
