@@ -33,12 +33,20 @@ export interface DecodedPriceData {
 export interface ProcessedTokenData {
     mintAddress: string;
     symbol: string;
+    icon: string;
     targetDominance: BN; // From Oracle Data
     priceFeedId: string; // ADDED: Price feed account address
     decimals: number | null; // Decimals of the token mint
     vaultBalance: BN | null; // Raw balance from the token vault ATA
     priceData: DecodedPriceData | null; // Decoded from Dynamic Data
     userBalance: BN | null; // User's balance for this token
+    isDelisted: boolean;
+    depositFeeOrBonusBps: number | null;
+    withdrawFeeOrBonusBps: number | null;
+    poolValueUSD: string;
+    actualDominancePercent: number;
+    targetDominancePercent: number;
+    targetDominanceDisplay: string;
 }
 
 // Represents the aggregated data for a single token from the Oracle (e.g., Switchboard function)

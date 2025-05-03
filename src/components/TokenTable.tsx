@@ -417,7 +417,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({
     // Define renderRow function accepting index
     const renderRow = (token: ProcessedTokenData, index: number) => {
         // Destructure token object inside the function
-        const { mintAddress, symbol, priceData, vaultBalance, decimals, targetDominance } = token;
+        const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
 
         // --- Recalculate values needed for display --- 
         const tokenValueUsd = vaultBalance !== null && decimals !== null
@@ -664,7 +664,7 @@ export const TokenTable: React.FC<TokenTableProps> = ({
 
         // --- Button State Logic ---
         const actionDisabled = isDepositing || isWithdrawing;
-        let depositButtonDisabled = actionDisabled || !isDepositInputFilled;
+        let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted;
         let withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled;
 
         // --- Determine Button Colors (Based on Estimated Fee) ---
@@ -802,51 +802,60 @@ export const TokenTable: React.FC<TokenTableProps> = ({
 
         // --- Render Row --- 
         return (
-            <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 align-top ${actionDisabled ? 'opacity-50' : ''}`}>
-                {/* Symbol - Center aligned */}
-                <td className="p-2 font-semibold align-middle text-center" title={token.mintAddress}>{displaySymbol}</td>
-                {/* Pool Balance - Center aligned */}
+            <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
+                {/* Symbol Column - Use inner div for flex centering */}
+                <td className="p-0 font-semibold align-middle text-center" title={token.mintAddress}> {/* Keep align-middle, remove padding/flex/etc */}
+                    <div className="flex items-center justify-center h-full space-x-2 px-2"> {/* Add inner div with flex, height, spacing, padding */}
+                        <img
+                            src={icon}
+                            alt={symbol}
+                            className="w-5 h-5 rounded-full" // Basic size/shape
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/tokens/btc.png';
+                                target.onerror = null;
+                            }}
+                        />
+                        <span className="">{displaySymbol}</span> {/* Basic span */}
+                    </div>
+                </td>
+                {/* Pool Balance */}
                 <td className="p-2 align-middle text-center">
-                    {/* Removed text-right from inner divs */}
                     <div>{displayValue}</div>
                     <div className="text-gray-400">{displayBalance} {displaySymbol}</div>
                 </td>
-                {/* Actual % - Center aligned */} 
+                {/* Actual % */}
                 <td className="p-2 align-middle text-center">{displayActualPercent}%</td>
-                {/* Target % - Center aligned */} 
+                {/* Target % */}
                 <td className="p-2 align-middle text-center">{displayTargetPercent}%</td>
-                {/* --- Deposit Column - Revised Layout --- */}
+                {/* Deposit Column */}
                 <td className="p-2 align-middle">
                     <div className="flex flex-col space-y-1"> 
-                        {/* Top Row: Balance / Half / Max */} 
                         <div className="flex items-center justify-between"> 
                             <div className="text-gray-400 text-[10px] flex items-center"> 
-                                {/* Wallet Icon SVG */} 
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
                                     <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
                                 </svg>
-                                {/* Display formatted user token balance */}
                                 <span>{displayUserTokenBalance}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                                 <button
                                     onClick={() => handleSetAmount(token.mintAddress, 'deposit', 0.5)}
-                                    disabled={actionDisabled || token.userBalance === null}
-                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    disabled={actionDisabled || token.userBalance === null || isDelisted}
+                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
                                     title="Set amount to 50% of your balance"
                                 > Half </button>
                                 <button
                                     onClick={() => handleSetAmount(token.mintAddress, 'deposit', 1)}
-                                    disabled={actionDisabled || token.userBalance === null}
-                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    disabled={actionDisabled || token.userBalance === null || isDelisted}
+                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
                                     title="Set amount to your maximum balance"
                                 > Max </button>
                             </div>
                         </div>
 
-                        {/* Middle Row: Input Field */} 
                         <div className="flex items-center">
-                            <div className="relative w-full"> {/* Wrapper for input + label */} 
+                            <div className="relative w-full"> 
                                 <input
                                     id={`deposit-${mintAddress}`}
                                     type="number"
@@ -856,9 +865,8 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                                     value={currentDepositAmount}
                                     onChange={(e) => handleAmountChange(token.mintAddress, 'deposit', e.target.value)}
                                     className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    disabled={actionDisabled}
+                                    disabled={actionDisabled || isDelisted}
                                 />
-                                {/* Conditionally add Target button for Deposit */}
                                 {actualScaled.lt(targetScaled) && (
                                     <button
                                         onClick={() => handleSetTargetAmount(token.mintAddress, 'deposit')}
@@ -870,14 +878,12 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             </div>
                         </div>
 
-                        {/* Bottom Row: USD Value (Right Aligned) */}
                         <div className="flex justify-end"> 
                             <div className="text-gray-400 text-[10px] h-3">
                                 {displayDepositInputUsdValue}
                             </div>
                         </div>
                         
-                        {/* Deposit Button */}
                         <button
                             onClick={handleActualDeposit}
                             disabled={depositButtonDisabled}
@@ -888,17 +894,14 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                         </button>
                     </div>
                 </td>
-                {/* --- Withdraw Column - Revised Layout --- */}
+                {/* Withdraw Column */}
                 <td className="p-2 align-middle">
                     <div className="flex flex-col space-y-1"> 
-                        {/* Top Row: Balance / Half / Max */} 
                         <div className="flex items-center justify-between"> 
                              <div className="text-gray-400 text-[10px] flex items-center"> 
-                                {/* Wallet Icon SVG */} 
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
                                     <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
                                 </svg>
-                                {/* Display formatted USER WlQI balance */}
                                 <span>{displayUserWlqiBalance}</span>
                             </div>
                             <div className="flex items-center space-x-1">
@@ -917,9 +920,8 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             </div>
                         </div>
 
-                        {/* Middle Row: Input Field */} 
                         <div className="flex items-center">
-                             <div className="relative w-full"> {/* Wrapper for input + label */} 
+                             <div className="relative w-full"> 
                                 <input
                                     id={`withdraw-${mintAddress}`}
                                     type="number"
@@ -931,7 +933,6 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                                     className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
                                     disabled={actionDisabled}
                                 />
-                                {/* Conditionally add Target button for Withdraw */}
                                 {actualScaled.gt(targetScaled) && (
                                     <button
                                         onClick={() => handleSetTargetAmount(token.mintAddress, 'withdraw')}
@@ -943,14 +944,12 @@ export const TokenTable: React.FC<TokenTableProps> = ({
                             </div>
                         </div>
 
-                        {/* Bottom Row: USD Value (Right Aligned) */} 
                         <div className="flex justify-end"> 
                             <div className="text-gray-400 text-[10px] h-3">
                                 {displayWithdrawInputUsdValue}
                             </div>
                         </div>
 
-                        {/* Withdraw Button */}
                         <button
                             onClick={handleActualWithdraw}
                             disabled={withdrawButtonDisabled}
@@ -970,30 +969,23 @@ export const TokenTable: React.FC<TokenTableProps> = ({
             <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                 <thead className="bg-gray-600">
                     <tr>
-                        {/* Symbol Header - Centered */}
                         <th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
                             Symbol{getSortIndicator('symbol')}
                         </th>
-                        {/* Pool Balance Header - Centered (removed text-right) */}
                         <th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
                             Pool Balance{getSortIndicator('value')}
                         </th>
-                        {/* Actual % Header - Centered (removed text-right) */}
                         <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}>
                             Actual %{getSortIndicator('actualPercent')}
                         </th>
-                        {/* Target % Header - Centered (removed text-right) */}
                         <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
                             Target %{getSortIndicator('targetPercent')}
                         </th>
-                        {/* Deposit Header - Centered */}
                         <th className="p-2 w-40 text-center">Deposit</th> 
-                        {/* Withdraw Header - Centered */}
                         <th className="p-2 w-40 text-center">Withdraw</th> 
                     </tr>
                 </thead>
                 <tbody>
-                    {/* Map over sorted data, passing index to renderRow */}
                     {sortedTokenData.map((token, index) => renderRow(token, index))}
                 </tbody>
             </table>
