@@ -478,6 +478,7 @@
         },
         {
           "name": "pool_config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -806,7 +807,13 @@
           }
         },
         {
-          "name": "oracle_aggregator_account"
+          "name": "oracle_aggregator_account",
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
+          "name": "deposit_price_feed"
         },
         {
           "name": "token_program",
@@ -823,35 +830,6 @@
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "historical_token_data",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  104,
-                  105,
-                  115,
-                  116,
-                  111,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "deposit_mint"
-              }
-            ]
-          }
         }
       ],
       "args": [
@@ -1030,6 +1008,52 @@
       "args": []
     },
     {
+      "name": "update_total_value",
+      "discriminator": [
+        238,
+        51,
+        15,
+        154,
+        26,
+        150,
+        144,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "pool_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "address_lookup_table",
+          "docs": [
+            "Further validation (owner, initialization) could be added if desired, similar to set_lookup_table."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "withdraw",
       "discriminator": [
         183,
@@ -1052,7 +1076,7 @@
           "writable": true
         },
         {
-          "name": "user_dest_ata",
+          "name": "user_destination_ata",
           "docs": [
             "The ATA owned by the user where they will receive the withdrawn tokens."
           ],
@@ -1102,7 +1126,7 @@
               },
               {
                 "kind": "account",
-                "path": "desired_token_mint"
+                "path": "withdraw_mint"
               }
             ],
             "program": {
@@ -1146,13 +1170,13 @@
         },
         {
           "name": "fee_recipient",
-          "writable": true,
           "relations": [
             "pool_config"
           ]
         },
         {
           "name": "pool_config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -1298,7 +1322,7 @@
           }
         },
         {
-          "name": "desired_token_mint"
+          "name": "withdraw_mint"
         },
         {
           "name": "source_token_vault_ata",
@@ -1348,7 +1372,7 @@
               },
               {
                 "kind": "account",
-                "path": "desired_token_mint"
+                "path": "withdraw_mint"
               }
             ],
             "program": {
@@ -1391,36 +1415,13 @@
           }
         },
         {
-          "name": "oracle_aggregator_account"
+          "name": "oracle_aggregator_account",
+          "relations": [
+            "pool_config"
+          ]
         },
         {
-          "name": "historical_token_data",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  104,
-                  105,
-                  115,
-                  116,
-                  111,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "desired_token_mint"
-              }
-            ]
-          }
+          "name": "withdraw_price_feed"
         },
         {
           "name": "token_program",
@@ -1441,12 +1442,8 @@
       ],
       "args": [
         {
-          "name": "wli_amount",
+          "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "desired_token_mint_arg",
-          "type": "pubkey"
         }
       ]
     }
@@ -1840,6 +1837,10 @@
           {
             "name": "address_lookup_table",
             "type": "pubkey"
+          },
+          {
+            "name": "current_total_pool_value_scaled",
+            "type": "u128"
           },
           {
             "name": "supported_tokens",

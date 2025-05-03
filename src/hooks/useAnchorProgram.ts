@@ -16,7 +16,8 @@ export function useAnchorProgram() {
     const [provider, setProviderState] = useState<AnchorProvider | null>(null);
 
     // Fallback RPC URL from environment variable or default to devnet
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
+    //const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8900';
 
     useEffect(() => {
         if (anchorWallet) {

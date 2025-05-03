@@ -17,6 +17,7 @@ import {
     LedgerWalletAdapter,
     // Add other wallets here if needed
 } from "@solana/wallet-adapter-wallets";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RPC_URL } from '@/utils/constants'; // Import RPC URL
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext'; // Import SettingsProvider and hook
 import { SettingsModal } from '@/components/SettingsModal'; // Import SettingsModal
@@ -52,6 +53,11 @@ const WalletSection = () => {
 
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
+    // --- React Query Client Setup ---
+    // Use state to ensure client is only created once
+    const [queryClient] = useState(() => new QueryClient());
+    // --- End React Query Client Setup ---
+
     const endpoint = useMemo(() => RPC_URL, []);
     const wallets = useMemo(
         () => [
@@ -68,11 +74,14 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         <ConnectionProvider endpoint={endpoint}>
             <WalletProvider wallets={wallets} autoConnect>
                 <WalletModalProvider>
-                    <SettingsProvider>
-                        <WalletSection />
-                        {children}
-                        <Toaster position="bottom-center" />
-                    </SettingsProvider>
+                    {/* Wrap SettingsProvider with QueryClientProvider */}
+                    <QueryClientProvider client={queryClient}> 
+                        <SettingsProvider>
+                            <WalletSection />
+                            {children}
+                            <Toaster position="bottom-center" />
+                        </SettingsProvider>
+                    </QueryClientProvider>
                 </WalletModalProvider>
             </WalletProvider>
         </ConnectionProvider>

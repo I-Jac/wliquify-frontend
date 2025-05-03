@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { PublicKey, SystemProgram, AccountInfo } from '@solana/web3.js';
+import { PublicKey, SystemProgram, AccountInfo, Connection } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -96,6 +96,16 @@ export const PoolInfoDisplay = () => {
         }
     }, []); // Empty dependency array as it only uses setters
 
+    // --- ADD: Function to clear specific input amount ---
+    const handleClearInput = useCallback((mintAddress: string, action: 'deposit' | 'withdraw') => {
+        console.log(`Clearing input for ${action} on ${mintAddress}`);
+        if (action === 'deposit') {
+            setDepositAmounts(prev => ({ ...prev, [mintAddress]: '' }));
+        } else {
+            setWithdrawAmounts(prev => ({ ...prev, [mintAddress]: '' }));
+        }
+    }, []); // Empty dependency array, only uses setters
+
     // --- ADD: Function to refresh user balances --- 
     const refreshUserBalances = useCallback(async (affectedMintAddress?: string) => {
         if (!wallet.publicKey || !connection || !poolConfig?.wliMint) {
@@ -129,21 +139,15 @@ export const PoolInfoDisplay = () => {
             // Process wLQI Balance
             const userWlqiInfo = accountsInfo[0]; // Always the first one
             const newWlqiBalance = userWlqiInfo ? decodeTokenAccountAmountBN(userWlqiInfo.data) : new BN(0);
-            console.log(`  Refreshed wLQI balance: ${newWlqiBalance.toString()}`);
             setUserWlqiBalance(newWlqiBalance);
 
             // Process Affected Token Balance
             if (affectedMintAddress && affectedTokenAta && accountsInfo.length > 1) {
                 const affectedTokenInfo = accountsInfo[1];
                 const newTokenBalance = affectedTokenInfo ? decodeTokenAccountAmountBN(affectedTokenInfo.data) : new BN(0);
-                console.log(`  Refreshed token ${affectedMintAddress} balance: ${newTokenBalance.toString()}`);
-                setDynamicData(prevMap => {
+                setUserTokenBalances(prevMap => {
                     const newMap = new Map(prevMap);
-                    const existingData = newMap.get(affectedMintAddress);
-                    if (existingData) {
-                        newMap.set(affectedMintAddress, { ...existingData, userBalance: newTokenBalance });
-                        console.log(`  Updated dynamicData for ${affectedMintAddress}`);
-                    }
+                    newMap.set(affectedMintAddress, newTokenBalance);
                     return newMap;
                 });
             }
@@ -152,7 +156,7 @@ export const PoolInfoDisplay = () => {
             // Optionally show a toast error here
         }
 
-    }, [wallet.publicKey, connection, poolConfig, setDynamicData, setUserWlqiBalance]);
+    }, [wallet.publicKey, connection, poolConfig, setUserWlqiBalance, setUserTokenBalances]);
     // --- END ADD --- 
 
     // Pass correct props to usePoolInteractions, including the new callback
@@ -166,7 +170,8 @@ export const PoolInfoDisplay = () => {
         poolConfig,
         poolConfigPda,
         oracleData,
-        onTransactionSuccess: refreshUserBalances // Pass the refresh function
+        onTransactionSuccess: refreshUserBalances, // Pass the refresh function
+        onClearInput: handleClearInput // ADD: Pass the clear input function
     });
 
     // Make disabled handlers async
@@ -392,7 +397,6 @@ export const PoolInfoDisplay = () => {
             const userWlqiInfo = userAccountsInfo[0];
             const newWlqiBalance = userWlqiInfo ? decodeTokenAccountAmountBN(userWlqiInfo.data) : new BN(0);
             setUserWlqiBalance(newWlqiBalance);
-            console.log(`  Fetched user wLQI balance: ${newWlqiBalance.toString()}`);
 
             // Process other token balances into a separate map
             const newUserTokenBalancesMap = new Map<string, BN | null>();
@@ -404,8 +408,6 @@ export const PoolInfoDisplay = () => {
                     const mintAddressStr = mint.toBase58();
                     const newUserBalance = accInfo ? decodeTokenAccountAmountBN(accInfo.data) : new BN(0);
                     newUserTokenBalancesMap.set(mintAddressStr, newUserBalance);
-                    const tokenSymbol = oracleData?.data.find(t => t.address === mintAddressStr)?.symbol;
-                    console.log(`  Fetched user ${tokenSymbol ?? mintAddressStr} balance: ${newUserBalance.toString()}`);
                 } else {
                      console.warn(`[fetchUserAccountData] Could not find mint in map for key ${mapKey}.`);
                 }
@@ -427,14 +429,12 @@ export const PoolInfoDisplay = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps 
     useEffect(() => {
         if (!dynamicData || dynamicData.size === 0 || !oracleData || !wLqiSupply || wLqiDecimals === null) {
-            console.log("Calculation skipped, missing data");
             // Ensure derived state is reset if inputs are missing
             if (processedTokenData !== null) setProcessedTokenData(null);
             if (totalPoolValueScaled !== null) setTotalPoolValueScaled(null);
             if (wLqiValueScaled !== null) setWlqiValueScaled(null);
             return;
         }
-        console.log("Calculating derived values...");
         const processedData: ProcessedTokenData[] = [];
 
         oracleData.data.forEach(token => {
@@ -456,25 +456,19 @@ export const PoolInfoDisplay = () => {
                 vaultBalance: dynamic.vaultBalance,
                 decimals: dynamic.decimals,
                 priceData: decodedPrice,
-                // User balance is now sourced from userTokenBalances state
-                userBalance: null // Keep as null here, will be merged later if needed
+                userBalance: userTokenBalances.get(token.address) ?? null
             });
         });
 
         const totalValue = calculateTotalPoolValue(processedData);
         const wLqiValue = calculateWLqiValue(totalValue, wLqiSupply, wLqiDecimals);
 
-        console.log("Total Pool Value Scaled:", totalValue.toString());
-        console.log("wLQI Supply:", wLqiSupply);
-        console.log("wLQI Decimals:", wLqiDecimals);
-        console.log("wLQI Value Scaled:", wLqiValue?.toString());
-        console.log("Processed Data:", processedData);
         setProcessedTokenData(processedData);
         setTotalPoolValueScaled(totalValue);
         setWlqiValueScaled(wLqiValue);
 
     // Remove states set *in* this effect from dependency array to prevent infinite loop
-    }, [dynamicData, oracleData, wLqiSupply, wLqiDecimals]);
+    }, [dynamicData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances]);
 
     // --- Setup WebSocket Subscriptions ---
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -482,7 +476,6 @@ export const PoolInfoDisplay = () => {
         if (!connection || !poolConfig || !program || isLoadingPublicData) return;
         let active = true;
         const currentSubscriptionIds: number[] = [];
-        console.log("Setting up WS subs...");
 
         // 1. Subscribe to wLQI Mint (Fill arguments)
         try {
@@ -496,7 +489,6 @@ export const PoolInfoDisplay = () => {
                 "confirmed"
             );
             currentSubscriptionIds.push(wLqiSubId);
-            console.log(`Subscribed to wLQI Mint: ${poolConfig.wliMint.toBase58()}`);
         } catch (error) { console.error("wLQI Sub Error:", error); }
 
         // 2. Subscribe to Vaults
@@ -521,7 +513,6 @@ export const PoolInfoDisplay = () => {
                     "confirmed"
                 );
                 currentSubscriptionIds.push(vaultSubId);
-                console.log(`Subscribed to Vault: ${token.vault.toBase58()}`);
             } catch (error) { console.error(`Vault Sub Error (${token.mint.toBase58()}):`, error); }
         });
 
@@ -578,6 +569,87 @@ export const PoolInfoDisplay = () => {
     const openFaucet = () => {
         window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
     };
+
+    // --- ADD: WebSocket Subscription Effect ---
+    useEffect(() => {
+        if (!connection || !wallet.publicKey || !poolConfig || !poolConfig.wliMint) {
+            console.log("WS: Skipping subscriptions (missing connection, user, poolConfig, or wLqiMint)");
+            return; // Exit if core dependencies aren't ready
+        }
+
+        console.log("WS: Setting up account subscriptions for user:", wallet.publicKey.toBase58());
+        const subscriptionIds: number[] = [];
+
+        // Helper function for the subscription callback
+        const handleAccountUpdate = (accountInfo: AccountInfo<Buffer>, context: { slot: number }, mintAddress: string) => {
+            try {
+                const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
+                setUserTokenBalances(prevMap => {
+                    const newMap = new Map(prevMap);
+                    if (!prevMap.get(mintAddress)?.eq(newBalance)) {
+                        newMap.set(mintAddress, newBalance);
+                        return newMap;
+                    }
+                    return prevMap;
+                });
+            } catch (error) {
+                console.error(`WS: Error processing account update for ${mintAddress}:`, error);
+            }
+        };
+
+        // --- Subscribe to Token ATAs from poolConfig ---
+        poolConfig.supportedTokens.forEach(token => {
+            try {
+                const mintKey = token.mint;
+                if (!mintKey) {
+                    console.warn("WS: Skipping subscription for token with null mint address.");
+                    return; // Skip if mint is null
+                }
+                // FIX: Use type assertion
+                const userAta = getAssociatedTokenAddressSync(mintKey as PublicKey, wallet.publicKey);
+
+                const subId = connection.onAccountChange(
+                    userAta,
+                    (accountInfo, context) => handleAccountUpdate(accountInfo, context, mintKey.toBase58()), // Pass mint address as string
+                    'confirmed'
+                );
+                subscriptionIds.push(subId);
+            } catch (error) {
+                console.error(`WS: Failed to get ATA or subscribe for token ${token.mint?.toBase58()}:`, error);
+            }
+        });
+
+        // --- Subscribe to wLQI ATA ---
+        try {
+            const wLqiMintKey = poolConfig.wliMint;
+            if (!wLqiMintKey) {
+                console.error("WS: Cannot subscribe to wLQI, mint address is null in config.");
+                return; // Skip if mint is null
+            }
+            // FIX: Use type assertion
+            const userWlqiAta = getAssociatedTokenAddressSync(wLqiMintKey as PublicKey, wallet.publicKey);
+
+            const wLqiSubId = connection.onAccountChange(
+                userWlqiAta,
+                (accountInfo, context) => handleAccountUpdate(accountInfo, context, wLqiMintKey.toBase58()), // Pass wLQI mint as string
+                'confirmed'
+            );
+            subscriptionIds.push(wLqiSubId);
+        } catch (error) {
+             console.error(`WS: Failed to get ATA or subscribe for wLQI (${poolConfig.wliMint?.toBase58()}):`, error);
+        }
+
+        // --- Cleanup Function --- 
+        return () => {
+            console.log("WS: Cleaning up account subscriptions...");
+            subscriptionIds.forEach(id => {
+                connection.removeAccountChangeListener(id)
+                    .catch(err => console.error(`WS: Error unsubscribing ID ${id}:`, err));
+            });
+        };
+
+    // FIX: Update dependencies
+    }, [connection, wallet.publicKey, poolConfig, setUserTokenBalances]); 
 
     // Render Logic
     if (isLoadingPublicData) {

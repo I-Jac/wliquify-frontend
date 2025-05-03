@@ -8,20 +8,17 @@ import {
     SystemProgram, 
     SYSVAR_RENT_PUBKEY, 
     AccountMeta,
-    TransactionMessage, // Import necessary types for VersionedTransaction
-    VersionedTransaction, 
-    ComputeBudgetProgram, // Import ComputeBudgetProgram
-    LAMPORTS_PER_SOL, // Import LAMPORTS_PER_SOL
-    // Removed: TransactionInstruction
-    // Moved: createAssociatedTokenAccountInstruction
+    ComputeBudgetProgram,
+    LAMPORTS_PER_SOL,
+    Transaction,
+    TransactionInstruction
 } from '@solana/web3.js'; 
 import { 
     TOKEN_PROGRAM_ID, 
     ASSOCIATED_TOKEN_PROGRAM_ID, 
     getAssociatedTokenAddressSync, 
     getMint, 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    createAssociatedTokenAccountInstruction // Import from spl-token
+    createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 import { parseUnits } from 'ethers'; // Or your preferred BN library
 import { PoolConfig, SupportedToken } from '@/types'; // Local types import - OK
@@ -29,18 +26,7 @@ import { WLiquifyPool } from '@/types/w_liquify_pool';
 import toast from "react-hot-toast";
 import { findPoolAuthorityPDA, findPoolVaultPDA, findTokenHistoryPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
-
-// Define the structure matching the Rust PoolConfig if not imported
-// interface PoolConfig {
-//     admin: PublicKey;
-//     feeRecipient: PublicKey;
-//     wliMint: PublicKey;
-//     poolAuthorityBump: number;
-//     oracleProgramId: PublicKey;
-//     oracleAggregatorAccount: PublicKey;
-//     addressLookupTable: PublicKey;
-//     supportedTokens: { mint: PublicKey; vault: PublicKey; tokenHistory: PublicKey; priceFeed: PublicKey }[];
-// }
+import { useQueryClient } from '@tanstack/react-query'; // ADDED: Import useQueryClient
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
@@ -48,13 +34,15 @@ interface UsePoolInteractionsProps {
     poolConfigPda: PublicKey | null; // Address of the PoolConfig account
     oracleData: { data: { address: string; priceFeedId: string }[] } | null;
     onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>;
+    onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
 }
 
-export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, onTransactionSuccess }: UsePoolInteractionsProps) {
+export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, onTransactionSuccess, onClearInput }: UsePoolInteractionsProps) {
     const { connection } = useConnection();
     const wallet = useWallet();
     const { publicKey, signTransaction } = wallet;
     const { priorityFee } = useSettings(); // ADDED: Get priorityFee from context
+    const queryClient = useQueryClient(); // ADDED: Get queryClient instance
     const [isDepositing, setIsDepositing] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
 
@@ -69,13 +57,8 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             alert('Please enter a valid deposit amount.');
             return;
         }
-        if (!poolConfig.addressLookupTable || poolConfig.addressLookupTable.equals(SystemProgram.programId)) {
-             alert('Address Lookup Table not configured in pool settings.');
-             console.error("PoolConfig missing addressLookupTable");
-             return;
-        }
         if (!signTransaction) {
-             alert('Wallet does not support signing versioned transactions needed for this pool.');
+             alert('Wallet does not support signing transactions.');
              console.error("Wallet adapter does not provide signTransaction method.");
              return;
         }
@@ -107,7 +90,6 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             const poolAuthorityPda = findPoolAuthorityPDA();
             const userSourceAta = getAssociatedTokenAddressSync(depositMint, publicKey!);
             const targetTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, depositMint);
-            const historicalTokenDataPda = findTokenHistoryPDA(depositMint);
             const poolConfigAddress = poolConfigPda!;
 
             console.log("Depositing:", {
@@ -117,38 +99,19 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 tokenMint: depositMint.toBase58(),
                 poolVault: targetTokenVaultAta.toBase58(),
                 userTokenAccount: userSourceAta.toBase58(),
-                tokenHistoryAccount: historicalTokenDataPda.toBase58(),
                 amount: amountBn.toString(),
             });
 
-            // --- Prepare Remaining Accounts ---
-            const remainingAccounts: AccountMeta[] = poolConfig.supportedTokens.flatMap((st: SupportedToken) => {
-                const tokenMint = st.mint;
-                const oracleTokenInfo = oracleData.data.find(ot => ot.address === tokenMint.toBase58());
-                if (!oracleTokenInfo) {
-                     const errorMsg = `Oracle data not found for supported token ${tokenMint.toBase58()}`;
-                     console.error(errorMsg);
-                     throw new Error(errorMsg);
-                 }
-                 const priceFeedAddress = new PublicKey(oracleTokenInfo.priceFeedId);
-                
-                 const vaultAddress = st.vault;
-                 if (!vaultAddress) {
-                    const errorMsg = `Vault address missing for supported token ${tokenMint.toBase58()} in PoolConfig`;
-                    console.error(errorMsg);
-                    throw new Error(errorMsg);
-                 }
-                 
-                 const history = findTokenHistoryPDA(tokenMint);
-
-                return [
-                    { pubkey: vaultAddress, isSigner: false, isWritable: true }, 
-                    { pubkey: history, isSigner: false, isWritable: false },
-                    { pubkey: priceFeedAddress, isSigner: false, isWritable: false }
-                ];
-            });
-
-             console.log("Remaining Accounts Count:", remainingAccounts.length);
+            // Find the specific price feed for the deposit mint
+            const depositTokenInfo = poolConfig.supportedTokens.find(st => st.mint.equals(depositMint!));
+            if (!depositTokenInfo || !depositTokenInfo.priceFeed || depositTokenInfo.priceFeed.equals(SystemProgram.programId)) {
+                const errorMsg = `Price feed account not found or configured for deposit token ${depositMint.toBase58()} in PoolConfig`;
+                console.error(errorMsg);
+                toast.error(errorMsg, { id: toastId });
+                setIsDepositing(false);
+                throw new Error(errorMsg);
+            }
+            const depositPriceFeedAccount = depositTokenInfo.priceFeed;
 
             // --- Build Instructions (Compute Budget + Deposit) ---
             const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
@@ -163,9 +126,8 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 .accounts({ 
                     user: publicKey!,
                     userSourceAta: userSourceAta,
-                    // @ts-expect-error // Use preferred suppression comment
-                    feeRecipient: poolConfig!.feeRecipient,
-                    poolConfig: { pubkey: poolConfigPda!, isWritable: false },
+                    // @ts-expect-error // Keep suppression for deposit poolConfig if needed
+                    poolConfig: poolConfigPda!,
                     poolAuthority: findPoolAuthorityPDA(),
                     wliMint: poolConfig!.wliMint,
                     userWliAta: getAssociatedTokenAddressSync(poolConfig!.wliMint, publicKey!),
@@ -173,48 +135,34 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                     depositMint: depositMint,
                     targetTokenVaultAta: targetTokenVaultAta,
                     oracleAggregatorAccount: poolConfig!.oracleAggregatorAccount,
+                    depositPriceFeed: depositPriceFeedAccount,
                     tokenProgram: TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
-                    historicalTokenData: { pubkey: historicalTokenDataPda, isWritable: false },
                 })
-                .remainingAccounts(remainingAccounts)
                 .instruction();
 
-            // --- Fetch ALT --- 
-            console.log(`Fetching ALT: ${poolConfig.addressLookupTable.toBase58()}`);
-            const lookupTableAccount = await connection
-                .getAddressLookupTable(poolConfig.addressLookupTable)
-                .then((res) => res.value);
-
-            if (!lookupTableAccount) {
-                throw new Error("Address lookup table not found.");
-            }
-            console.log("ALT fetched successfully.");
-
-            // --- Create Versioned Transaction --- 
+            // --- Create Transaction (Not Versioned) --- 
             const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            const messageV0 = new TransactionMessage({
-                payerKey: publicKey!,
-                recentBlockhash: blockhash,
-                instructions: [
-                    modifyComputeUnits, // Add CU limit instruction
-                    addPriorityFee,     // Add priority fee instruction
-                    depositInstruction  // The main deposit instruction
-                ], 
-            }).compileToV0Message([lookupTableAccount]);
+            const transaction = new Transaction().add(
+                modifyComputeUnits, // Add CU limit instruction
+                addPriorityFee,     // Add priority fee instruction
+                depositInstruction  // The main deposit instruction
+            );
+            transaction.feePayer = publicKey!;
+            transaction.recentBlockhash = blockhash;
 
-            const transactionV0 = new VersionedTransaction(messageV0);
-            console.log("Versioned transaction created with increased CU limit.");
+            console.log("Signing transaction...");
 
             // --- Sign and Send --- 
-            console.log("Signing transaction...");
-            const signedTransaction = await signTransaction(transactionV0);
+            const signedTransaction = await signTransaction(transaction);
             console.log("Sending transaction...");
-            const txid = await connection.sendTransaction(signedTransaction, {
-                skipPreflight: true, // Keep skipPreflight for complex txns
+            // Use sendRawTransaction for legacy Transaction
+            const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
+                skipPreflight: true, // Keep skipPreflight for potentially complex txns
             });
+            // --- REMOVED connection.sendTransaction check for deposit --- 
             console.log("Transaction sent, signature:", txid);
 
             // --- Confirm Transaction --- 
@@ -240,11 +188,13 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
 
             console.log('Deposit successful!');
             toast.success(`Deposit successful! Tx: ${txid.substring(0, 8)}...`, { id: toastId });
-            // --- ADDED: Trigger balance refresh --- 
+            // --- ADDED: Trigger balance refresh and clear input --- 
             if (depositMint) {
                 await onTransactionSuccess(depositMint.toBase58());
+                onClearInput(depositMint.toBase58(), 'deposit'); // Clear deposit input
             } else {
-                 await onTransactionSuccess(); // Refresh wLQI at least
+                 await onTransactionSuccess(); // Refresh wLQI at least (shouldn't happen here)
+                 // Potentially clear all inputs if mint is unknown? Or do nothing.
             }
             // --- END ADD --- 
 
@@ -289,208 +239,260 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         } finally {
             setIsDepositing(false);
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, wallet]);
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, wallet, onClearInput]);
 
-    // --- handleWithdraw --- 
-    const handleWithdraw = useCallback(async (mintAddress: string, amountString: string) => {
+    // --- handleWithdraw ---
+    const handleWithdraw = useCallback(async (
+        outputMintAddress: string, // Mint address of the token the user WANTS to receive
+        wliAmountString: string,   // Amount of wLQI the user wants to BURN
+        // decimals: number | null // REMOVED - wLQI decimals are fetched from poolConfig
+    ) => {
         // --- Pre-flight Checks ---
-        if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData) {
-           toast.error("Program, wallet, or pool config not available for withdrawal.");
-           console.error("Withdraw prerequisites not met:", { program, wallet, poolConfig, poolConfigPda });
-           return;
+        // FIX: Check base prerequisites first
+        if (!program || !publicKey || !poolConfig || !poolConfigPda) {
+            toast.error("Program, wallet, or pool config not available for withdrawal.");
+            console.error("Withdraw prerequisites met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
+            return;
         }
-        // Check amountString validity
-        if (!amountString || parseFloat(amountString) <= 0) {
-           alert('Please enter a valid withdraw amount (in wLQI).');
-           return;
-        }
-        if (!poolConfig.addressLookupTable || poolConfig.addressLookupTable.equals(SystemProgram.programId)) {
-             alert('Address Lookup Table not configured in pool settings.');
-             console.error("PoolConfig missing addressLookupTable");
-             return;
+        // REFACTOR: Check wliAmountString
+        if (!wliAmountString || parseFloat(wliAmountString) <= 0) {
+            alert('Please enter a valid wLQI amount to withdraw.');
+            return;
         }
         if (!signTransaction) {
-             alert('Wallet does not support signing versioned transactions needed for this pool.');
+             alert('Wallet does not support signing transactions.');
              console.error("Wallet adapter does not provide signTransaction method.");
              return;
         }
 
-       setIsWithdrawing(true);
-       const toastId = toast.loading("Processing withdrawal...");
-       let withdrawMint: PublicKey | null = null; // Keep track of the mint
-
+        // --- Check SOL Balance (same as deposit) ---
+        const minSolBalanceLamports = 100000; 
         try {
-            withdrawMint = new PublicKey(mintAddress);
-            let wLqiDecimals: number;
-            try {
-                const wliMintInfo = await getMint(connection, poolConfig.wliMint);
-                wLqiDecimals = wliMintInfo.decimals;
-            } catch (e) {
-                console.error("Failed to fetch wLQI mint info:", e);
-                toast.error("Could not fetch wLQI token details. Cannot proceed with withdrawal.");
-                setIsWithdrawing(false);
+            const balance = await connection.getBalance(publicKey!);
+            if (balance < minSolBalanceLamports) {
+                toast.error(`Insufficient SOL balance for transaction fees. Need ~${minSolBalanceLamports / LAMPORTS_PER_SOL} SOL.`);
+                console.error(`Insufficient SOL balance: ${balance} lamports. Need ${minSolBalanceLamports} lamports.`);
                 return;
             }
-            
-            const wLqiAmountBn = new BN(parseUnits(amountString, wLqiDecimals).toString());
+        } catch (balanceError) {
+            toast.error("Could not verify SOL balance.");
+            console.error("Failed to fetch SOL balance:", balanceError);
+            return;
+        }
+
+
+        setIsWithdrawing(true);
+        const toastId = toast.loading("Processing withdrawal...");
+        let outputMint: PublicKey | null = null; // Keep track of the output mint
+
+        try {
+            outputMint = new PublicKey(outputMintAddress);
+            // FIX: Fetch wLQI decimals using getMint
+            const wliMintInfo = await getMint(connection, poolConfig.wliMint);
+            const wliDecimals = wliMintInfo.decimals;
+            if (typeof wliDecimals !== 'number') { // Add check after fetching
+                toast.error("Could not determine wLQI decimals.");
+                throw new Error('wLQI decimals not found');
+            }
+            const wliAmountBn = new BN(parseUnits(wliAmountString, wliDecimals).toString());
+
+            // --- Find the specific token info for the OUTPUT mint ---
+            const outputTokenInfo = poolConfig.supportedTokens.find(st => st.mint.equals(outputMint!));
+            if (!outputTokenInfo || !outputTokenInfo.priceFeed || outputTokenInfo.priceFeed.equals(SystemProgram.programId)) {
+                const errorMsg = `Price feed account not found or configured for output token ${outputMint.toBase58()} in PoolConfig`;
+                console.error(errorMsg);
+                toast.error(errorMsg, { id: toastId });
+                setIsWithdrawing(false);
+                throw new Error(errorMsg);
+            }
+            const outputPriceFeedAccount = outputTokenInfo.priceFeed;
+
+            // --- Derive PDAs and ATAs ---
             const poolAuthorityPda = findPoolAuthorityPDA();
-            const sourceTokenVaultAta = getAssociatedTokenAddressSync(withdrawMint, poolAuthorityPda, true);
-            const userDestAta = getAssociatedTokenAddressSync(withdrawMint, publicKey!);
             const userWliAta = getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey!);
-            const historicalTokenDataPda = findTokenHistoryPDA(withdrawMint);
+            const userDestinationAta = getAssociatedTokenAddressSync(outputMint, publicKey!); // User's ATA for the output token
+            const sourceTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, outputMint); // Pool's vault for the output token
+            const ownerFeeAccount = getAssociatedTokenAddressSync(poolConfig.wliMint, poolConfig.feeRecipient, true);
             const poolConfigAddress = poolConfigPda!;
 
-            console.log("Withdrawing:", {
+            console.log("Withdrawing (wLQI):", {
                 user: publicKey!.toBase58(),
                 poolConfig: poolConfigAddress.toBase58(),
                 poolAuthority: poolAuthorityPda.toBase58(),
-                tokenMint: withdrawMint.toBase58(),
-                poolSourceVault: sourceTokenVaultAta.toBase58(),
-                userDestinationAccount: userDestAta.toBase58(),
-                userWliAccount: userWliAta.toBase58(),
-                tokenHistoryAccount: historicalTokenDataPda.toBase58(),
-                wLqiAmount: wLqiAmountBn.toString(),
-                wLqiDecimals: wLqiDecimals,
+                wLqiMint: poolConfig.wliMint.toBase58(),
+                outputTokenMint: outputMint.toBase58(),
+                userWliAta: userWliAta.toBase58(),
+                userDestinationAta: userDestinationAta.toBase58(),
+                poolTokenVault: sourceTokenVaultAta.toBase58(),
+                wliAmountToBurn: wliAmountBn.toString(),
             });
 
-             // --- Prepare Remaining Accounts (Similar to deposit) ---
-             const remainingAccounts: AccountMeta[] = poolConfig.supportedTokens.flatMap((st: SupportedToken) => {
-                const tokenMint = st.mint;
-                const oracleTokenInfo = oracleData.data.find(ot => ot.address === tokenMint.toBase58());
-                if (!oracleTokenInfo) {
-                    throw new Error(`Oracle data missing for ${tokenMint.toBase58()}`);
-                }
-                const priceFeedAddress = new PublicKey(oracleTokenInfo.priceFeedId);
-                const vaultAddress = st.vault;
-                if (!vaultAddress) {
-                    throw new Error(`Vault missing for ${tokenMint.toBase58()}`);
-                }
-                const history = findTokenHistoryPDA(tokenMint);
-                return [
-                    { pubkey: vaultAddress, isSigner: false, isWritable: false },
-                    { pubkey: history, isSigner: false, isWritable: false },
-                    { pubkey: priceFeedAddress, isSigner: false, isWritable: false }
-                ];
-            });
-            console.log("Withdraw Remaining Accounts Count:", remainingAccounts.length);
+            // --- Create User Destination ATA if it doesn't exist ---
+            let preInstructions: TransactionInstruction[] = [];
+            try {
+                await connection.getAccountInfo(userDestinationAta);
+            } catch (error) {
+                // Assuming error means account not found
+                console.log("User destination ATA not found, creating:", userDestinationAta.toBase58());
+                preInstructions.push(
+                    createAssociatedTokenAccountInstruction(
+                        publicKey!,           // Payer
+                        userDestinationAta,   // ATA address
+                        publicKey!,           // Owner of the ATA
+                        outputMint            // Mint
+                    )
+                );
+            }
 
             // --- Build Instructions (Compute Budget + Withdraw) ---
-            const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 1200000 }); // Ensure ample CUs
-            const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
-                microLamports: priorityFee // Use fee from settings context
+            const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+                units: 1400000 // Withdraw might need more than deposit
+            });
+            const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+                microLamports: priorityFee
             });
 
+            // REFACTOR: Update accounts for withdraw instruction
             const withdrawInstruction = await program!.methods
-                .withdraw(wLqiAmountBn, withdrawMint)
-                .accounts({ 
+                .withdraw(wliAmountBn) // Pass the wLQI amount to burn
+                .accounts({
                     user: publicKey!,
                     userWliAta: userWliAta,
-                    // @ts-expect-error // Suppress potential similar build error
-                    userDestAta: userDestAta,
-                    feeRecipient: poolConfig!.feeRecipient,
-                    poolConfig: { pubkey: poolConfigPda!, isWritable: false },
+                    // @ts-expect-error // Re-add suppression if type update hasn't propagated yet
+                    userDestinationAta: userDestinationAta, // Renamed
+                    feeRecipient: poolConfig.feeRecipient,
+                    poolConfig: poolConfigPda!,
                     poolAuthority: poolAuthorityPda,
-                    wliMint: poolConfig!.wliMint,
-                    ownerFeeAccount: getAssociatedTokenAddressSync(poolConfig!.wliMint, poolConfig!.feeRecipient, true),
-                    desiredTokenMint: withdrawMint,
+                    wliMint: poolConfig.wliMint,
+                    ownerFeeAccount: ownerFeeAccount,
+                    withdrawMint: outputMint, // Renamed
                     sourceTokenVaultAta: sourceTokenVaultAta,
-                    oracleAggregatorAccount: poolConfig!.oracleAggregatorAccount,
+                    oracleAggregatorAccount: poolConfig.oracleAggregatorAccount, // Added
+                    withdrawPriceFeed: outputPriceFeedAccount, // Use output token's feed
                     tokenProgram: TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
-                    historicalTokenData: { pubkey: historicalTokenDataPda, isWritable: false },
+                    // historicalTokenData: REMOVED
                 })
-                .remainingAccounts(remainingAccounts)
                 .instruction();
 
-            // --- Fetch ALT, Create Txn, Sign, Send, Confirm (Similar to Deposit) ---
-            console.log(`Fetching ALT: ${poolConfig.addressLookupTable.toBase58()}`);
-            const lookupTableAccount = await connection.getAddressLookupTable(poolConfig.addressLookupTable).then(res => res.value);
-            if (!lookupTableAccount) throw new Error("ALT not found.");
-
+            // --- Create Transaction (Standard Transaction) ---
+            // REFACTOR: Use standard Transaction, remove LUT logic
             const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            const messageV0 = new TransactionMessage({
-                payerKey: publicKey!,
-                recentBlockhash: blockhash,
-                instructions: [modifyComputeUnits, addPriorityFee, withdrawInstruction],
-            }).compileToV0Message([lookupTableAccount]);
-            const transactionV0 = new VersionedTransaction(messageV0);
+            const transaction = new Transaction();
+
+            // Add pre-instructions first if any (e.g., create ATA)
+            if (preInstructions.length > 0) {
+                transaction.add(...preInstructions);
+            }
+
+            transaction.add(
+                modifyComputeUnits,
+                addPriorityFee,
+                withdrawInstruction
+            );
+            transaction.feePayer = publicKey!;
+            transaction.recentBlockhash = blockhash;
 
             console.log("Signing withdrawal transaction...");
-            const signedTransaction = await signTransaction(transactionV0);
+            const signedTransaction = await signTransaction(transaction);
             console.log("Sending withdrawal transaction...");
-            const txid = await connection.sendTransaction(signedTransaction, { skipPreflight: true });
+            const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
+                skipPreflight: true,
+            });
             console.log("Withdrawal transaction sent, signature:", txid);
 
+            // --- Confirm Transaction ---
             console.log("Confirming withdrawal transaction...");
             toast.loading(`Confirming withdrawal... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
-            const confirmation = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+            const confirmation = await connection.confirmTransaction({
+                signature: txid,
+                blockhash: blockhash,
+                lastValidBlockHeight: lastValidBlockHeight
+             }, 'confirmed');
 
             if (confirmation.value.err) {
                 console.error('Withdrawal Confirmation Error:', confirmation.value.err);
                 try {
                     const failedTx = await connection.getTransaction(txid, { maxSupportedTransactionVersion: 0 });
-                    console.error('Failed Withdrawal Logs:', failedTx?.meta?.logMessages);
+                    console.error('Failed Withdrawal Transaction Logs:', failedTx?.meta?.logMessages);
                 } catch (logError) {
-                    console.error('Could not fetch logs for failed withdrawal:', logError);
+                    console.error('Could not fetch logs for failed withdrawal transaction:', logError);
                 }
-                throw new Error(`Withdrawal failed confirmation: ${JSON.stringify(confirmation.value.err)}`);
+                throw new Error(`Withdrawal transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`);
             }
 
+            console.log('Withdrawal successful!');
             toast.success(`Withdrawal successful! Tx: ${txid.substring(0, 8)}...`, { id: toastId });
-            // --- ADDED: Trigger balance refresh --- 
-            if (withdrawMint) {
-                await onTransactionSuccess(withdrawMint.toBase58());
+            // --- ADDED: Trigger balance refresh and clear input --- 
+            if (outputMint) {
+                 await onTransactionSuccess(outputMint.toBase58());
+                 onClearInput(outputMint.toBase58(), 'withdraw'); // Clear withdraw input for this token row
             } else {
-                await onTransactionSuccess(); // Refresh wLQI at least
+                await onTransactionSuccess(); // Should always have mint, but refresh wLQI as fallback
             }
-            // --- END ADD --- 
+             // --- END ADD --- 
 
         } catch (error: unknown) { // Type error as unknown
-            console.error("Withdrawal failed Raw:", error);
-            let errorMessage = 'Unknown error';
-            let errorLogs: string[] | null | undefined = null;
-
-            // Refined type-safe check for logs property
-            if (typeof error === 'object' && error !== null && Object.prototype.hasOwnProperty.call(error, 'logs')) {
-                const potentialLogs = (error as { logs?: unknown }).logs;
-                if (Array.isArray(potentialLogs)) {
-                    // Check if array elements are strings (optional but safer)
-                    if (potentialLogs.every(item => typeof item === 'string')) {
-                         errorLogs = potentialLogs as string[];
-                    }
-                }
-            }
-            
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (!errorLogs) { // Only stringify if it's not an Error and logs weren't found
-                try {
-                    errorMessage = JSON.stringify(error);
-                } catch { /* Ignore stringify errors */ }
-            }
-
-            if (errorLogs) {
-                 console.error("Withdrawal Transaction Logs (from error object):", errorLogs);
-                 // Set error message from logs if primary message is generic
-                 if (errorMessage === 'Unknown error' || errorMessage === 'Error' || !errorMessage) {
-                     errorMessage = errorLogs.find(log => log.toLowerCase().includes('error')) || errorLogs[errorLogs.length - 1] || 'Withdrawal failed, see logs.';
+             console.error("Withdrawal failed Raw:", error); // Log the whole error object
+             let errorMessage = 'Unknown withdrawal error';
+             let errorLogs: string[] | null | undefined = null;
+ 
+             // Refined type-safe check for logs property
+             if (typeof error === 'object' && error !== null && Object.prototype.hasOwnProperty.call(error, 'logs')) {
+                 const potentialLogs = (error as { logs?: unknown }).logs;
+                 if (Array.isArray(potentialLogs)) {
+                     if (potentialLogs.every(item => typeof item === 'string')) {
+                          errorLogs = potentialLogs as string[];
+                     }
                  }
-            }
-             // Ensure errorMessage is set if it wasn't found via other means
-            if (!errorMessage) { 
-                errorMessage = 'An unknown error occurred during withdrawal.'; 
-            }
+             }
+             
+             if (error instanceof Error) {
+                 errorMessage = error.message;
+             } else if (!errorLogs) {
+                 try {
+                     errorMessage = JSON.stringify(error);
+                 } catch { /* Ignore stringify errors */ }
+             }
+ 
+             if (errorLogs) {
+                  console.error("Withdrawal Transaction Logs (from error object):", errorLogs);
+                  if (errorMessage === 'Unknown withdrawal error' || errorMessage === 'Error' || !errorMessage) {
+                      errorMessage = errorLogs.find(log => log.toLowerCase().includes('error')) || errorLogs[errorLogs.length - 1] || 'Withdrawal failed, see logs.';
+                  }
+             }
+              if (!errorMessage) { 
+                  errorMessage = 'An unknown error occurred during withdrawal.'; 
+              }
+             
+             toast.error(`Withdrawal failed: ${errorMessage.substring(0, 60)}${errorMessage.length > 60 ? '...' : ''}`, { id: toastId });
+ 
 
-            toast.error(`Withdraw failed: ${errorMessage.substring(0, 60)}${errorMessage.length > 60 ? '...' : ''}`, { id: toastId });
         } finally {
             setIsWithdrawing(false);
         }
+        // REFACTOR: Update dependencies array
+    }, [program, publicKey, poolConfig, poolConfigPda, connection, signTransaction, onTransactionSuccess, priorityFee, wallet]); // Removed oracleData as direct dependency, using poolConfig
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee]);
+    // Helper function to convert readable amount to lamports BN
+    const toLamports = (amount: string, decimals: number): string => {
+        // Use fixed-point arithmetic to avoid floating point issues
+        const parts = amount.split('.');
+        const integerPart = parts[0];
+        let fractionalPart = parts.length > 1 ? parts[1] : '';
 
+        // Pad fractional part to match decimals
+        if (fractionalPart.length > decimals) {
+            fractionalPart = fractionalPart.substring(0, decimals);
+        } else {
+            fractionalPart = fractionalPart.padEnd(decimals, '0');
+        }
+
+        const lamportsString = integerPart + fractionalPart;
+        return lamportsString; // Return as string for BN constructor
+    };
 
     return {
         handleDeposit,

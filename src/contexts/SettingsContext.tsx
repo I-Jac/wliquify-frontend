@@ -10,8 +10,8 @@ export type FeeLevel = 'Normal' | 'Fast' | 'Turbo' | 'Custom';
 const DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
 const DEFAULT_CUSTOM_PRIORITY_FEE = 10000; // Default custom microLamports if custom is selected but no value set
 const DEFAULT_FEE_LEVEL: FeeLevel = 'Normal';
-//const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
-const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
+const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
+//const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
 
 // Placeholder dynamic fees - will be updated by fetchDynamicFees
 const DEFAULT_DYNAMIC_FEES = {

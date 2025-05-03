@@ -484,6 +484,7 @@ export type WLiquifyPool = {
         },
         {
           "name": "poolConfig",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -812,7 +813,13 @@ export type WLiquifyPool = {
           }
         },
         {
-          "name": "oracleAggregatorAccount"
+          "name": "oracleAggregatorAccount",
+          "relations": [
+            "poolConfig"
+          ]
+        },
+        {
+          "name": "depositPriceFeed"
         },
         {
           "name": "tokenProgram",
@@ -829,35 +836,6 @@ export type WLiquifyPool = {
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
-        },
-        {
-          "name": "historicalTokenData",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  104,
-                  105,
-                  115,
-                  116,
-                  111,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "depositMint"
-              }
-            ]
-          }
         }
       ],
       "args": [
@@ -1036,6 +1014,52 @@ export type WLiquifyPool = {
       "args": []
     },
     {
+      "name": "updateTotalValue",
+      "discriminator": [
+        238,
+        51,
+        15,
+        154,
+        26,
+        150,
+        144,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "poolConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "addressLookupTable",
+          "docs": [
+            "Further validation (owner, initialization) could be added if desired, similar to set_lookup_table."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "withdraw",
       "discriminator": [
         183,
@@ -1058,7 +1082,7 @@ export type WLiquifyPool = {
           "writable": true
         },
         {
-          "name": "userDestAta",
+          "name": "userDestinationAta",
           "docs": [
             "The ATA owned by the user where they will receive the withdrawn tokens."
           ],
@@ -1108,7 +1132,7 @@ export type WLiquifyPool = {
               },
               {
                 "kind": "account",
-                "path": "desiredTokenMint"
+                "path": "withdrawMint"
               }
             ],
             "program": {
@@ -1152,13 +1176,13 @@ export type WLiquifyPool = {
         },
         {
           "name": "feeRecipient",
-          "writable": true,
           "relations": [
             "poolConfig"
           ]
         },
         {
           "name": "poolConfig",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -1304,7 +1328,7 @@ export type WLiquifyPool = {
           }
         },
         {
-          "name": "desiredTokenMint"
+          "name": "withdrawMint"
         },
         {
           "name": "sourceTokenVaultAta",
@@ -1354,7 +1378,7 @@ export type WLiquifyPool = {
               },
               {
                 "kind": "account",
-                "path": "desiredTokenMint"
+                "path": "withdrawMint"
               }
             ],
             "program": {
@@ -1397,36 +1421,13 @@ export type WLiquifyPool = {
           }
         },
         {
-          "name": "oracleAggregatorAccount"
+          "name": "oracleAggregatorAccount",
+          "relations": [
+            "poolConfig"
+          ]
         },
         {
-          "name": "historicalTokenData",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  104,
-                  105,
-                  115,
-                  116,
-                  111,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "desiredTokenMint"
-              }
-            ]
-          }
+          "name": "withdrawPriceFeed"
         },
         {
           "name": "tokenProgram",
@@ -1447,12 +1448,8 @@ export type WLiquifyPool = {
       ],
       "args": [
         {
-          "name": "wliAmount",
+          "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "desiredTokenMintArg",
-          "type": "pubkey"
         }
       ]
     }
@@ -1846,6 +1843,10 @@ export type WLiquifyPool = {
           {
             "name": "addressLookupTable",
             "type": "pubkey"
+          },
+          {
+            "name": "currentTotalPoolValueScaled",
+            "type": "u128"
           },
           {
             "name": "supportedTokens",
