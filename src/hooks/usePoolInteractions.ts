@@ -244,8 +244,9 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
     // --- handleWithdraw ---
     const handleWithdraw = useCallback(async (
         outputMintAddress: string, // Mint address of the token the user WANTS to receive
-        wliAmountString: string,   // Amount of wLQI the user wants to BURN
+        wliAmountString: string,   // Amount of wLQI the user wants to BURN (or "0" for full delisted)
         // decimals: number | null // REMOVED - wLQI decimals are fetched from poolConfig
+        isFullDelistedWithdraw: boolean = false // ADDED: Flag for new mode
     ) => {
         // --- Pre-flight Checks ---
         // FIX: Check base prerequisites first
@@ -254,8 +255,8 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             console.error("Withdraw prerequisites met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
             return;
         }
-        // REFACTOR: Check wliAmountString
-        if (!wliAmountString || parseFloat(wliAmountString) <= 0) {
+        // REFACTOR: Check wliAmountString ONLY if it's NOT a full delisted withdrawal
+        if (!isFullDelistedWithdraw && (!wliAmountString || parseFloat(wliAmountString) <= 0)) {
             alert('Please enter a valid wLQI amount to withdraw.');
             return;
         }
@@ -294,7 +295,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 toast.error("Could not determine wLQI decimals.");
                 throw new Error('wLQI decimals not found');
             }
-            const wliAmountBn = new BN(parseUnits(wliAmountString, wliDecimals).toString());
+            const wliAmountBn = isFullDelistedWithdraw ? new BN(0) : new BN(parseUnits(wliAmountString, wliDecimals).toString());
 
             // --- Find the specific token info for the OUTPUT mint ---
             const outputTokenInfo = poolConfig.supportedTokens.find(st => st.mint.equals(outputMint!));
@@ -352,13 +353,14 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 microLamports: priorityFee
             });
 
-            // REFACTOR: Update accounts for withdraw instruction
+            // REMOVED @ts-expect-error
             const withdrawInstruction = await program!.methods
-                .withdraw(wliAmountBn) // Pass the wLQI amount to burn
+                .withdraw(wliAmountBn, isFullDelistedWithdraw) // Pass BOTH arguments
                 .accounts({
                     user: publicKey!,
                     userWliAta: userWliAta,
-                    // @ts-expect-error // Re-add suppression if type update hasn't propagated yet
+                    // RE-ADD Suppression if type update hasn't propagated yet
+                    // @ts-expect-error
                     userDestinationAta: userDestinationAta, // Renamed
                     feeRecipient: poolConfig.feeRecipient,
                     poolConfig: poolConfigPda!,

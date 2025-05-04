@@ -29,7 +29,7 @@ interface TokenTableProps {
     wLqiDecimals: number | null;
     userWlqiBalance: BN | null;
     onDeposit: (mintAddress: string, amountString: string, decimals: number | null) => Promise<void>;
-    onWithdraw: (mintAddress: string, amountString: string, decimals: number | null) => Promise<void>;
+    onWithdraw: (mintAddress: string, amountString: string, isFullDelistedWithdraw?: boolean) => Promise<void>;
     isDepositing: boolean;
     isWithdrawing: boolean;
     depositAmounts: Record<string, string>;
@@ -377,33 +377,19 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         return;
                     }
 
-                    // Check against pool liquidity (how much token is actually available)
-                    const requiredTokenAmountBn_scaled = usdToTokenAmount(T_usd_scaled, token.decimals, token.priceData);
-                    const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
-
-                    if (requiredTokenAmountBn.gt(token.vaultBalance)) {
-                        console.warn(`Delisted Withdraw Target: Required token amount (${requiredTokenAmountBn.toString()}) > Vault Balance (${token.vaultBalance.toString()}). Adjusting wLQI amount.`);
-                        toast("Insufficient pool liquidity. Setting amount to withdraw max available token value.", { icon: '⚠️' });
-                        // Recalculate based on actual vault balance
-                        const actualWithdrawableValueUsd = calculateTokenValueUsdScaled(token.vaultBalance, token.decimals, token.priceData);
-                        if (!actualWithdrawableValueUsd) {
-                             toast.error("Failed to recalculate withdrawable value.");
-                             return;
-                        }
-                        requiredWlqiAmountBn = usdToWlqiAmount(actualWithdrawableValueUsd, wLqiValueScaled, wLqiDecimals);
-                        if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
-                            toast.error("Adjusted wLQI amount is zero or negative.");
-                            return;
-                        }
-                    }
+                    // Simplified Liquidity Check: Already checked vaultBalance > 0 at the start of the isDelisted block.
+                    // We are calculating wLQI for the *entire* vault balance.
 
                     // Check against user's wLQI balance AFTER potentially adjusting for liquidity
                     if (userWlqiBalance && requiredWlqiAmountBn.gt(userWlqiBalance)) {
                         console.log(`Target wLQI withdraw amount (${requiredWlqiAmountBn.toString()}) exceeds user balance (${userWlqiBalance.toString()}). Falling back to max user balance.`);
                         toast("Required wLQI withdraw amount exceeds your balance. Setting to max.", { icon: '⚠️' });
+                        // Set to user's max wLQI, no +1 needed here as it's the absolute limit
                         amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
                     } else {
-                        amountToSet = formatUnits(requiredWlqiAmountBn.toString(), wLqiDecimals);
+                        // Add 1 smallest unit (lamport) to ensure full withdrawal due to potential floor division
+                        const finalWlqiAmountBn = requiredWlqiAmountBn.add(new BN(1));
+                        amountToSet = formatUnits(finalWlqiAmountBn.toString(), wLqiDecimals);
                     }
                 } 
                 // --- Handle Delisted Withdraw Target --- END
@@ -838,7 +824,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
             }
 
             // Withdraw Fee/Color
+            // Check fee only if liquidity is sufficient (and not delisted - handled by override)
             if (!withdrawalExceedsLiquidity) {
+                // Only check estimated fee for non-delisted tokens
                 if (estimatedWithdrawFeeBps === 0) {
                     withdrawBtnClass = BTN_GREEN;
                 } else if (estimatedWithdrawFeeBps > 0) {
@@ -857,6 +845,32 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     : formatFeeString(estimatedWithdrawFeeBps, false, withdrawDynamicFeeBpsBN);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
+        }
+
+        // --- Withdrawal Overrides --- Apply in order:
+
+        // 1. Check Insufficient User Balance
+        if (withdrawInsufficientBalance) {
+            withdrawLabel = "Insufficient wLQI";
+            withdrawTitle = "Withdrawal amount exceeds your wLQI balance";
+            withdrawButtonDisabled = true; 
+            withdrawBtnClass = BTN_GRAY;
+        } 
+        // 2. Check Zero Pool Balance (Only applies if user balance is sufficient)
+        else if (isDelisted && (!vaultBalance || vaultBalance.isZero())) { 
+            withdrawLabel = "Pool Empty";
+            withdrawTitle = "No balance of this delisted token in the pool to withdraw.";
+            withdrawButtonDisabled = true;
+            withdrawBtnClass = BTN_GRAY;
+        } 
+        // 3. Check Insufficient Pool Liquidity (Only applies if user balance sufficient AND pool not empty)
+        else if (withdrawalExceedsLiquidity) { 
+            // Override withdraw display for liquidity error
+            // FIX: Make label and title specific to the pool token
+            withdrawTitle = `Pool lacks sufficient ${symbol} for withdrawal`;
+            withdrawLabel = `Insufficient Pool ${symbol}`;
+            withdrawButtonDisabled = true; 
+            withdrawBtnClass = BTN_GRAY;
         }
 
         // --- Formatting & USD Value Calcs --- 
@@ -910,7 +924,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         if (depositInsufficientBalance) {
             depositLabel = `Insufficient User ${symbol}`;
             depositTitle = `Deposit amount exceeds your ${symbol} balance`;
-            depositButtonDisabled = true; 
+            depositButtonDisabled = true;
             depositBtnClass = BTN_GRAY;
         }
         if (withdrawInsufficientBalance) {
@@ -918,18 +932,43 @@ export const TokenTable = React.memo<TokenTableProps>(({
             withdrawTitle = "Withdrawal amount exceeds your wLQI balance";
             withdrawButtonDisabled = true; 
             withdrawBtnClass = BTN_GRAY;
-        } else if (withdrawalExceedsLiquidity) {
-            // Override withdraw display for liquidity error
-            // FIX: Make label and title specific to the pool token
-            withdrawTitle = `Pool lacks sufficient ${symbol} for withdrawal`;
-            withdrawLabel = `Insufficient Pool ${symbol}`;
-            withdrawButtonDisabled = true; 
-            withdrawBtnClass = BTN_GRAY;
         }
 
         // --- Prepare Button Callbacks ---
         const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
-        const handleActualWithdraw = () => onWithdraw(mintAddress, currentWithdrawAmount, wLqiDecimals);
+        const handleActualWithdraw = () => onWithdraw(mintAddress, currentWithdrawAmount, false);
+        const handleFullDelistedWithdraw = () => onWithdraw(mintAddress, "0", true);
+
+        // --- Calculate required wLQI for delisted --- START
+        let requiredWlqiForDelistedBn: BN | null = null;
+        let requiredWlqiForDelistedFormatted: string | null = null;
+        let userHasEnoughForDelisted = false;
+
+        if (isDelisted && vaultBalance && !vaultBalance.isZero() && decimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
+             try {
+                 const T_usd_scaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
+                 if (T_usd_scaled && T_usd_scaled.gtn(0)) {
+                     // Calculate target value (T_usd_scaled / 1.05)
+                     const bonusNumerator = new BN(100);
+                     const bonusDenominator = new BN(105);
+                     const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
+                     const requiredWlqi = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
+                     // Add 1 lamport to ensure full withdrawal
+                     requiredWlqiForDelistedBn = requiredWlqi.add(new BN(1));
+                     requiredWlqiForDelistedFormatted = formatRawAmountString(requiredWlqiForDelistedBn.toString(), wLqiDecimals, true, 4); // Show more precision
+
+                     if (userWlqiBalance && requiredWlqiForDelistedBn.lte(userWlqiBalance)) {
+                         userHasEnoughForDelisted = true;
+                     }
+                 }
+             } catch (e) {
+                 console.error(`Error calculating required wLQI for delisted ${symbol}:`, e);
+                 requiredWlqiForDelistedBn = null;
+                 requiredWlqiForDelistedFormatted = null;
+                 userHasEnoughForDelisted = false;
+             }
+        }
+        // --- Calculate required wLQI for delisted --- END
 
         // --- Render Row --- 
         return (
@@ -1057,44 +1096,86 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             </div>
                         </div>
 
-                        <div className="flex items-center">
-                             <div className="relative w-full"> 
-                                <input
-                                    id={`withdraw-${mintAddress}`}
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    placeholder="Amount (wLQI)"
-                                    value={currentWithdrawAmount}
-                                    onChange={(e) => handleAmountChange(token.mintAddress, 'withdraw', e.target.value)}
-                                    className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-                                    disabled={actionDisabled}
-                                />
-                                {!actionDisabled && actualPercentBN?.gt(targetScaled) && (
-                                    <button
-                                        onClick={() => handleSetTargetAmount(token.mintAddress, 'withdraw')}
+                        {/* --- Standard Withdraw Input & Button --- */}
+                        {/* Always render this block, but disable standard withdraw for delisted if needed */}
+                        <> 
+                            <div className="flex items-center">
+                                <div className="relative w-full"> 
+                                    <input
+                                        id={`withdraw-${mintAddress}`}
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        placeholder="Amount (wLQI)"
+                                        value={currentWithdrawAmount}
+                                        onChange={(e) => handleAmountChange(token.mintAddress, 'withdraw', e.target.value)}
+                                        className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
                                         disabled={actionDisabled}
-                                        className={`ml-1 px-1 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                                        title="Set wLQI amount needed to reach target dominance"
-                                    > To Target </button>
-                                )}
+                                    />
+                                    {/* Hide 'To Target' button for delisted tokens */}
+                                    {!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled) && (
+                                        <button
+                                            onClick={() => handleSetTargetAmount(token.mintAddress, 'withdraw')}
+                                            disabled={actionDisabled}
+                                            className={`ml-1 px-1 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                            title="Set wLQI amount needed to reach target dominance"
+                                        > To Target </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="flex justify-end"> 
-                            <div className="text-gray-400 text-[10px] h-3">
-                                {displayWithdrawInputUsdValue}
+                            <div className="flex justify-end">
+                                <div className="text-gray-400 text-[10px] h-3">
+                                    {displayWithdrawInputUsdValue}
+                                </div>
                             </div>
-                        </div>
 
-                        <button
-                            onClick={handleActualWithdraw}
-                            disabled={withdrawButtonDisabled}
-                            className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                            title={withdrawTitle}
-                        >
-                            {withdrawLabel}
-                        </button>
+                            <button
+                                onClick={handleActualWithdraw} // Standard withdraw
+                                // Update disabled logic and button class/label for delisted state
+                                disabled={actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero())}
+                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero()) ? BTN_GRAY : (isDelisted ? BTN_GREEN : withdrawBtnClass)} ${(actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                title={ withdrawInsufficientBalance ? "Insufficient wLQI" :
+                                        withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
+                                        (!vaultBalance || vaultBalance.isZero()) ? `Pool vault for ${symbol} is empty.` :
+                                        isDelisted ? "Withdraw specified wLQI amount (~5% Bonus, 0% net fee)" :
+                                        withdrawTitle
+                                      }
+                            >
+                                { withdrawInsufficientBalance ? "Insufficient wLQI" :
+                                  withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
+                                  (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
+                                  actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
+                                  isDelisted ? "Withdraw (~5% Bonus)" : // Special label for delisted standard withdraw
+                                  withdrawLabel // Original label for active tokens
+                                }
+                            </button>
+                        </>
+
+                        {/* --- Withdraw Full Balance Button (Only for Delisted) --- */}
+                        {isDelisted && (
+                            <div className="mt-1"> {/* Add some space */} 
+                                <button
+                                    onClick={handleFullDelistedWithdraw}
+                                    disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())}
+                                    className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${BTN_RED} ${ (actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    title={ // Tooltip logic remains the same
+                                        actionDisabled ? "Action in progress..." :
+                                        (!vaultBalance || vaultBalance.isZero()) ? `Pool vault for ${symbol} is empty.` :
+                                        !requiredWlqiForDelistedFormatted ? "Could not calculate required wLQI." :
+                                        !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted} wLQI, You have ${formattedUserWlqiBalance ?? '--'}.` :
+                                        `Withdraw entire ${symbol} balance (~${formatRawAmountString(vaultBalance?.toString(), decimals, true, 2)} ${symbol}). Requires ~${requiredWlqiForDelistedFormatted} wLQI.`
+                                    }
+                                >
+                                    {/* Dynamic Label */}
+                                    { actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
+                                      (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
+                                      !userHasEnoughForDelisted ? "Insufficient wLQI" :
+                                      `Withdraw Full Balance`
+                                    }
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </td>
             </tr>

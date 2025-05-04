@@ -1450,6 +1450,10 @@ export type WLiquifyPool = {
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "withdrawFullDelistedBalance",
+          "type": "bool"
         }
       ]
     }
@@ -1787,6 +1791,21 @@ export type WLiquifyPool = {
       "code": 6060,
       "name": "zeroOutputTokens",
       "msg": "Calculated withdrawal amount is zero, nothing to transfer."
+    },
+    {
+      "code": 6061,
+      "name": "invalidInput",
+      "msg": "Invalid input provided for the instruction."
+    },
+    {
+      "code": 6062,
+      "name": "tokenNotDelisted",
+      "msg": "Token is not delisted, cannot perform this operation."
+    },
+    {
+      "code": 6063,
+      "name": "whitelistFull",
+      "msg": "Whitelist is full."
     }
   ],
   "types": [
