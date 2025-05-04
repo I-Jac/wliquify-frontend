@@ -18,41 +18,46 @@ import {
 } from '@/utils/calculations';
 import { TokenTable } from './TokenTable';
 import { usePoolInteractions } from '@/hooks/usePoolInteractions';
-import { findPoolConfigPDA } from '@/utils/pda';
 import { SkeletonBlock } from './SkeletonBlock';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
-import { usePoolData } from '@/hooks/usePoolData';
 import { useAmountState } from '@/hooks/useAmountState';
 
-export const PoolInfoDisplay = () => {
-    const { program, provider, readOnlyProvider } = useAnchorProgram();
-    const { connection } = useConnection();
-    const wallet = useWallet();
+// --- Define Props Interface ---
+export interface PoolInfoDisplayProps {
+    poolConfig: any; // Replace 'any' with your PoolConfig type if available
+    poolConfigPda: PublicKey | null;
+    oracleData: any; // Replace 'any' with your OracleData type if available
+    wLqiSupply: BN | null;
+    wLqiDecimals: number | null;
+    processedTokenData: ProcessedTokenData[] | null;
+    totalPoolValueScaled: BN | null;
+    wLqiValueScaled: BN | null;
+    userWlqiBalance: BN | null;
+    isLoadingPublicData: boolean;
+    isLoadingUserData: boolean;
+    error: string | null;
+    refreshAllData: () => Promise<void>; // Final attempt: Ensure this returns Promise<void>
+}
 
-    const {
-        poolConfig,
-        poolConfigPda,
-        oracleData,
-        wLqiSupply,
-        wLqiDecimals,
-        processedTokenData,
-        totalPoolValueScaled,
-        wLqiValueScaled,
-        userWlqiBalance,
-        userTokenBalances,
-        isLoadingPublicData,
-        isLoadingUserData,
-        error,
-        refreshPublicData,
-        refreshUserData,
-        refreshAllData,
-    } = usePoolData({
-        program,
-        provider,
-        readOnlyProvider,
-        connection,
-        wallet,
-    });
+// --- Adjust the component signature to accept props ---
+export const PoolInfoDisplay = ({
+    poolConfig,
+    poolConfigPda,
+    oracleData,
+    wLqiSupply,
+    wLqiDecimals,
+    processedTokenData,
+    totalPoolValueScaled,
+    wLqiValueScaled,
+    userWlqiBalance,
+    isLoadingPublicData,
+    isLoadingUserData,
+    error,
+    refreshAllData // Receive refresh function as prop
+}: PoolInfoDisplayProps) => {
+    // Hooks not related to usePoolData
+    const { program } = useAnchorProgram(); // Keep if needed by usePoolInteractions
+    const wallet = useWallet(); // Keep if needed by usePoolInteractions
 
     const {
         depositAmounts,
@@ -61,7 +66,7 @@ export const PoolInfoDisplay = () => {
         handleClearInput,
     } = useAmountState();
 
-    // --- State Synchronization Logic --- START
+    // --- State Synchronization Logic --- START (Uses props now)
     const prevLoadingPublicRef = useRef(isLoadingPublicData);
     const prevLoadingUserRef = useRef(isLoadingUserData);
     const [isAwaitingPostLoadProcessing, setIsAwaitingPostLoadProcessing] = useState(false);
@@ -104,9 +109,10 @@ export const PoolInfoDisplay = () => {
     const effectiveIsLoadingUser = isLoadingUserData || isAwaitingPostLoadProcessing;
     // --- State Synchronization Logic --- END
 
+    // --- Pass refreshAllData prop down to usePoolInteractions ---
     const refreshUserBalances = useCallback(async (affectedMintAddress?: string) => {
-        console.log(`PoolInfoDisplay: Triggering FULL data refresh via hook. Affected: ${affectedMintAddress ?? 'None'}`);
-        await refreshAllData();
+        console.log(`PoolInfoDisplay: Triggering FULL data refresh via prop. Affected: ${affectedMintAddress ?? 'None'}`);
+        await refreshAllData(); // Use the prop
     }, [refreshAllData]);
 
     const {
@@ -115,19 +121,20 @@ export const PoolInfoDisplay = () => {
         isDepositing,
         isWithdrawing
     } = usePoolInteractions({
-        program,
-        poolConfig,
-        poolConfigPda,
-        oracleData,
-        onTransactionSuccess: refreshUserBalances,
+        program, // Make sure useAnchorProgram is still available/needed
+        poolConfig, // Now from props
+        poolConfigPda, // Now from props
+        oracleData, // Now from props
+        onTransactionSuccess: refreshUserBalances, // Use the wrapped refresh function
         onClearInput: handleClearInput
     });
 
     const disabledDeposit = useCallback(async () => { alert('Pool data loading...'); }, []);
     const disabledWithdraw = useCallback(async () => { alert('Pool data loading...'); }, []);
+    // Check dependencies using props and wallet
     const interactionsReady = !!program && !!wallet.publicKey && !!poolConfig && !!poolConfigPda && !!oracleData;
 
-    // --- MOVED UP: Calculate token lists using useMemo *before* conditional returns ---
+    // --- MOVED UP: Calculate token lists using useMemo *before* conditional returns --- (Uses props)
     const { activeTokens, delistedTokens } = useMemo(() => {
         if (!processedTokenData) return { activeTokens: [], delistedTokens: [] };
         
@@ -145,18 +152,18 @@ export const PoolInfoDisplay = () => {
         delisted.sort((a, b) => a.symbol.localeCompare(b.symbol));
 
         return { activeTokens: active, delistedTokens: delisted };
-    }, [processedTokenData]);
+    }, [processedTokenData]); // Use prop
 
-    // Determine if we should show the full initial skeleton state
+    // Determine if we should show the full initial skeleton state (Uses props)
     const showInitialSkeletons = effectiveIsLoadingPublic && !processedTokenData;
 
-    // Determine if we should show the "could not process" message
+    // Determine if we should show the "could not process" message (Uses props)
     const showProcessingError = !effectiveIsLoadingPublic && !error && processedTokenData === null;
 
     if (showInitialSkeletons) {
         // Render full skeleton UI only on initial load when no data exists yet
         return (
-            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)] relative">
+            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)]">
                 <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
                      Pool Information
                 </h2>
@@ -175,54 +182,34 @@ export const PoolInfoDisplay = () => {
         );
     }
 
-    if (error) return <div className="text-center p-4 text-red-500">Error: {error}</div>;
+    if (error) return <div className="text-center p-4 text-red-500">Error: {error}</div>; // Use error prop
     if (showProcessingError) return <div className="text-center p-4">Pool data could not be fully processed.</div>;
 
-    // --- If we reach here, we have some processedTokenData (possibly stale during refresh) ---
-    // --- Or, loading is finished and data is fresh ---
-
+    // --- Data Formatting (Uses props) ---
     const formattedWlqiSupply = formatRawAmountString(wLqiSupply, wLqiDecimals, true, 2);
     const formattedWlqiValue = formatScaledBnToDollarString(wLqiValueScaled, USD_SCALE);
     const formattedTvl = formatScaledBnToDollarString(totalPoolValueScaled, USD_SCALE);
 
-    const openFaucet = () => {
-        window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
-    };
-
     // Render the main UI, potentially indicating refresh state via button disable
     return (
-        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)] relative">
-            <button 
-                onClick={openFaucet}
-                className="absolute top-4 left-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
-            >
-                Dev Faucet
-            </button>
-            <button 
-                onClick={refreshAllData}
-                className="absolute top-4 right-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded text-sm disabled:opacity-50"
-                disabled={effectiveIsLoadingPublic || effectiveIsLoadingUser}
-            >
-                {effectiveIsLoadingPublic || effectiveIsLoadingUser ? 'Refreshing...' : 'Refresh Data'}
-            </button>
-
+        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)]">
             <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">Pool Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6 bg-gray-700 p-4 rounded">
-                 {/* Show current (possibly stale) values during refresh, or skeleton if value is null */}
+                 {/* Show current (possibly stale) values during refresh, or skeleton if value is null (Uses props) */}
                 <div><h4 className="text-lg font-semibold text-purple-400">wLQI Token Value</h4><div className="text-xl font-bold">{formattedWlqiValue ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div></div>
                 <div><h4 className="text-lg font-semibold text-green-400">wLQI Total Supply</h4><div className="text-xl font-bold">{formattedWlqiSupply ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div></div>
                 <div><h4 className="text-lg font-semibold text-yellow-400">Total Pool Value (TVL)</h4><div className="text-xl font-bold">{formattedTvl ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div></div>
             </div>
             <div className="mt-6 border-t border-gray-600 pt-4">
                 <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">Top 30 Tokens</h3>
-                 {/* Pass activeTokens which comes from processedTokenData */}
+                 {/* Pass activeTokens which comes from processedTokenData prop */}
                  {activeTokens.length > 0 ? (
                      <TokenTable
                          tokenData={activeTokens}
-                         totalPoolValueScaled={totalPoolValueScaled}
-                         wLqiValueScaled={wLqiValueScaled}
-                         wLqiDecimals={wLqiDecimals}
-                         userWlqiBalance={userWlqiBalance}
+                         totalPoolValueScaled={totalPoolValueScaled} // from prop
+                         wLqiValueScaled={wLqiValueScaled} // from prop
+                         wLqiDecimals={wLqiDecimals} // from prop
+                         userWlqiBalance={userWlqiBalance} // from prop - Check TokenTable usage
                          onDeposit={interactionsReady ? actualHandleDeposit : disabledDeposit}
                          onWithdraw={interactionsReady ? actualHandleWithdraw : disabledWithdraw}
                          isDepositing={isDepositing}
@@ -230,8 +217,8 @@ export const PoolInfoDisplay = () => {
                          depositAmounts={depositAmounts}
                          withdrawAmounts={withdrawAmounts}
                          handleAmountChange={handleAmountChange}
-                         isLoadingUserData={effectiveIsLoadingUser}
-                         isLoadingPublicData={effectiveIsLoadingPublic}
+                         isLoadingUserData={effectiveIsLoadingUser} // from prop
+                         isLoadingPublicData={effectiveIsLoadingPublic} // from prop
                      />
                  ) : (
                      // Handle case where there was data, but now it's empty after refresh (or initially empty)
@@ -246,20 +233,20 @@ export const PoolInfoDisplay = () => {
                     <h3 className="text-lg font-semibold text-center text-gray-400 mb-3">Delisted Tokens (Not In Top 30)</h3>
                      <TokenTable
                          tokenData={delistedTokens}
-                         totalPoolValueScaled={totalPoolValueScaled}
-                         wLqiValueScaled={wLqiValueScaled}
-                         wLqiDecimals={wLqiDecimals}
-                         userWlqiBalance={userWlqiBalance}
+                         totalPoolValueScaled={totalPoolValueScaled} // from prop
+                         wLqiValueScaled={wLqiValueScaled} // from prop
+                         wLqiDecimals={wLqiDecimals} // from prop
+                         userWlqiBalance={userWlqiBalance} // from prop
                          onDeposit={async () => { alert('Deposits disabled for delisted tokens.')}}
                          onWithdraw={interactionsReady ? actualHandleWithdraw : disabledWithdraw}
-                         isDepositing={false}
-                         isWithdrawing={isWithdrawing}
-                         depositAmounts={{}}
-                         withdrawAmounts={withdrawAmounts}
-                         handleAmountChange={handleAmountChange}
-                         isLoadingUserData={effectiveIsLoadingUser}
-                         isLoadingPublicData={effectiveIsLoadingPublic}
-                         hideDepositColumn={true}
+                         isDepositing={false} // Correct
+                         isWithdrawing={isWithdrawing} // Correct
+                         depositAmounts={{}} // Correct
+                         withdrawAmounts={withdrawAmounts} // Correct
+                         handleAmountChange={handleAmountChange} // Correct
+                         isLoadingUserData={effectiveIsLoadingUser} // from prop
+                         isLoadingPublicData={effectiveIsLoadingPublic} // from prop
+                         hideDepositColumn={true} // Correct
                      />
                 </div>
             )}
