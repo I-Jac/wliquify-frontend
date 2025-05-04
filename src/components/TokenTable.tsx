@@ -37,6 +37,7 @@ interface TokenTableProps {
     handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => void;
     isLoadingUserData: boolean;
     isLoadingPublicData: boolean;
+    hideDepositColumn?: boolean; // New prop
 }
 
 // Define type for sortable keys
@@ -166,6 +167,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
     handleAmountChange,
     isLoadingUserData,
     isLoadingPublicData,
+    hideDepositColumn = false, // Default to false
 }) => {
 
     // --- Sorting State ---
@@ -267,15 +269,24 @@ export const TokenTable = React.memo<TokenTableProps>(({
     const handleSetTargetAmount = useCallback((mintAddress: string, action: 'deposit' | 'withdraw') => {
         console.log(`Calculating target amount for ${mintAddress}, action: ${action}`); // Debug
 
-        if (!tokenData || !totalPoolValueScaled || !totalTargetDominance || totalTargetDominance.isZero()) {
-            toast.error("Pool data not loaded for target calculation.");
+        // Find the specific token first to check if it's delisted
+        const token = tokenData?.find(t => t.mintAddress === mintAddress);
+
+        // --- First check: Validate token data based on action --- 
+        if (!token || token.decimals === null || token.targetDominance.isNeg()) {
+            toast.error("Token data invalid for target calculation.");
             return;
         }
 
-        const token = tokenData.find(t => t.mintAddress === mintAddress);
-        if (!token || token.targetDominance.isZero() || token.targetDominance.isNeg() || token.decimals === null) {
-            toast.error("Token data invalid for target calculation.");
-            return;
+        // --- Second check: Validate token data based on action --- 
+        let isTokenDataInvalid = false;
+        if ((action === 'deposit' || !token.isDelisted) && token.targetDominance.isZero()) {
+            isTokenDataInvalid = true; // Invalid if target is zero for deposits or non-delisted withdraws
+        }
+
+        if (isTokenDataInvalid) {
+             toast.error("Token data invalid for target calculation.");
+             return;
         }
 
         // Current state values
@@ -283,22 +294,19 @@ export const TokenTable = React.memo<TokenTableProps>(({
             ? calculateTokenValueUsdScaled(token.vaultBalance, token.decimals, token.priceData) ?? new BN(0)
             : new BN(0);
         const P = totalPoolValueScaled;
-        // Target dominance scaled same as T and P (by USD_SCALE)
-        const target_value_in_pool = P.mul(token.targetDominance).div(totalTargetDominance);
-        const one_minus_target_dom_fraction_numer = totalTargetDominance.sub(token.targetDominance);
 
         let amountToSet = '0';
 
         try {
             if (action === 'deposit') {
                 // Solve for V (USD deposit): V = (target_value_in_pool - T) * totalTargetDominance / one_minus_target_dom_fraction_numer
+                // Calculate these values here for deposit
+                const target_value_in_pool = P!.mul(token.targetDominance).div(totalTargetDominance);
+                const one_minus_target_dom_fraction_numer = totalTargetDominance.sub(token.targetDominance);
+
                 if (target_value_in_pool.lte(T)) {
                     console.log("Token already at or above target, cannot deposit to reach target.");
                     toast.error("Cannot deposit to reach target, token already at or above.");
-                    return; // Cannot deposit to reach target if already at or above
-                }
-                if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
-                     toast.error("Invalid target dominance for calculation.");
                     return;
                 }
 
@@ -340,40 +348,107 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 }
                 
             } else { // withdraw
-                // Solve for V (USD withdraw): V = (T - target_value_in_pool) * totalTargetDominance / one_minus_target_dom_fraction_numer
-                if (T.lte(target_value_in_pool)) {
-                     console.log("Token already at or below target, cannot withdraw to reach target.");
-                     toast.error("Cannot withdraw to reach target, token already at or below.");
-                    return; // Cannot withdraw if already at or below target
-                }
-                 if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
-                     toast.error("Invalid target dominance for calculation.");
-                    return;
-                }
+                // --- Handle Delisted Withdraw Target --- START
+                if (token.isDelisted) {
+                    if (!token.vaultBalance || token.vaultBalance.isZero() || token.vaultBalance.isNeg() || token.decimals === null) {
+                        toast.error("No pool balance to withdraw for this delisted token.");
+                        return;
+                    }
+                    const T_usd_scaled = calculateTokenValueUsdScaled(token.vaultBalance, token.decimals, token.priceData);
+                    if (!T_usd_scaled || T_usd_scaled.isZero() || T_usd_scaled.isNeg()) {
+                        toast.error("Cannot calculate value of delisted token balance.");
+                        return;
+                    }
 
-                const valueDiff = T.sub(target_value_in_pool);
-                const V_usd_scaled = valueDiff.mul(totalTargetDominance).div(one_minus_target_dom_fraction_numer);
+                    // Adjust the target USD value to account for the 5% bonus
+                    // We want to find X wLQI such that Value(X) * 1.05 = T_usd_scaled
+                    // So, the target value to convert to wLQI is T_usd_scaled / 1.05
+                    const bonusNumerator = new BN(100);
+                    const bonusDenominator = new BN(105);
+                    const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
 
-                // Convert V (USD) to wLQI amount
-                const wLqiAmountBn = usdToWlqiAmount(V_usd_scaled, wLqiValueScaled, wLqiDecimals);
-                if (wLqiAmountBn.isZero() || wLqiAmountBn.isNeg()) {
-                     toast.error("Calculated wLQI amount is zero or negative.");
-                    return;
-                }
-                if (wLqiDecimals === null) { // Extra check
-                    toast.error("wLQI decimals not available.");
-                    return;
-                }
+                    let requiredWlqiAmountBn = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
+                    if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
+                        toast.error("Calculated wLQI amount is zero or negative.");
+                        return;
+                    }
+                    if (wLqiDecimals === null) {
+                        toast.error("wLQI decimals not available.");
+                        return;
+                    }
 
-                // FIX: Add check for user's wLQI balance
-                if (userWlqiBalance && wLqiAmountBn.gt(userWlqiBalance)) {
-                    console.log(`Target wLQI withdraw amount (${wLqiAmountBn.toString()}) exceeds user balance (${userWlqiBalance.toString()}). Falling back to max.`);
-                    toast("Required wLQI withdraw amount exceeds balance. Setting to max.", { icon: '⚠️' });
-                    // Use userWlqiBalance directly for formatting
-                    amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
-                } else {
-                     // Use the calculated wLqiAmountBn for formatting
-                     amountToSet = formatUnits(wLqiAmountBn.toString(), wLqiDecimals);
+                    // Check against pool liquidity (how much token is actually available)
+                    const requiredTokenAmountBn_scaled = usdToTokenAmount(T_usd_scaled, token.decimals, token.priceData);
+                    const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
+
+                    if (requiredTokenAmountBn.gt(token.vaultBalance)) {
+                        console.warn(`Delisted Withdraw Target: Required token amount (${requiredTokenAmountBn.toString()}) > Vault Balance (${token.vaultBalance.toString()}). Adjusting wLQI amount.`);
+                        toast("Insufficient pool liquidity. Setting amount to withdraw max available token value.", { icon: '⚠️' });
+                        // Recalculate based on actual vault balance
+                        const actualWithdrawableValueUsd = calculateTokenValueUsdScaled(token.vaultBalance, token.decimals, token.priceData);
+                        if (!actualWithdrawableValueUsd) {
+                             toast.error("Failed to recalculate withdrawable value.");
+                             return;
+                        }
+                        requiredWlqiAmountBn = usdToWlqiAmount(actualWithdrawableValueUsd, wLqiValueScaled, wLqiDecimals);
+                        if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
+                            toast.error("Adjusted wLQI amount is zero or negative.");
+                            return;
+                        }
+                    }
+
+                    // Check against user's wLQI balance AFTER potentially adjusting for liquidity
+                    if (userWlqiBalance && requiredWlqiAmountBn.gt(userWlqiBalance)) {
+                        console.log(`Target wLQI withdraw amount (${requiredWlqiAmountBn.toString()}) exceeds user balance (${userWlqiBalance.toString()}). Falling back to max user balance.`);
+                        toast("Required wLQI withdraw amount exceeds your balance. Setting to max.", { icon: '⚠️' });
+                        amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
+                    } else {
+                        amountToSet = formatUnits(requiredWlqiAmountBn.toString(), wLqiDecimals);
+                    }
+                } 
+                // --- Handle Delisted Withdraw Target --- END
+                else {
+                    // Moved calculations here as they are only needed for active tokens
+                    const target_value_in_pool = P!.mul(token.targetDominance).div(totalTargetDominance);
+                    const one_minus_target_dom_fraction_numer = totalTargetDominance.sub(token.targetDominance);
+
+                    // --- Original Withdraw Target Logic for Active Tokens --- START
+                    // Solve for V (USD withdraw): V = (T - target_value_in_pool) * totalTargetDominance / one_minus_target_dom_fraction_numer
+                    if (T.lte(target_value_in_pool)) {
+                        console.log("Token already at or below target, cannot withdraw to reach target.");
+                        toast.error("Cannot withdraw to reach target, token already at or below.");
+                        return; // Cannot withdraw if already at or below target
+                    }
+                     if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
+                         toast.error("Invalid target dominance for calculation.");
+                        return;
+                    }
+
+                    const valueDiff = T.sub(target_value_in_pool);
+                    const V_usd_scaled = valueDiff.mul(totalTargetDominance).div(one_minus_target_dom_fraction_numer);
+
+                    // Convert V (USD) to wLQI amount
+                    const wLqiAmountBn = usdToWlqiAmount(V_usd_scaled, wLqiValueScaled, wLqiDecimals);
+                    if (wLqiAmountBn.isZero() || wLqiAmountBn.isNeg()) {
+                        toast.error("Calculated wLQI amount is zero or negative.");
+                        return;
+                    }
+                    if (wLqiDecimals === null) { // Extra check
+                        toast.error("wLQI decimals not available.");
+                        return;
+                    }
+
+                    // FIX: Add check for user's wLQI balance
+                    if (userWlqiBalance && wLqiAmountBn.gt(userWlqiBalance)) {
+                        console.log(`Target wLQI withdraw amount (${wLqiAmountBn.toString()}) exceeds user balance (${userWlqiBalance.toString()}). Falling back to max.`);
+                        toast("Required wLQI withdraw amount exceeds balance. Setting to max.", { icon: '⚠️' });
+                        // Use userWlqiBalance directly for formatting
+                        amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
+                    } else {
+                        // Use the calculated wLqiAmountBn for formatting
+                        amountToSet = formatUnits(wLqiAmountBn.toString(), wLqiDecimals);
+                    }
+                    // --- Original Withdraw Target Logic for Active Tokens --- END
                 }
             }
 
@@ -463,6 +538,37 @@ export const TokenTable = React.memo<TokenTableProps>(({
         let withdrawalExceedsLiquidity = false; 
 
         try {
+             // --- Liquidity Check (Moved Up & Separated) ---
+             // Check if the manually entered wLQI withdraw amount requires more underlying tokens than the pool holds.
+             if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
+                 try {
+                     const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
+                     const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
+                     let valueChangeUsdScaled = new BN(0);
+                     if (!scaleFactorWlqi.isZero()) {
+                         valueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
+                     }
+
+                     // Convert USD value to required token amount
+                     const requiredTokenAmountBn_scaled = usdToTokenAmount(valueChangeUsdScaled, decimals, priceData);
+                     const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
+
+                     if (requiredTokenAmountBn.gt(vaultBalance)) {
+                         // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) > Vault (${vaultBalance.toString()})`);
+                         withdrawalExceedsLiquidity = true;
+                     } else {
+                         // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) <= Vault (${vaultBalance.toString()})`);
+                         withdrawalExceedsLiquidity = false; // Explicitly set to false if liquidity is sufficient
+                     }
+                 } catch (e) {
+                     console.error("Error during withdrawal liquidity check:", e);
+                     withdrawalExceedsLiquidity = false; // Assume sufficient if calculation fails?
+                 }
+             } else {
+                 // If input isn't filled or data is missing, assume liquidity is not exceeded by the input
+                 withdrawalExceedsLiquidity = false;
+             }
+
              // --- ADDED: Check if TVL is available before calculating dynamic fees ---
              if (!totalPoolValueScaled) {
                  // If TVL is null (e.g., during refresh), default fees to base and skip dynamic calc
@@ -575,7 +681,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     }
         
                     // --- Calculate Withdraw Fee Estimate --- Refactored to use BN
-                     if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !totalPoolValueScaled.isZero() && totalTargetDominance && !totalTargetDominance.isZero()) {
+                     if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
                         let valueChangeUsdScaled = new BN(0);
                         let requiredTokenAmount = new BN(0);
                         try {
@@ -586,29 +692,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                 valueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
                             }
         
-                           // Liquidity check (remains the same)
-                           withdrawalExceedsLiquidity = false;
-                           if (!valueChangeUsdScaled.isZero() && priceData.price.gtn(0) && vaultBalance) {
-                                const price_u128 = priceData.price;
-                                const expo = priceData.expo;
-                                const total_exponent: number = expo + USD_SCALE;
-                                let final_numerator = valueChangeUsdScaled.mul(new BN(10).pow(new BN(decimals)));
-                                let final_denominator = price_u128;
-                               if (total_exponent >= 0) {
-                                   final_denominator = price_u128.mul(new BN(10).pow(new BN(total_exponent)));
-                               } else {
-                                   final_numerator = final_numerator.mul(new BN(10).pow(new BN(Math.abs(total_exponent))));
-                               }
-                                if (!final_denominator.isZero()) {
-                                    requiredTokenAmount = final_numerator.div(final_denominator);
-                                    if (requiredTokenAmount.gt(vaultBalance)) {
-                                        withdrawalExceedsLiquidity = true;
-                                    }
-                                }
-                            }
-        
-                            // If liquidity check passed, calculate fee (using BN)
-                            if (!withdrawalExceedsLiquidity && !valueChangeUsdScaled.isZero()) {
+                           // Calculate fee only if liquidity check passed (flag is false)
+                           // and valueChange is non-zero
+                           if (!withdrawalExceedsLiquidity && !valueChangeUsdScaled.isZero()) { 
                                const totalPoolValuePostScaled = totalPoolValueScaled.gt(valueChangeUsdScaled) ? totalPoolValueScaled.sub(valueChangeUsdScaled) : new BN(0);
                                const currentTokenValue = tokenValueUsd ?? new BN(0);
                                const tokenValuePostScaled = currentTokenValue.gt(valueChangeUsdScaled) ? currentTokenValue.sub(valueChangeUsdScaled) : new BN(0);
@@ -727,6 +813,14 @@ export const TokenTable = React.memo<TokenTableProps>(({
             return { feeString, title };
         };
 
+        const formatDelistedWithdrawFeeString = () => {
+            // Delisted tokens have a fixed bonus resulting in a 0% net fee.
+            // We display it as a bonus indication.
+            const feeString = "(~5% Bonus)"; // Explicitly mention bonus
+            const title = "Fixed bonus applied for delisted token withdrawal (0% net fee).";
+            return { feeString, title };
+        };
+
         // --- Determine Button Colors & Labels (Conditional on Loading State) ---
         let depositBtnClass = BTN_GRAY;
         let withdrawBtnClass = BTN_GRAY;
@@ -757,7 +851,10 @@ export const TokenTable = React.memo<TokenTableProps>(({
             depositLabel = `Deposit ${depositFeeString}`;
             depositTitle = depositTitleBase;
 
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false, withdrawDynamicFeeBpsBN);
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = 
+                isDelisted 
+                    ? formatDelistedWithdrawFeeString() 
+                    : formatFeeString(estimatedWithdrawFeeBps, false, withdrawDynamicFeeBpsBN);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         }
@@ -809,6 +906,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         }
 
         // --- Overrides for Insufficient Balance / Liquidity --- (Apply AFTER conditional fee logic)
+        // NOTE: The order matters here. Insufficient user balance takes precedence.
         if (depositInsufficientBalance) {
             depositLabel = `Insufficient User ${symbol}`;
             depositTitle = `Deposit amount exceeds your ${symbol} balance`;
@@ -862,71 +960,77 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 {/* Target % */}
                 <td className="p-2 align-middle text-center">{displayTargetPercent}%</td>
                 {/* Deposit Column */}
-                <td className="p-2 align-middle">
-                    <div className="flex flex-col space-y-1"> 
-                        <div className="flex items-center justify-between"> 
-                            <div className="text-gray-400 text-[10px] flex items-center"> 
-                                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
-                                    <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
-                                </svg>
-                                <span>{displayUserTokenBalance}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                                <button
-                                    onClick={() => handleSetAmount(token.mintAddress, 'deposit', 0.5)}
-                                    disabled={actionDisabled || token.userBalance === null || isDelisted}
-                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                    title="Set amount to 50% of your balance"
-                                > Half </button>
-                                <button
-                                    onClick={() => handleSetAmount(token.mintAddress, 'deposit', 1)}
-                                    disabled={actionDisabled || token.userBalance === null || isDelisted}
-                                    className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                    title="Set amount to your maximum balance"
-                                > Max </button>
-                            </div>
-                        </div>
+                {!hideDepositColumn && (
+                    <td className="p-2 align-middle">
+                        {isDelisted ? (
+                            <div className="text-center text-gray-500 italic">N/A</div>
+                        ) : (
+                            <div className="flex flex-col space-y-1"> 
+                                <div className="flex items-center justify-between"> 
+                                    <div className="text-gray-400 text-[10px] flex items-center"> 
+                                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
+                                            <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
+                                        </svg>
+                                        <span>{displayUserTokenBalance}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                        <button
+                                            onClick={() => handleSetAmount(token.mintAddress, 'deposit', 0.5)}
+                                            disabled={actionDisabled || token.userBalance === null || isDelisted}
+                                            className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                            title="Set amount to 50% of your balance"
+                                        > Half </button>
+                                        <button
+                                            onClick={() => handleSetAmount(token.mintAddress, 'deposit', 1)}
+                                            disabled={actionDisabled || token.userBalance === null || isDelisted}
+                                            className={`px-1 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                            title="Set amount to your maximum balance"
+                                        > Max </button>
+                                    </div>
+                                </div>
 
-                        <div className="flex items-center">
-                            <div className="relative w-full"> 
-                                <input
-                                    id={`deposit-${mintAddress}`}
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    placeholder={`Amount (${symbol})`}
-                                    value={currentDepositAmount}
-                                    onChange={(e) => handleAmountChange(token.mintAddress, 'deposit', e.target.value)}
-                                    className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    disabled={actionDisabled || isDelisted}
-                                />
-                                {!actionDisabled && actualPercentBN?.lt(targetScaled) && (
-                                    <button
-                                        onClick={() => handleSetTargetAmount(token.mintAddress, 'deposit')}
-                                        disabled={actionDisabled}
-                                        className={`ml-1 px-1 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                                        title="Set amount needed to reach target dominance"
-                                    > To Target </button>
-                                )}
-                            </div>
-                        </div>
+                                <div className="flex items-center">
+                                    <div className="relative w-full"> 
+                                        <input
+                                            id={`deposit-${mintAddress}`}
+                                            type="number"
+                                            step="any"
+                                            min="0"
+                                            placeholder={`Amount (${symbol})`}
+                                            value={currentDepositAmount}
+                                            onChange={(e) => handleAmountChange(token.mintAddress, 'deposit', e.target.value)}
+                                            className="bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 w-full text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            disabled={actionDisabled || isDelisted}
+                                        />
+                                        {!actionDisabled && actualPercentBN?.lt(targetScaled) && (
+                                            <button
+                                                onClick={() => handleSetTargetAmount(token.mintAddress, 'deposit')}
+                                                disabled={actionDisabled}
+                                                className={`ml-1 px-1 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                title="Set amount needed to reach target dominance"
+                                            > To Target </button>
+                                        )}
+                                    </div>
+                                </div>
 
-                        <div className="flex justify-end"> 
-                            <div className="text-gray-400 text-[10px] h-3">
-                                {displayDepositInputUsdValue}
+                                <div className="flex justify-end"> 
+                                    <div className="text-gray-400 text-[10px] h-3">
+                                        {displayDepositInputUsdValue}
+                                    </div>
+                                </div>
+                                
+                                <button
+                                    onClick={handleActualDeposit}
+                                    disabled={depositButtonDisabled}
+                                    className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    title={depositTitle}
+                                >
+                                    {depositLabel}
+                                </button>
                             </div>
-                        </div>
-                        
-                        <button
-                            onClick={handleActualDeposit}
-                            disabled={depositButtonDisabled}
-                            className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                            title={depositTitle}
-                        >
-                            {depositLabel}
-                        </button>
-                    </div>
-                </td>
+                        )}
+                    </td>
+                )}
                 {/* Withdraw Column */}
                 <td className="p-2 align-middle">
                     <div className="flex flex-col space-y-1"> 
@@ -1014,7 +1118,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
                             Target %{getSortIndicator('targetPercent')}
                         </th>
-                        <th className="p-2 w-40 text-center">Deposit</th> 
+                        {!hideDepositColumn && (
+                            <th className="p-2 w-40 text-center">Deposit</th> 
+                        )}
                         <th className="p-2 w-40 text-center">Withdraw</th> 
                     </tr>
                 </thead>

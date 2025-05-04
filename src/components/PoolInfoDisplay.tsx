@@ -167,7 +167,7 @@ export const PoolInfoDisplay = () => {
                 </div>
                 <div className="mt-6 border-t border-gray-600 pt-4">
                      <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">
-                         Token Details & Interactions
+                     Top 30 Tokens
                      </h3>
                     <SkeletonTokenTable rowCount={5} />
                 </div>
@@ -214,7 +214,7 @@ export const PoolInfoDisplay = () => {
                 <div><h4 className="text-lg font-semibold text-yellow-400">Total Pool Value (TVL)</h4><div className="text-xl font-bold">{formattedTvl ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div></div>
             </div>
             <div className="mt-6 border-t border-gray-600 pt-4">
-                <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">Token Details & Interactions</h3>
+                <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">Top 30 Tokens</h3>
                  {/* Pass activeTokens which comes from processedTokenData */}
                  {activeTokens.length > 0 ? (
                      <TokenTable
@@ -243,7 +243,7 @@ export const PoolInfoDisplay = () => {
 
             {delistedTokens.length > 0 && (
                 <div className="mt-8 border-t border-dashed border-gray-500 pt-4">
-                    <h3 className="text-lg font-semibold text-center text-gray-400 mb-3">Delisted Tokens</h3>
+                    <h3 className="text-lg font-semibold text-center text-gray-400 mb-3">Delisted Tokens (Not In Top 30)</h3>
                      <TokenTable
                          tokenData={delistedTokens}
                          totalPoolValueScaled={totalPoolValueScaled}
@@ -251,14 +251,15 @@ export const PoolInfoDisplay = () => {
                          wLqiDecimals={wLqiDecimals}
                          userWlqiBalance={userWlqiBalance}
                          onDeposit={async () => { alert('Deposits disabled for delisted tokens.')}}
-                         onWithdraw={async () => { alert('Withdrawals disabled for delisted tokens.')}}
+                         onWithdraw={interactionsReady ? actualHandleWithdraw : disabledWithdraw}
                          isDepositing={false}
-                         isWithdrawing={false}
+                         isWithdrawing={isWithdrawing}
                          depositAmounts={{}}
-                         withdrawAmounts={{}}
-                         handleAmountChange={() => {}}
+                         withdrawAmounts={withdrawAmounts}
+                         handleAmountChange={handleAmountChange}
                          isLoadingUserData={effectiveIsLoadingUser}
                          isLoadingPublicData={effectiveIsLoadingPublic}
+                         hideDepositColumn={true}
                      />
                 </div>
             )}
