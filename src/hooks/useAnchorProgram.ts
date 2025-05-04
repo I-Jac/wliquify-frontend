@@ -1,10 +1,11 @@
 import { Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useMemo, useState, useEffect } from 'react';
-import { WLiquifyPool } from '@/types/w_liquify_pool'; 
-import idl from '@/idl/w_liquify_pool.json'; // Import the IDL JSON
+import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; 
+import idl from '@/programTarget/idl/w_liquify_pool.json'; // Import the IDL JSON
 import { PublicKey } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
+import { RPC_URL } from '@/utils/constants'; // Import RPC_URL
 
 /**
  * Custom hook to provide initialized Anchor program and provider instances.
@@ -15,9 +16,6 @@ export function useAnchorProgram() {
     const anchorWallet = useAnchorWallet(); // Use useAnchorWallet for provider if connected
     const [provider, setProviderState] = useState<AnchorProvider | null>(null);
 
-    // Fallback RPC URL from environment variable or default to devnet
-    //const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'http://127.0.0.1:8900';
 
     useEffect(() => {
         if (anchorWallet) {
@@ -34,7 +32,7 @@ export function useAnchorProgram() {
         // Correct the condition: create provider if wallet is NOT connected
         if (!wallet.connected) { 
             // Use a stable connection object
-            const currentConnection = new Connection(rpcUrl, 'confirmed');
+            const currentConnection = new Connection(RPC_URL, 'confirmed'); // Use imported constant
 
             // Create a minimal wallet-like object for AnchorProvider read-only mode
             const readOnlyWallet = {
@@ -50,7 +48,7 @@ export function useAnchorProgram() {
         // If wallet *is* connected, return null (the standard provider will be used)
         return null; 
 
-    }, [wallet.connected, wallet.publicKey, rpcUrl]); // Dependencies for read-only provider
+    }, [wallet.connected, wallet.publicKey]); // Remove rpcUrl from dependencies
 
     const program = useMemo(() => {
         // Prefer the connected provider if available, otherwise use read-only

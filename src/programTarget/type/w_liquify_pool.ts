@@ -1777,6 +1777,16 @@ export type WLiquifyPool = {
       "code": 6058,
       "name": "vaultNotEmpty",
       "msg": "Token cannot be cleaned up as its pool vault is not empty."
+    },
+    {
+      "code": 6059,
+      "name": "historicalDataSizeMismatch",
+      "msg": "Historical data size mismatch."
+    },
+    {
+      "code": 6060,
+      "name": "zeroOutputTokens",
+      "msg": "Calculated withdrawal amount is zero, nothing to transfer."
     }
   ],
   "types": [
@@ -1802,6 +1812,15 @@ export type WLiquifyPool = {
           {
             "name": "decimals",
             "type": "u8"
+          },
+          {
+            "name": "symbol",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
           }
         ]
       }

@@ -3,9 +3,9 @@
 import { PublicKey, AccountInfo } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { BN } from '@coral-xyz/anchor';
-import { USD_SCALE } from "./constants"; // Assuming USD_SCALE is defined here
-import { formatUnits } from 'ethers';
-import { PoolConfig } from '@/types';
+import { USD_SCALE, DOMINANCE_SCALE_FACTOR } from "./constants"; // Remove BPS_SCALE import
+import { formatUnits, parseUnits } from 'ethers';
+import { PoolConfig } from '@/utils/types';
 
 // --- Constants ---
 export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for scaling prices
@@ -13,6 +13,23 @@ export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for 
 // Constant for percentage scaling (Scaled by 1,000,000: 1% = 10,000 scaled units)
 const PERCENTAGE_CALC_SCALE = 1000000;
 const BN_PERCENTAGE_CALC_SCALE = new BN(PERCENTAGE_CALC_SCALE);
+
+// Define BPS_SCALE locally if not exported from constants
+const BPS_SCALE = 10000;
+
+// Add BN versions of constants needed for fee calculation
+const BN_BPS_SCALE = new BN(BPS_SCALE);
+const BN_BASE_FEE_BPS = new BN(10); // 0.1%
+const BN_FEE_K_FACTOR_NUMERATOR = new BN(2); // k = 0.2
+const BN_FEE_K_FACTOR_DENOMINATOR = new BN(10);
+const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(-500); // Max dynamic *discount* is 500 BPS
+const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(0);     // Min total fee is 0 BPS
+const BN_DEPOSIT_MAX_FEE_BPS = new BN(9999); // Max total deposit fee is 99.99%
+const BN_WITHDRAW_MAX_FEE_BPS = new BN(9999); // Max total withdraw fee is 99.99%
+const DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR); // Rename imported constant for local use
+
+// Define a precision scale factor for internal division
+const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12
 
 // --- Type Definitions (You might want to centralize these) ---
 
@@ -535,4 +552,193 @@ export const calculatePoolMetrics = (
         wLqiDecimals,
         tokenMetrics,
     };
+};
+
+// --- MOVED: Calculation Helper: Convert USD to Token Amount --- 
+export const usdToTokenAmount = (usdValueScaled: BN, decimals: number, priceData: ProcessedTokenData['priceData']): BN => {
+    // ... (Existing implementation as moved from TokenTable) ...
+    if (!priceData || priceData.price.isZero() || priceData.price.isNeg() || usdValueScaled.isNeg()) return new BN(0);
+    if (usdValueScaled.isZero()) return new BN(0); // Handle zero USD input
+
+    try {
+        const price_bn = priceData.price; // Price scaled by 10^abs(Expo)
+        const expo = priceData.expo;
+
+        const total_exponent: number = expo + USD_SCALE; // Note: USD_SCALE is 8
+
+        let final_numerator = usdValueScaled.mul(new BN(10).pow(new BN(decimals)));
+        let final_denominator = price_bn;
+
+        if (total_exponent >= 0) {
+            final_denominator = price_bn.mul(new BN(10).pow(new BN(total_exponent)));
+        } else {
+            final_numerator = final_numerator.mul(new BN(10).pow(new BN(Math.abs(total_exponent))));
+        }
+
+        if (final_denominator.isZero()) {
+            console.error("usdToTokenAmount: Calculated denominator is zero!");
+            return new BN(0);
+        }
+
+        const resultScaled = final_numerator.mul(PRECISION_SCALE_FACTOR).div(final_denominator);
+        return resultScaled; // Returns Lamports * PRECISION_SCALE_FACTOR
+
+    } catch (e) {
+        console.error("Error converting USD to token amount:", e);
+        return new BN(0);
+    }
+}
+
+// --- MOVED: Calculation Helper: Convert USD to wLQI Amount --- 
+export const usdToWlqiAmount = (usdValueScaled: BN, wLqiValueScaled: BN | null, wLqiDecimals: number | null): BN => {
+    // ... (Existing implementation as moved from TokenTable) ...
+    if (!wLqiValueScaled || wLqiValueScaled.isZero() || wLqiValueScaled.isNeg() || wLqiDecimals === null) return new BN(0);
+    try {
+        const wLqiMultiplier = new BN(10).pow(new BN(wLqiDecimals));
+        return usdValueScaled.mul(wLqiMultiplier).div(wLqiValueScaled);
+    } catch (e) {
+        console.error("Error converting USD to wLQI amount:", e);
+        return new BN(0);
+    }
+}
+
+// --- MOVED: Relative Deviation Calculation --- 
+/**
+ * Calculates relative deviation scaled by BPS_SCALE (1e4).
+ * Inputs are scaled by DOMINANCE_SCALE (1e10).
+ * Returns BN representing BPS (scaled by 1).
+ */
+export const calculateRelativeDeviationBpsBN = (actualDominanceScaled: BN, targetDominanceScaled: BN): BN => {
+    // ... (Existing implementation as moved from TokenTable) ...
+    if (targetDominanceScaled.isZero() || targetDominanceScaled.isNeg()) {
+        return actualDominanceScaled.gtn(0) ? BN_BPS_SCALE.mul(new BN(100)) : new BN(0);
+    }
+    try {
+        const deviationScaled = actualDominanceScaled.sub(targetDominanceScaled);
+        const deviationBpsBN = deviationScaled.mul(BN_BPS_SCALE).div(targetDominanceScaled);
+        return deviationBpsBN;
+    } catch (e) {
+        console.error("Error calculating relative deviation BPS (BN):", e);
+        return new BN(0);
+    }
+};
+
+// --- MOVED: Comprehensive Fee Estimation Helper --- 
+export const estimateFeeBpsBN = (
+    isDelisted: boolean,
+    isDeposit: boolean,
+    tokenValuePreUsdScaled: BN | null,      // Current USD value of this token in the pool
+    totalPoolValuePreUsdScaled: BN | null, // Current total USD value of the pool
+    targetDominanceScaledBn: BN,            // Target dominance (scaled by DOMINANCE_SCALE)
+    valueChangeUsdScaled: BN | null,         // Estimated USD value change from the input amount
+    wLqiValueScaled: BN | null,              // Needed if valueChangeUsdScaled is null for withdraw
+    wLqiDecimals: number | null,             // Needed if valueChangeUsdScaled is null for withdraw
+    inputWithdrawAmountString?: string        // Optional: wLQI withdraw amount string if valueChangeUsdScaled is null
+): BN | null => {
+    // ... (Existing implementation as moved from TokenTable) ...
+     // 1. Handle Delisted Tokens
+    if (isDelisted) {
+        return isDeposit ? null : new BN(-500); // N/A for deposit, -500 BPS bonus for withdraw
+    }
+
+    // 2. Check for invalid inputs for active tokens
+    if (
+        !totalPoolValuePreUsdScaled || totalPoolValuePreUsdScaled.isZero() || totalPoolValuePreUsdScaled.isNeg() ||
+        tokenValuePreUsdScaled === null || tokenValuePreUsdScaled.isNeg()
+    ) {
+        return BN_BASE_FEE_BPS;
+    }
+
+    let effectiveValueChangeUsdScaled = valueChangeUsdScaled;
+    if (!effectiveValueChangeUsdScaled || effectiveValueChangeUsdScaled.isZero()) {
+        if (!isDeposit && inputWithdrawAmountString && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
+            try {
+                const inputWlqiAmountBn = new BN(parseUnits(inputWithdrawAmountString, wLqiDecimals).toString());
+                const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
+                if (!scaleFactorWlqi.isZero()) {
+                    effectiveValueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
+                }
+            } catch { effectiveValueChangeUsdScaled = new BN(0); }
+        } else {
+            effectiveValueChangeUsdScaled = new BN(0);
+        }
+    }
+    if (!effectiveValueChangeUsdScaled) effectiveValueChangeUsdScaled = new BN(0);
+
+    try {
+        const actualDomPreScaled = tokenValuePreUsdScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePreUsdScaled);
+        const relDevPreBpsBN = calculateRelativeDeviationBpsBN(actualDomPreScaled, targetDominanceScaledBn);
+
+        if (effectiveValueChangeUsdScaled.isZero()) {
+            const dynamicFeePreBpsBN = relDevPreBpsBN.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
+            let totalFeePreBN = isDeposit
+                ? BN_BASE_FEE_BPS.add(dynamicFeePreBpsBN) 
+                : BN_BASE_FEE_BPS.sub(dynamicFeePreBpsBN);
+            
+            if (isDeposit) {
+                if (totalFeePreBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) totalFeePreBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
+                if (totalFeePreBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
+            } else {
+                if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) totalFeePreBN = BN_WITHDRAW_FEE_FLOOR_BPS;
+                if (totalFeePreBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
+            }
+            return totalFeePreBN;
+        }
+
+        const totalPoolValuePostScaled = isDeposit
+            ? totalPoolValuePreUsdScaled.add(effectiveValueChangeUsdScaled)
+            : (totalPoolValuePreUsdScaled.gt(effectiveValueChangeUsdScaled) ? totalPoolValuePreUsdScaled.sub(effectiveValueChangeUsdScaled) : new BN(0));
+        
+        const tokenValuePostScaled = isDeposit
+            ? tokenValuePreUsdScaled.add(effectiveValueChangeUsdScaled)
+            : (tokenValuePreUsdScaled.gt(effectiveValueChangeUsdScaled) ? tokenValuePreUsdScaled.sub(effectiveValueChangeUsdScaled) : new BN(0));
+
+        const actualDomPostScaled = totalPoolValuePostScaled.isZero() 
+            ? new BN(0) 
+            : tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled);
+        const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
+
+        const scaleFactor = new BN(100); 
+        const avgRelDevBpsBN = relDevPreBpsBN.add(relDevPostBpsBN).mul(scaleFactor).div(new BN(2).mul(scaleFactor));
+        const dynamicFeeBpsBN = avgRelDevBpsBN.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
+
+        let totalFeeBN = isDeposit
+            ? BN_BASE_FEE_BPS.add(dynamicFeeBpsBN) 
+            : BN_BASE_FEE_BPS.sub(dynamicFeeBpsBN);
+
+        if (isDeposit) {
+            if (totalFeeBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) totalFeeBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
+            if (totalFeeBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) totalFeeBN = BN_DEPOSIT_MAX_FEE_BPS;
+        } else {
+            if (totalFeeBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) totalFeeBN = BN_WITHDRAW_FEE_FLOOR_BPS;
+            if (totalFeeBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) totalFeeBN = BN_WITHDRAW_MAX_FEE_BPS;
+        }
+
+        return totalFeeBN;
+
+    } catch (e) {
+        console.error(`Error estimating ${isDeposit ? 'deposit' : 'withdraw'} fee:`, e);
+        return BN_BASE_FEE_BPS;
+    }
+};
+
+// --- MOVED: Fee/Bonus Formatting --- 
+export const formatFeeBonusString = (bpsBN: BN | null, isDeposit: boolean): { feeString: string, title: string } => {
+    // ... (Existing implementation as moved from TokenTable) ...
+    if (bpsBN === null) {
+        return { feeString: "(N/A)", title: "Deposit not applicable for delisted tokens" };
+    }
+
+    const bpsNum = bpsBN.toNumber(); // Convert BN to number for comparison/display
+    const displayPercent = (Math.abs(bpsNum) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (bpsNum < 0) {
+        return { feeString: `(~${displayPercent}% Bonus)`, title: `Est. Bonus: ~${displayPercent}%` };
+    } else if (bpsNum === 0) {
+        const isWithdrawFloor = !isDeposit && BN_WITHDRAW_FEE_FLOOR_BPS.eq(bpsBN);
+        const title = isWithdrawFloor ? "Minimum fee applied (0.00%)" : "Est. Total Fee: 0.00%";
+        return { feeString: `(0.00%)`, title: title };
+    } else { // bpsNum > 0
+        return { feeString: `(~${displayPercent}% Fee)`, title: `Est. Total Fee: ~${displayPercent}%` };
+    }
 };

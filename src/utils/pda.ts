@@ -58,6 +58,20 @@ export const findTokenHistoryPDA = (tokenMint: PublicKey): PublicKey => {
 };
 
 /**
+ * Finds the Historical Token Data PDA for a specific token mint.
+ */
+export const findHistoricalTokenDataPDA = (tokenMint: PublicKey, programId: PublicKey): PublicKey => {
+    const [pda] = PublicKey.findProgramAddressSync(
+        [
+            Buffer.from("token_history"),
+            tokenMint.toBuffer(),
+        ],
+        programId
+    );
+    return pda;
+};
+
+/**
  * Finds the wLQI Token Mint PDA. (Optional - if needed)
  */
 // export const findWliMintPDA = (): PublicKey => {

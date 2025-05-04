@@ -1771,6 +1771,16 @@
       "code": 6058,
       "name": "VaultNotEmpty",
       "msg": "Token cannot be cleaned up as its pool vault is not empty."
+    },
+    {
+      "code": 6059,
+      "name": "HistoricalDataSizeMismatch",
+      "msg": "Historical data size mismatch."
+    },
+    {
+      "code": 6060,
+      "name": "ZeroOutputTokens",
+      "msg": "Calculated withdrawal amount is zero, nothing to transfer."
     }
   ],
   "types": [
@@ -1796,6 +1806,15 @@
           {
             "name": "decimals",
             "type": "u8"
+          },
+          {
+            "name": "symbol",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
           }
         ]
       }

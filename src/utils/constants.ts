@@ -28,5 +28,9 @@ export const ORACLE_AGGREGATOR_SEED = Buffer.from("aggregator_v2");
 
 // You might add other constants from the pool program's constants.rs if needed
 // e.g., USD_SCALE, BPS_SCALE etc. for frontend calculations
-export const USD_SCALE = 8;
-export const DOMINANCE_SCALE_FACTOR = BigInt(10_000_000_000); 
+export const USD_SCALE = 6;
+export const DOMINANCE_SCALE_FACTOR = BigInt(10_000_000_000);
+export const BASE_FEE_BPS = 10; // 0.1% Base Fee (Added)
+
+// UI Defaults
+export const DEFAULT_ICON = '/tokens/btc.png';

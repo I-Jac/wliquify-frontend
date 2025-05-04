@@ -21,8 +21,8 @@ import {
     createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 import { parseUnits } from 'ethers'; // Or your preferred BN library
-import { PoolConfig, SupportedToken } from '@/types'; // Local types import - OK
-import { WLiquifyPool } from '@/types/w_liquify_pool';
+import { PoolConfig, SupportedToken } from '@/utils/types'; // Update import path
+import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; // Update import path
 import toast from "react-hot-toast";
 import { findPoolAuthorityPDA, findPoolVaultPDA, findTokenHistoryPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
