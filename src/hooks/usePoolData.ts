@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { PublicKey, SystemProgram, AccountInfo, Connection } from '@solana/web3.js';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
-import { useConnection, useWallet, WalletContextState } from '@solana/wallet-adapter-react';
+import { WalletContextState } from '@solana/wallet-adapter-react';
 import {
-    POOL_AUTHORITY_SEED,
     USD_SCALE,
 } from '@/utils/constants';
 import { Buffer } from 'buffer';
-import { getAssociatedTokenAddressSync, getMint, Mint, Account } from '@solana/spl-token';
+import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 import {
-    calculateTotalPoolValue,
     calculateWLqiValue,
     decodePriceData,
     ProcessedTokenData,
@@ -147,7 +145,6 @@ export function usePoolData({
             // --- Fetching Vaults, Price Feeds, History for Supported Tokens ---
             const publicAddressesToFetch: PublicKey[] = [];
             const tokenInfoMap = new Map<string, Partial<TokenProcessingInfo>>();
-            const oracleTokenMap = new Map<string, ParsedOracleTokenInfo>(decodedTokens.map(info => [info.address, info]));
 
             // Get all decimals first
             const allConfiguredMints = fetchedConfig.supportedTokens
@@ -378,7 +375,7 @@ export function usePoolData({
         fetchPublicPoolData();
     }, [fetchPublicPoolData]);
 
-    const refreshUserData = useCallback(async (logSource: string = 'direct call') => {
+    const refreshUserData = useCallback(async () => {
         // This still fetches ALL user data, could be optimized further if needed,
         // but is kept separate for manual refresh capability.
         // console.log(`usePoolData Hook: Refreshing user data triggered by: ${logSource}`);
@@ -625,7 +622,7 @@ export function usePoolData({
             setWlqiValueScaled(null);
         }
         // Update dependencies: Add poolConfig, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData
-    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, hasFetchedUserData.current, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData]); // ADDED isLoading flags
+    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData]); // Removed hasFetchedUserData.current 
 
     // --- Effect for Initial Public Data Fetch ---
     useEffect(() => {
@@ -663,10 +660,9 @@ export function usePoolData({
         // console.log(`Subscribing to PoolConfig account: ${poolConfigPda.toBase58()}`)
         const subscriptionId = connection.onAccountChange(
             poolConfigPda,
-            (accountInfo, context) => {
-                // REVERTED: Call refreshPublicData to handle update and decoding
+            () => { 
                 console.log("PoolConfig account changed via subscription, refreshing public data...");
-                refreshPublicData(); 
+                refreshPublicData();
             },
             "confirmed" // Or use "processed" / "finalized" based on desired speed/certainty
         );
@@ -723,7 +719,7 @@ export function usePoolData({
                 // console.log(`usePoolData User Subscription: Subscribing to ATA ${userAta.toBase58()} for mint ${mint.toBase58()}`);
                 const subId = connection.onAccountChange(
                     userAta,
-                    (accountInfo, context) => {
+                    (accountInfo) => { 
                         // Decode the balance directly from the changed account info
                         const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
                         // console.log(`usePoolData User Subscription: Account change detected for ATA ${userAta.toBase58()} (Mint: ${mint.toBase58()}). New balance: ${newBalance.toString()}`);

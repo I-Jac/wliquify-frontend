@@ -2,12 +2,12 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer'; // Ensure Buffer is available
 
 // Network Configuration
-export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
-//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
+//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
+export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
 
 // Program IDs
 export const W_LIQUIFY_POOL_PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "H9Y1ERhaAzDhKjYuMsbqQ1d3L6Mt7g244U2jfkEXy48Q"
+    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn"
 );
 export const ORACLE_PROGRAM_ID = new PublicKey(
     process.env.NEXT_PUBLIC_ORACLE_PROGRAM_ID || "DP9kZHS77pbTuTHKNsaxqFjrUboFLGXvyCQsxYvWM26c"

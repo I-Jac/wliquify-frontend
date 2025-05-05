@@ -1,5 +1,5 @@
 {
-  "address": "H9Y1ERhaAzDhKjYuMsbqQ1d3L6Mt7g244U2jfkEXy48Q",
+  "address": "FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn",
   "metadata": {
     "name": "w_liquify_pool",
     "version": "0.1.0",
@@ -345,6 +345,7 @@
         },
         {
           "name": "pool_vault",
+          "writable": true,
           "pda": {
             "seeds": [
               {

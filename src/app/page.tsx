@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { PoolInfoDisplay, PoolInfoDisplayProps } from "@/components/PoolInfoDisplay";
+import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
 import { usePoolData } from '@/hooks/usePoolData';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';

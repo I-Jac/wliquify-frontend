@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { PublicKey, SystemProgram, AccountInfo, Connection } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
-    POOL_AUTHORITY_SEED,
     USD_SCALE,
 } from '@/utils/constants';
-import { Buffer } from 'buffer';
-import { getAssociatedTokenAddressSync, getMint, MintLayout, AccountLayout } from '@solana/spl-token';
 import {
     ProcessedTokenData,
     formatScaledBnToDollarString,
@@ -21,12 +18,13 @@ import { usePoolInteractions } from '@/hooks/usePoolInteractions';
 import { SkeletonBlock } from './SkeletonBlock';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
 import { useAmountState } from '@/hooks/useAmountState';
+import { PoolConfig, AggregatedOracleDataDecoded } from '@/utils/types';
 
 // --- Define Props Interface ---
 export interface PoolInfoDisplayProps {
-    poolConfig: any; // Replace 'any' with your PoolConfig type if available
+    poolConfig: PoolConfig | null;
     poolConfigPda: PublicKey | null;
-    oracleData: any; // Replace 'any' with your OracleData type if available
+    oracleData: AggregatedOracleDataDecoded | null;
     wLqiSupply: BN | null;
     wLqiDecimals: number | null;
     processedTokenData: ProcessedTokenData[] | null;
@@ -36,7 +34,7 @@ export interface PoolInfoDisplayProps {
     isLoadingPublicData: boolean;
     isLoadingUserData: boolean;
     error: string | null;
-    refreshAllData: () => Promise<void>; // Final attempt: Ensure this returns Promise<void>
+    refreshAllData: () => Promise<void> | void;
 }
 
 // --- Adjust the component signature to accept props ---

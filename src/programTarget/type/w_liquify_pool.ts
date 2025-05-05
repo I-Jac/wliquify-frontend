@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/w_liquify_pool.json`.
  */
 export type WLiquifyPool = {
-  "address": "H9Y1ERhaAzDhKjYuMsbqQ1d3L6Mt7g244U2jfkEXy48Q",
+  "address": "FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn",
   "metadata": {
     "name": "wLiquifyPool",
     "version": "0.1.0",
@@ -351,6 +351,7 @@ export type WLiquifyPool = {
         },
         {
           "name": "poolVault",
+          "writable": true,
           "pda": {
             "seeds": [
               {

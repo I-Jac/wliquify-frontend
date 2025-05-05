@@ -1,5 +1,6 @@
 import { PublicKey, AccountInfo } from "@solana/web3.js";
-import { Program, BN } from "@coral-xyz/anchor";
+// import { Program, BN } from "@coral-xyz/anchor"; // Removed Program
+import { BN } from "@coral-xyz/anchor"; // Keep BN separate
 import { Schema, deserialize } from 'borsh'; // Import borsh
 
 // Type for processing token info needed across multiple tests

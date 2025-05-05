@@ -7,7 +7,6 @@ import {
     PublicKey, 
     SystemProgram, 
     SYSVAR_RENT_PUBKEY, 
-    AccountMeta,
     ComputeBudgetProgram,
     LAMPORTS_PER_SOL,
     Transaction,
@@ -21,12 +20,11 @@ import {
     createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 import { parseUnits } from 'ethers'; // Or your preferred BN library
-import { PoolConfig, SupportedToken } from '@/utils/types'; // Update import path
+import { PoolConfig } from '@/utils/types'; // Update import path
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; // Update import path
 import toast from "react-hot-toast";
-import { findPoolAuthorityPDA, findPoolVaultPDA, findTokenHistoryPDA } from "../utils/pda"; // Use relative path
+import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
-import { useQueryClient } from '@tanstack/react-query'; // ADDED: Import useQueryClient
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
@@ -42,7 +40,6 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
     const wallet = useWallet();
     const { publicKey, signTransaction } = wallet;
     const { priorityFee } = useSettings(); // ADDED: Get priorityFee from context
-    const queryClient = useQueryClient(); // ADDED: Get queryClient instance
     const [isDepositing, setIsDepositing] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
 
@@ -246,11 +243,12 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         outputMintAddress: string, // Mint address of the token the user WANTS to receive
         wliAmountString: string,   // Amount of wLQI the user wants to BURN (or "0" for full delisted)
         // decimals: number | null // REMOVED - wLQI decimals are fetched from poolConfig
-        isFullDelistedWithdraw: boolean = false // ADDED: Flag for new mode
+        isFullDelistedWithdraw: boolean = false, // ADDED: Flag for new mode
+        // Removed erroneous oracleData parameter
     ) => {
         // --- Pre-flight Checks ---
         // FIX: Check base prerequisites first
-        if (!program || !publicKey || !poolConfig || !poolConfigPda) {
+        if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData) {
             toast.error("Program, wallet, or pool config not available for withdrawal.");
             console.error("Withdraw prerequisites met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
             return;
@@ -329,10 +327,10 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             });
 
             // --- Create User Destination ATA if it doesn't exist ---
-            let preInstructions: TransactionInstruction[] = [];
+            const preInstructions: TransactionInstruction[] = [];
             try {
                 await connection.getAccountInfo(userDestinationAta);
-            } catch (error) {
+            } catch {
                 // Assuming error means account not found
                 console.log("User destination ATA not found, creating:", userDestinationAta.toBase58());
                 preInstructions.push(
@@ -353,17 +351,16 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 microLamports: priorityFee
             });
 
-            // REMOVED @ts-expect-error
             const withdrawInstruction = await program!.methods
                 .withdraw(wliAmountBn, isFullDelistedWithdraw) // Pass BOTH arguments
                 .accounts({
                     user: publicKey!,
                     userWliAta: userWliAta,
-                    // RE-ADD Suppression if type update hasn't propagated yet
-                    // @ts-expect-error
-                    userDestinationAta: userDestinationAta, // Renamed
+                    // @ts-expect-error // IDL vs generated type mismatch for user_destination_ata key
+                    user_destination_ata: userDestinationAta, // Use snake_case from IDL
                     feeRecipient: poolConfig.feeRecipient,
-                    poolConfig: poolConfigPda!,
+                    // @ts-expect-error // IDL vs generated type mismatch for pool_config key
+                    pool_config: poolConfigPda!, 
                     poolAuthority: poolAuthorityPda,
                     wliMint: poolConfig.wliMint,
                     ownerFeeAccount: ownerFeeAccount,
@@ -375,7 +372,6 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                     systemProgram: SystemProgram.programId,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
-                    // historicalTokenData: REMOVED
                 })
                 .instruction();
 
@@ -476,25 +472,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             setIsWithdrawing(false);
         }
         // REFACTOR: Update dependencies array
-    }, [program, publicKey, poolConfig, poolConfigPda, connection, signTransaction, onTransactionSuccess, priorityFee, wallet]); // Removed oracleData as direct dependency, using poolConfig
-
-    // Helper function to convert readable amount to lamports BN
-    const toLamports = (amount: string, decimals: number): string => {
-        // Use fixed-point arithmetic to avoid floating point issues
-        const parts = amount.split('.');
-        const integerPart = parts[0];
-        let fractionalPart = parts.length > 1 ? parts[1] : '';
-
-        // Pad fractional part to match decimals
-        if (fractionalPart.length > decimals) {
-            fractionalPart = fractionalPart.substring(0, decimals);
-        } else {
-            fractionalPart = fractionalPart.padEnd(decimals, '0');
-        }
-
-        const lamportsString = integerPart + fractionalPart;
-        return lamportsString; // Return as string for BN constructor
-    };
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput]); // Replaced wallet with publicKey, signTransaction
 
     return {
         handleDeposit,

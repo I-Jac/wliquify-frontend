@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor"; // For BN
-import { PublicKey, AccountInfo } from '@solana/web3.js';
+import { PublicKey } from "@solana/web3.js"; // Removed Connection
 import { Buffer } from 'buffer'; // Import Buffer
 import { BN } from "@coral-xyz/anchor"; // BN needed for parsing
 

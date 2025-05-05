@@ -8,7 +8,6 @@ import {
     calculateTokenValueUsdScaled,
     calculateTotalTargetDominance,
     calculateTargetPercentageScaled,
-    calculateActualPercentageScaled,
     formatScaledBnToDollarString,
     formatRawAmountString,
     formatScaledToPercentageString,
@@ -232,7 +231,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         });
 
         return dataToSort;
-    }, [tokenData, sortKey, sortDirection, totalPoolValueScaled, totalTargetDominance]);
+    }, [tokenData, sortKey, sortDirection, totalTargetDominance]);
 
     // Add handlers for the MAX/HALF buttons (using handleAmountChange prop)
     const handleSetAmount = useCallback((mintAddress: string, action: 'deposit' | 'withdraw', fraction: number) => {
@@ -367,7 +366,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     const bonusDenominator = new BN(105);
                     const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
 
-                    let requiredWlqiAmountBn = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
+                    const requiredWlqiAmountBn = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
                     if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
                         toast.error("Calculated wLQI amount is zero or negative.");
                         return;
@@ -669,7 +668,6 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     // --- Calculate Withdraw Fee Estimate --- Refactored to use BN
                      if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
                         let valueChangeUsdScaled = new BN(0);
-                        let requiredTokenAmount = new BN(0);
                         try {
                             const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
                             const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));

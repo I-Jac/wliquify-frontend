@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Connection, PublicKey, AccountInfo, SystemProgram } from '@solana/web3.js';
+import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { PoolConfig, SupportedToken } from '@/utils/types'; // Update import path
-import { Buffer } from 'buffer';
 
 interface UsePoolSubscriptionsProps {
     connection: Connection | null;
@@ -40,7 +39,7 @@ export function usePoolSubscriptions({
         try {
             const poolConfigSub = connection.onAccountChange(
                 poolConfigPda,
-                (accountInfo) => {
+                () => {
                     console.log('PoolConfig account changed, triggering public refresh...');
                     refreshPublicData();
                 },
@@ -59,7 +58,7 @@ export function usePoolSubscriptions({
              try {
                 const oracleSub = connection.onAccountChange(
                     poolConfig.oracleAggregatorAccount,
-                    async (accountInfo) => {
+                    async () => {
                         console.log('Oracle account changed, triggering public refresh...');
                         refreshPublicData();
                     },
@@ -83,7 +82,7 @@ export function usePoolSubscriptions({
                 try {
                     const vaultSub = connection.onAccountChange(
                         nonNullVault,
-                        (accountInfo) => {
+                        () => {
                             console.log(
                                 `Vault ${nonNullVault.toString()} (${token.mint?.toBase58()}) changed, triggering public refresh...`
                             );
@@ -125,7 +124,7 @@ export function usePoolSubscriptions({
         const subscriptionIds: number[] = [];
 
         // Generic handler to trigger user data refresh
-        const handleAccountUpdate = (accountInfo: AccountInfo<Buffer>, context: { slot: number }, mintAddress: string) => {
+        const handleAccountUpdate = (context: { slot: number }, mintAddress: string) => {
             console.log(`usePoolSubscriptions: Account ${mintAddress} updated, triggering user data refresh.`);
             refreshUserData();
         };
@@ -135,7 +134,7 @@ export function usePoolSubscriptions({
             const userWlqiAta = getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey);
             const wLqiSubId = connection.onAccountChange(
                 userWlqiAta,
-                (accountInfo, context) => handleAccountUpdate(accountInfo, context, poolConfig.wliMint.toBase58()),
+                (_accountInfo, context) => handleAccountUpdate(context, poolConfig.wliMint.toBase58()),
                 'confirmed'
             );
             subscriptionIds.push(wLqiSubId);
@@ -151,7 +150,7 @@ export function usePoolSubscriptions({
                     const userAta = getAssociatedTokenAddressSync(nonNullMintKey, publicKey);
                     const subId = connection.onAccountChange(
                         userAta,
-                        (accountInfo, context) => handleAccountUpdate(accountInfo, context, nonNullMintKey.toBase58()),
+                        (_accountInfo, context) => handleAccountUpdate(context, nonNullMintKey.toBase58()),
                         'confirmed'
                     );
                     subscriptionIds.push(subId);
