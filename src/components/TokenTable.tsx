@@ -240,8 +240,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
         let amountToSet = '0';
         // Find token data only needed for deposit action
-        const token = action === 'deposit' ? tokenData.find(t => t.mintAddress === mintAddress) : null; 
-        
+        const token = action === 'deposit' ? tokenData.find(t => t.mintAddress === mintAddress) : null;
+
         if (action === 'deposit') {
             if (!token || token.userBalance === null || token.decimals === null) return;
             const fullAmountBn = token.userBalance;
@@ -255,7 +255,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
             // Use wLqiDecimals for formatting withdraw amount (wLQI)
             amountToSet = formatUnits(targetAmountBn.toString(), wLqiDecimals);
         }
-        
+
         // Remove trailing .0 if present
         if (amountToSet.endsWith('.0')) {
             amountToSet = amountToSet.substring(0, amountToSet.length - 2);
@@ -284,8 +284,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
         }
 
         if (isTokenDataInvalid) {
-             toast.error("Token data invalid for target calculation.");
-             return;
+            toast.error("Token data invalid for target calculation.");
+            return;
         }
 
         // Current state values
@@ -317,7 +317,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
                 // FIX: Unscale the result before checks and formatting
                 if (PRECISION_SCALE_FACTOR.isZero()) { // Safety check
-                     toast.error("Internal error: Precision scale factor is zero.");
+                    toast.error("Internal error: Precision scale factor is zero.");
                     return;
                 }
                 const finalAmountBn = tokenAmountScaledBn.div(PRECISION_SCALE_FACTOR);
@@ -342,10 +342,10 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     // Use userBalance directly for formatting
                     amountToSet = formatUnits(token.userBalance.toString(), token.decimals);
                 } else {
-                     // Use the calculated finalAmountBn for formatting
-                     amountToSet = formatUnits(finalAmountBn.toString(), token.decimals);
+                    // Use the calculated finalAmountBn for formatting
+                    amountToSet = formatUnits(finalAmountBn.toString(), token.decimals);
                 }
-                
+
             } else { // withdraw
                 // --- Handle Delisted Withdraw Target --- START
                 if (token.isDelisted) {
@@ -390,7 +390,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         const finalWlqiAmountBn = requiredWlqiAmountBn.add(new BN(1));
                         amountToSet = formatUnits(finalWlqiAmountBn.toString(), wLqiDecimals);
                     }
-                } 
+                }
                 // --- Handle Delisted Withdraw Target --- END
                 else {
                     // Moved calculations here as they are only needed for active tokens
@@ -404,8 +404,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         toast.error("Cannot withdraw to reach target, token already at or below.");
                         return; // Cannot withdraw if already at or below target
                     }
-                     if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
-                         toast.error("Invalid target dominance for calculation.");
+                    if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
+                        toast.error("Invalid target dominance for calculation.");
                         return;
                     }
 
@@ -442,8 +442,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 amountToSet = amountToSet.substring(0, amountToSet.length - 2);
             }
             if (parseFloat(amountToSet) <= 0) {
-                 toast.error("Calculated target amount is too small.");
-                 return;
+                toast.error("Calculated target amount is too small.");
+                return;
             }
 
             handleAmountChange(mintAddress, action, amountToSet);
@@ -477,8 +477,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
         // --- Recalculate values needed for display --- 
         const tokenValueUsd = vaultBalance !== null && decimals !== null
-           ? calculateTokenValueUsdScaled(vaultBalance, decimals, priceData)
-           : null;
+            ? calculateTokenValueUsdScaled(vaultBalance, decimals, priceData)
+            : null;
         const targetScaled = calculateTargetPercentageScaled(targetDominance, totalTargetDominance);
 
         // --- Get Input Values ---
@@ -518,79 +518,76 @@ export const TokenTable = React.memo<TokenTableProps>(({
         // --- Advanced Fee Calculation --- Refactored to use BN
         let estimatedDepositFeeBps = BASE_FEE_BPS; // Default for Deposit
         let estimatedWithdrawFeeBps = BASE_FEE_BPS; // Default for Withdraw
-        let depositDynamicFeeBpsBN: BN | null = null; // Store intermediate dynamic fee
         let withdrawDynamicFeeBpsBN: BN | null = null; // Store intermediate dynamic fee
-        let withdrawalExceedsLiquidity = false; 
+        let withdrawalExceedsLiquidity = false;
 
         try {
-             // --- Liquidity Check (Moved Up & Separated) ---
-             // Check if the manually entered wLQI withdraw amount requires more underlying tokens than the pool holds.
-             if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
-                 try {
-                     const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
-                     const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
-                     let valueChangeUsdScaled = new BN(0);
-                     if (!scaleFactorWlqi.isZero()) {
-                         valueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
-                     }
+            // --- Liquidity Check (Moved Up & Separated) ---
+            // Check if the manually entered wLQI withdraw amount requires more underlying tokens than the pool holds.
+            if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
+                try {
+                    const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
+                    const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
+                    let valueChangeUsdScaled = new BN(0);
+                    if (!scaleFactorWlqi.isZero()) {
+                        valueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
+                    }
 
-                     // Convert USD value to required token amount
-                     const requiredTokenAmountBn_scaled = usdToTokenAmount(valueChangeUsdScaled, decimals, priceData);
-                     const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
+                    // Convert USD value to required token amount
+                    const requiredTokenAmountBn_scaled = usdToTokenAmount(valueChangeUsdScaled, decimals, priceData);
+                    const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
 
-                     if (requiredTokenAmountBn.gt(vaultBalance)) {
-                         // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) > Vault (${vaultBalance.toString()})`);
-                         withdrawalExceedsLiquidity = true;
-                     } else {
-                         // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) <= Vault (${vaultBalance.toString()})`);
-                         withdrawalExceedsLiquidity = false; // Explicitly set to false if liquidity is sufficient
-                     }
-                 } catch (e) {
-                     console.error("Error during withdrawal liquidity check:", e);
-                     withdrawalExceedsLiquidity = false; // Assume sufficient if calculation fails?
-                 }
-             } else {
-                 // If input isn't filled or data is missing, assume liquidity is not exceeded by the input
-                 withdrawalExceedsLiquidity = false;
-             }
+                    if (requiredTokenAmountBn.gt(vaultBalance)) {
+                        // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) > Vault (${vaultBalance.toString()})`);
+                        withdrawalExceedsLiquidity = true;
+                    } else {
+                        // console.log(`Liquidity Check: Required ${symbol} (${requiredTokenAmountBn.toString()}) <= Vault (${vaultBalance.toString()})`);
+                        withdrawalExceedsLiquidity = false; // Explicitly set to false if liquidity is sufficient
+                    }
+                } catch (e) {
+                    console.error("Error during withdrawal liquidity check:", e);
+                    withdrawalExceedsLiquidity = false; // Assume sufficient if calculation fails?
+                }
+            } else {
+                // If input isn't filled or data is missing, assume liquidity is not exceeded by the input
+                withdrawalExceedsLiquidity = false;
+            }
 
-             // --- ADDED: Check if TVL is available before calculating dynamic fees ---
-             if (!totalPoolValueScaled) {
-                 // If TVL is null (e.g., during refresh), default fees to base and skip dynamic calc
-                 estimatedDepositFeeBps = BASE_FEE_BPS;
-                 estimatedWithdrawFeeBps = BASE_FEE_BPS;
-                 depositDynamicFeeBpsBN = null;
-                 withdrawDynamicFeeBpsBN = null;
-                 // console.log(`Fee Estimation for ${symbol}: Skipping dynamic calc (TVL null)`);
-             } else {
-                 // TVL is available, proceed with dynamic fee calculation
-                 const targetDominanceScaledBn = (totalTargetDominance && !totalTargetDominance.isZero())
+            // --- ADDED: Check if TVL is available before calculating dynamic fees ---
+            if (!totalPoolValueScaled) {
+                // If TVL is null (e.g., during refresh), default fees to base and skip dynamic calc
+                estimatedDepositFeeBps = BASE_FEE_BPS;
+                estimatedWithdrawFeeBps = BASE_FEE_BPS;
+                withdrawDynamicFeeBpsBN = null;
+                // console.log(`Fee Estimation for ${symbol}: Skipping dynamic calc (TVL null)`);
+            } else {
+                // TVL is available, proceed with dynamic fee calculation
+                const targetDominanceScaledBn = (totalTargetDominance && !totalTargetDominance.isZero())
                     ? targetDominance.mul(DOMINANCE_SCALE).div(totalTargetDominance)
                     : new BN(0);
-                 // Refined: Default actualDomPreScaled to null if TVL is missing
-                 const actualDomPreScaled = (tokenValueUsd && !totalPoolValueScaled.isZero()) // Check zero here too
+                // Refined: Default actualDomPreScaled to null if TVL is missing
+                const actualDomPreScaled = (tokenValueUsd && !totalPoolValueScaled.isZero()) // Check zero here too
                     ? tokenValueUsd.mul(DOMINANCE_SCALE).div(totalPoolValueScaled)
                     : null;
 
-                 // --- ADDED: Check if actualDomPreScaled is valid before using it ---
-                 if (actualDomPreScaled === null) {
+                // --- ADDED: Check if actualDomPreScaled is valid before using it ---
+                if (actualDomPreScaled === null) {
                     // Should not happen if totalPoolValueScaled check passed, but safety first
                     estimatedDepositFeeBps = BASE_FEE_BPS;
                     estimatedWithdrawFeeBps = BASE_FEE_BPS;
-                    depositDynamicFeeBpsBN = null;
                     withdrawDynamicFeeBpsBN = null;
                     // console.log(`Fee Estimation for ${symbol}: Skipping dynamic calc (ActualDomPre null)`);
-                 } else {
+                } else {
                     // Both TVL and ActualDomPreScaled are valid, calculate relative deviation
                     const relDevPreBps = calculateRelativeDeviationBpsBN(actualDomPreScaled, targetDominanceScaledBn);
-                    
+
                     // --- Calculate Deposit Fee Estimate --- Refactored to use BN
                     if (isDepositInputFilled && decimals !== null && priceData && !totalPoolValueScaled.isZero() && totalTargetDominance && !totalTargetDominance.isZero()) {
                         let valueChangeUsdScaled = new BN(0);
                         try {
                             const inputAmountBn = new BN(parseUnits(currentDepositAmount, decimals).toString());
                             valueChangeUsdScaled = calculateTokenValueUsdScaled(inputAmountBn, decimals, priceData);
-                            
+
                             if (!valueChangeUsdScaled.isZero()) {
                                 const totalPoolValuePostScaled = totalPoolValueScaled.add(valueChangeUsdScaled);
                                 const tokenValuePostScaled = (tokenValueUsd ?? new BN(0)).add(valueChangeUsdScaled);
@@ -598,28 +595,26 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                 const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
                                     ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
                                     : null;
-                                
+
                                 // --- ADDED: Check if Post Actual Dom is valid ---
                                 if (actualDomPostScaled !== null) {
                                     const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
                                     const scaleFactor = new BN(100);
-                                    const avgRelDevBpsBN = relDevPreBps.add(relDevPostBpsBN).mul(scaleFactor).div(new BN(2).mul(scaleFactor)); 
+                                    const avgRelDevBpsBN = relDevPreBps.add(relDevPostBpsBN).mul(scaleFactor).div(new BN(2).mul(scaleFactor));
                                     const rawDynamicFeeBpsBN = avgRelDevBpsBN.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
-                                    depositDynamicFeeBpsBN = rawDynamicFeeBpsBN; 
                                     let effectiveDynamicFeeBpsBN = rawDynamicFeeBpsBN;
                                     if (effectiveDynamicFeeBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
-                                       effectiveDynamicFeeBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
+                                        effectiveDynamicFeeBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
                                     }
                                     let totalFeeBN = BN_BASE_FEE_BPS.add(effectiveDynamicFeeBpsBN);
                                     if (totalFeeBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) {
-                                       totalFeeBN = BN_DEPOSIT_MAX_FEE_BPS;
+                                        totalFeeBN = BN_DEPOSIT_MAX_FEE_BPS;
                                     }
-                                    estimatedDepositFeeBps = Math.round(totalFeeBN.toNumber()); 
+                                    estimatedDepositFeeBps = Math.round(totalFeeBN.toNumber());
                                 } else {
                                     // Cannot calculate post-state, fallback to pre-state fee
                                     console.warn(`Fee Estimation for Deposit ${symbol}: Could not calc Post Actual Dom, using Pre state`);
                                     const rawDynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
-                                    depositDynamicFeeBpsBN = rawDynamicFeePreBpsBN;
                                     let effectiveDynamicFeePreBpsBN = rawDynamicFeePreBpsBN;
                                     if (effectiveDynamicFeePreBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
                                         effectiveDynamicFeePreBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
@@ -629,77 +624,74 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                         totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
                                     }
                                     estimatedDepositFeeBps = Math.round(totalFeePreBN.toNumber());
-                                } 
-        
+                                }
+
                             } else {
-                               // Value change is zero, estimate based on pre-state (using BN)
-                               const rawDynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
-                               depositDynamicFeeBpsBN = rawDynamicFeePreBpsBN;
-                               let effectiveDynamicFeePreBpsBN = rawDynamicFeePreBpsBN;
-                               if (effectiveDynamicFeePreBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
-                                   effectiveDynamicFeePreBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
-                               }
-                               let totalFeePreBN = BN_BASE_FEE_BPS.add(effectiveDynamicFeePreBpsBN);
-                               if (totalFeePreBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) {
-                                   totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
-                               }
-                               estimatedDepositFeeBps = Math.round(totalFeePreBN.toNumber());
+                                // Value change is zero, estimate based on pre-state (using BN)
+                                const rawDynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
+                                let effectiveDynamicFeePreBpsBN = rawDynamicFeePreBpsBN;
+                                if (effectiveDynamicFeePreBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
+                                    effectiveDynamicFeePreBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
+                                }
+                                let totalFeePreBN = BN_BASE_FEE_BPS.add(effectiveDynamicFeePreBpsBN);
+                                if (totalFeePreBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) {
+                                    totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
+                                }
+                                estimatedDepositFeeBps = Math.round(totalFeePreBN.toNumber());
                             }
                         } catch (e) {
                             console.error("Error during deposit fee estimation (BN):", e);
                             estimatedDepositFeeBps = BASE_FEE_BPS; // Fallback
-                            depositDynamicFeeBpsBN = null; // Reset on error
                         }
                     } else {
                         // No deposit amount or missing data, estimate based on pre-state (using BN)
                         const rawDynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
-                        depositDynamicFeeBpsBN = rawDynamicFeePreBpsBN;
                         let effectiveDynamicFeePreBpsBN = rawDynamicFeePreBpsBN;
                         if (effectiveDynamicFeePreBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
-                           effectiveDynamicFeePreBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
+                            effectiveDynamicFeePreBpsBN = BN_DEPOSIT_PREMIUM_CAP_BPS;
                         }
                         let totalFeePreBN = BN_BASE_FEE_BPS.add(effectiveDynamicFeePreBpsBN);
                         if (totalFeePreBN.gt(BN_DEPOSIT_MAX_FEE_BPS)) {
-                           totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
+                            totalFeePreBN = BN_DEPOSIT_MAX_FEE_BPS;
                         }
                         estimatedDepositFeeBps = Math.round(totalFeePreBN.toNumber());
                     }
-        
+
                     // --- Calculate Withdraw Fee Estimate --- Refactored to use BN
-                     if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
+                    if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null && vaultBalance && !vaultBalance.isZero()) {
                         let valueChangeUsdScaled = new BN(0);
                         try {
                             const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
                             const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
-        
+
                             if (!scaleFactorWlqi.isZero()) {
                                 valueChangeUsdScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
                             }
-        
-                           // Calculate fee only if liquidity check passed (flag is false)
-                           // and valueChange is non-zero
-                           if (!withdrawalExceedsLiquidity && !valueChangeUsdScaled.isZero()) { 
-                               const totalPoolValuePostScaled = totalPoolValueScaled.gt(valueChangeUsdScaled) ? totalPoolValueScaled.sub(valueChangeUsdScaled) : new BN(0);
-                               const currentTokenValue = tokenValueUsd ?? new BN(0);
-                               const tokenValuePostScaled = currentTokenValue.gt(valueChangeUsdScaled) ? currentTokenValue.sub(valueChangeUsdScaled) : new BN(0);
-                               // Refined: Check Post TVL before calculating Post Actual Dom
-                               const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
-                                   ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
-                                   : null;
-                                
-                               // --- ADDED: Check if Post Actual Dom is valid ---
-                               if (actualDomPostScaled !== null) {
-                                   const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
-                                   const avgRelDevBpsBN = relDevPreBps.add(relDevPostBpsBN).div(new BN(2));
-                                   withdrawDynamicFeeBpsBN = avgRelDevBpsBN.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
-                                   let totalFeeBN = BN_BASE_FEE_BPS.sub(withdrawDynamicFeeBpsBN);
-                                   if (totalFeeBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
-                                       totalFeeBN = BN_WITHDRAW_FEE_FLOOR_BPS;
-                                   } else if (totalFeeBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) {
-                                      totalFeeBN = BN_WITHDRAW_MAX_FEE_BPS;
-                                   }
-                                   estimatedWithdrawFeeBps = Math.round(totalFeeBN.toNumber());
-                               } else {
+
+                            // Calculate fee only if liquidity check passed (flag is false)
+                            // and valueChange is non-zero
+                            if (!withdrawalExceedsLiquidity && !valueChangeUsdScaled.isZero()) {
+                                const totalPoolValuePostScaled = totalPoolValueScaled.gt(valueChangeUsdScaled) ? totalPoolValueScaled.sub(valueChangeUsdScaled) : new BN(0);
+                                const currentTokenValue = tokenValueUsd ?? new BN(0);
+                                const tokenValuePostScaled = currentTokenValue.gt(valueChangeUsdScaled) ? currentTokenValue.sub(valueChangeUsdScaled) : new BN(0);
+                                // Refined: Check Post TVL before calculating Post Actual Dom
+                                const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
+                                    ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
+                                    : null;
+
+                                // --- ADDED: Check if Post Actual Dom is valid ---
+                                if (actualDomPostScaled !== null) {
+                                    const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
+                                    const avgRelDevBpsBN = relDevPreBps.add(relDevPostBpsBN).div(new BN(2));
+                                    withdrawDynamicFeeBpsBN = avgRelDevBpsBN.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
+                                    let totalFeeBN = BN_BASE_FEE_BPS.sub(withdrawDynamicFeeBpsBN);
+                                    if (totalFeeBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
+                                        totalFeeBN = BN_WITHDRAW_FEE_FLOOR_BPS;
+                                    } else if (totalFeeBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) {
+                                        totalFeeBN = BN_WITHDRAW_MAX_FEE_BPS;
+                                    }
+                                    estimatedWithdrawFeeBps = Math.round(totalFeeBN.toNumber());
+                                } else {
                                     // Cannot calculate post-state, fallback to pre-state fee
                                     console.warn(`Fee Estimation for Withdraw ${symbol}: Could not calc Post Actual Dom, using Pre state`);
                                     const dynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
@@ -707,42 +699,42 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
                                         totalFeePreBN = BN_WITHDRAW_FEE_FLOOR_BPS;
                                     } else if (totalFeePreBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) {
-                                       totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
+                                        totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
                                     }
                                     estimatedWithdrawFeeBps = Math.round(totalFeePreBN.toNumber());
-                               } 
-        
+                                }
+
                             } else if (!withdrawalExceedsLiquidity) {
-                               // Value change zero or liquidity check failed, estimate based on pre-state (using BN)
+                                // Value change zero or liquidity check failed, estimate based on pre-state (using BN)
                                 const dynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
                                 let totalFeePreBN = BN_BASE_FEE_BPS.sub(dynamicFeePreBpsBN);
                                 if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
                                     totalFeePreBN = BN_WITHDRAW_FEE_FLOOR_BPS;
                                 } else if (totalFeePreBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) {
-                                   totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
+                                    totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
                                 }
                                 estimatedWithdrawFeeBps = Math.round(totalFeePreBN.toNumber());
                             }
                             // If withdrawalExceedsLiquidity is true, fee remains default (BASE_FEE) but button will be disabled/show error
-        
-                        } catch(e) {
-                           console.error("Error during withdraw fee estimation (BN):", e);
-                           estimatedWithdrawFeeBps = BASE_FEE_BPS; // Fallback
+
+                        } catch (e) {
+                            console.error("Error during withdraw fee estimation (BN):", e);
+                            estimatedWithdrawFeeBps = BASE_FEE_BPS; // Fallback
                         }
-                   } else {
+                    } else {
                         // No withdraw amount or missing data, estimate based on pre-state (using BN)
                         const dynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
                         let totalFeePreBN = BN_BASE_FEE_BPS.sub(dynamicFeePreBpsBN);
                         if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
                             totalFeePreBN = BN_WITHDRAW_FEE_FLOOR_BPS;
                         } else if (totalFeePreBN.gt(BN_WITHDRAW_MAX_FEE_BPS)) {
-                           totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
+                            totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
                         }
                         estimatedWithdrawFeeBps = Math.round(totalFeePreBN.toNumber());
-                   }
+                    }
                 } // End of main else block (TVL and ActualDomPreScaled are valid)
-             } // End of outer else block (TVL is valid)
-        } catch(e) {
+            } // End of outer else block (TVL is valid)
+        } catch (e) {
             console.error("Error calculating fee estimate:", e);
             // Fallback to base fee for both on any error
             estimatedDepositFeeBps = BASE_FEE_BPS;
@@ -752,12 +744,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
         // Calculate deviation strings for display (using token.actualDominancePercent)
         // Handle case where percentage might be null/undefined
         const actualPercentBN = token.actualDominancePercent !== null && token.actualDominancePercent !== undefined
-             ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE)) // Convert percentage back to scaled BN for comparison
-             : null;
+            ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE)) // Convert percentage back to scaled BN for comparison
+            : null;
 
         // --- Button State Logic ---
         const actionDisabled = isDepositing || isWithdrawing || isLoadingPublicData || isLoadingUserData;
         let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted;
+        let withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled; // Declare and initialize withdrawButtonDisabled here
 
         // --- Create Fee Display Strings --- (Moved Up)
         const formatFeeString = (estimatedBps: number, isDeposit: boolean) => {
@@ -779,7 +772,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 }
             } else {
                 if (estimatedBps === 0) {
-                    feeString = "(0.00%)"; 
+                    feeString = "(0.00%)";
                     title = "Minimum fee applied (0.00%)";
                 } else if (estimatedBps > 0) {
                     const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -808,7 +801,6 @@ export const TokenTable = React.memo<TokenTableProps>(({
         let withdrawLabel = isWithdrawing ? 'Withdrawing...' : 'Withdraw';
         let depositTitle = 'Enter amount to deposit';
         let withdrawTitle = 'Enter wLQI amount to withdraw';
-        let withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled;
 
         if (!actionDisabled) { // Only calculate/display fees when not loading/transacting
             // Deposit Fee/Color
@@ -834,9 +826,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
             depositLabel = `Deposit ${depositFeeString}`;
             depositTitle = depositTitleBase;
 
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = 
-                isDelisted 
-                    ? formatDelistedWithdrawFeeString() 
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } =
+                isDelisted
+                    ? formatDelistedWithdrawFeeString()
                     : formatFeeString(estimatedWithdrawFeeBps, false);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
@@ -848,40 +840,40 @@ export const TokenTable = React.memo<TokenTableProps>(({
         if (withdrawInsufficientBalance) {
             withdrawLabel = "Insufficient wLQI";
             withdrawTitle = "Withdrawal amount exceeds your wLQI balance";
-            withdrawButtonDisabled = true; 
+            withdrawButtonDisabled = true; // Assignment is now valid
             withdrawBtnClass = BTN_GRAY;
-        } 
+        }
         // 2. Check Zero Pool Balance (Only applies if user balance is sufficient)
-        else if (isDelisted && (!vaultBalance || vaultBalance.isZero())) { 
+        else if (isDelisted && (!vaultBalance || vaultBalance.isZero())) {
             withdrawLabel = "Pool Empty";
             withdrawTitle = "No balance of this delisted token in the pool to withdraw.";
-            withdrawButtonDisabled = true;
+            withdrawButtonDisabled = true; // Assignment is now valid
             withdrawBtnClass = BTN_GRAY;
-        } 
+        }
         // 3. Check Insufficient Pool Liquidity (Only applies if user balance sufficient AND pool not empty)
-        else if (withdrawalExceedsLiquidity) { 
+        else if (withdrawalExceedsLiquidity) {
             // Override withdraw display for liquidity error
             // FIX: Make label and title specific to the pool token
             withdrawTitle = `Pool lacks sufficient ${symbol} for withdrawal`;
             withdrawLabel = `Insufficient Pool ${symbol}`;
-            withdrawButtonDisabled = true; 
+            withdrawButtonDisabled = true; // Assignment is now valid
             withdrawBtnClass = BTN_GRAY;
         }
 
         // --- Formatting & USD Value Calcs --- 
-        const displayBalance = formatRawAmountString(vaultBalance?.toString(), decimals, true, 2); 
+        const displayBalance = formatRawAmountString(vaultBalance?.toString(), decimals, true, 2);
         const displayValue = formatScaledBnToDollarString(tokenValueUsd, USD_SCALE);
         const displaySymbol = symbol;
         const displayTargetPercent = formatScaledToPercentageString(targetScaled);
         const displayActualPercent = (typeof token.actualDominancePercent === 'number')
-             ? token.actualDominancePercent.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-             : '--.--';
-        
+            ? token.actualDominancePercent.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+            : '--.--';
+
         // Refined: Check userBalance from the token object directly for formatting
         const currentUserBalance = token.userBalance;
-        const formattedUserTokenBalance = currentUserBalance !== null 
-             ? formatRawAmountString(currentUserBalance.toString(), decimals, true, 2)
-             : null; 
+        const formattedUserTokenBalance = currentUserBalance !== null
+            ? formatRawAmountString(currentUserBalance.toString(), decimals, true, 2)
+            : null;
         const displayUserTokenBalance = formattedUserTokenBalance ? `${formattedUserTokenBalance} ${symbol}` : '--.--'; // Show placeholder instead of N/A
 
         // Refined: Check userWlqiBalance AND wLqiDecimals props directly for formatting
@@ -892,13 +884,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
         let displayDepositInputUsdValue = '$ --.--';
         if (isDepositInputFilled && decimals !== null && priceData) {
-           try {
+            try {
                 const inputAmountBn = new BN(parseUnits(currentDepositAmount, decimals).toString());
                 const inputUsdValueScaled = calculateTokenValueUsdScaled(inputAmountBn, decimals, priceData);
                 displayDepositInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-           } catch /* (error) Remove unused var */ { displayDepositInputUsdValue = '$ Invalid'; }
+            } catch /* (error) Remove unused var */ { displayDepositInputUsdValue = '$ Invalid'; }
         } else if (currentDepositAmount === '' || currentDepositAmount === '0') {
-           displayDepositInputUsdValue = '$ 0.00';
+            displayDepositInputUsdValue = '$ 0.00';
         }
         let displayWithdrawInputUsdValue = '$ --.--';
         if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled) {
@@ -911,7 +903,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 }
             } catch /* (error) Remove unused var */ { displayWithdrawInputUsdValue = '$ Invalid'; }
         } else if (currentWithdrawAmount === '' || currentWithdrawAmount === '0') {
-           displayWithdrawInputUsdValue = '$ 0.00';
+            displayWithdrawInputUsdValue = '$ 0.00';
         }
 
         // --- Overrides for Insufficient Balance / Liquidity --- (Apply AFTER conditional fee logic)
@@ -922,12 +914,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
             depositButtonDisabled = true;
             depositBtnClass = BTN_GRAY;
         }
-        if (withdrawInsufficientBalance) {
-            withdrawLabel = "Insufficient wLQI";
-            withdrawTitle = "Withdrawal amount exceeds your wLQI balance";
-            withdrawButtonDisabled = true; 
-            withdrawBtnClass = BTN_GRAY;
-        }
+        // The check for withdrawInsufficientBalance is already handled above in the "Withdrawal Overrides" section,
+        // so we don't need to repeat the assignment to withdrawButtonDisabled here.
+        // if (withdrawInsufficientBalance) { ... }
 
         // --- Prepare Button Callbacks ---
         const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
@@ -940,28 +929,28 @@ export const TokenTable = React.memo<TokenTableProps>(({
         let userHasEnoughForDelisted = false;
 
         if (isDelisted && vaultBalance && !vaultBalance.isZero() && decimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
-             try {
-                 const T_usd_scaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
-                 if (T_usd_scaled && T_usd_scaled.gtn(0)) {
-                     // Calculate target value (T_usd_scaled / 1.05)
-                     const bonusNumerator = new BN(100);
-                     const bonusDenominator = new BN(105);
-                     const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
-                     const requiredWlqi = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
-                     // Add 1 lamport to ensure full withdrawal
-                     requiredWlqiForDelistedBn = requiredWlqi.add(new BN(1));
-                     requiredWlqiForDelistedFormatted = formatRawAmountString(requiredWlqiForDelistedBn.toString(), wLqiDecimals, true, 4); // Show more precision
+            try {
+                const T_usd_scaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
+                if (T_usd_scaled && T_usd_scaled.gtn(0)) {
+                    // Calculate target value (T_usd_scaled / 1.05)
+                    const bonusNumerator = new BN(100);
+                    const bonusDenominator = new BN(105);
+                    const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
+                    const requiredWlqi = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
+                    // Add 1 lamport to ensure full withdrawal
+                    requiredWlqiForDelistedBn = requiredWlqi.add(new BN(1));
+                    requiredWlqiForDelistedFormatted = formatRawAmountString(requiredWlqiForDelistedBn.toString(), wLqiDecimals, true, 4); // Show more precision
 
-                     if (userWlqiBalance && requiredWlqiForDelistedBn.lte(userWlqiBalance)) {
-                         userHasEnoughForDelisted = true;
-                     }
-                 }
-             } catch (e) {
-                 console.error(`Error calculating required wLQI for delisted ${symbol}:`, e);
-                 requiredWlqiForDelistedBn = null;
-                 requiredWlqiForDelistedFormatted = null;
-                 userHasEnoughForDelisted = false;
-             }
+                    if (userWlqiBalance && requiredWlqiForDelistedBn.lte(userWlqiBalance)) {
+                        userHasEnoughForDelisted = true;
+                    }
+                }
+            } catch (e) {
+                console.error(`Error calculating required wLQI for delisted ${symbol}:`, e);
+                requiredWlqiForDelistedBn = null;
+                requiredWlqiForDelistedFormatted = null;
+                userHasEnoughForDelisted = false;
+            }
         }
         // --- Calculate required wLQI for delisted --- END
 
@@ -999,9 +988,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         {isDelisted ? (
                             <div className="text-center text-gray-500 italic">N/A</div>
                         ) : (
-                            <div className="flex flex-col space-y-1"> 
-                                <div className="flex items-center justify-between"> 
-                                    <div className="text-gray-400 text-[10px] flex items-center"> 
+                            <div className="flex flex-col space-y-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-gray-400 text-[10px] flex items-center">
                                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
                                             <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
                                         </svg>
@@ -1024,7 +1013,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                 </div>
 
                                 <div className="flex items-center">
-                                    <div className="relative w-full"> 
+                                    <div className="relative w-full">
                                         <input
                                             id={`deposit-${mintAddress}`}
                                             type="number"
@@ -1047,12 +1036,12 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end"> 
+                                <div className="flex justify-end">
                                     <div className="text-gray-400 text-[10px] h-3">
                                         {displayDepositInputUsdValue}
                                     </div>
                                 </div>
-                                
+
                                 <button
                                     onClick={handleActualDeposit}
                                     disabled={depositButtonDisabled}
@@ -1067,9 +1056,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 )}
                 {/* Withdraw Column */}
                 <td className="p-2 align-middle">
-                    <div className="flex flex-col space-y-1"> 
-                        <div className="flex items-center justify-between"> 
-                             <div className="text-gray-400 text-[10px] flex items-center"> 
+                    <div className="flex flex-col space-y-1">
+                        <div className="flex items-center justify-between">
+                            <div className="text-gray-400 text-[10px] flex items-center">
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1">
                                     <path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path>
                                 </svg>
@@ -1093,9 +1082,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
                         {/* --- Standard Withdraw Input & Button --- */}
                         {/* Always render this block, but disable standard withdraw for delisted if needed */}
-                        <> 
+                        <>
                             <div className="flex items-center">
-                                <div className="relative w-full"> 
+                                <div className="relative w-full">
                                     <input
                                         id={`withdraw-${mintAddress}`}
                                         type="number"
@@ -1128,45 +1117,45 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             <button
                                 onClick={handleActualWithdraw} // Standard withdraw
                                 // Update disabled logic and button class/label for delisted state
-                                disabled={actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero())}
-                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero()) ? BTN_GRAY : (isDelisted ? BTN_GREEN : withdrawBtnClass)} ${(actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                title={ withdrawInsufficientBalance ? "Insufficient wLQI" :
-                                        withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
+                                disabled={actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero()) || withdrawButtonDisabled /* Use the declared variable */}
+                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero()) ? BTN_GRAY : (isDelisted ? BTN_GREEN : withdrawBtnClass)} ${(actionDisabled || withdrawInsufficientBalance || withdrawalExceedsLiquidity || (!vaultBalance || vaultBalance.isZero()) || withdrawButtonDisabled /* Use the declared variable */) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                title={withdrawInsufficientBalance ? "Insufficient wLQI" :
+                                    withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
                                         (!vaultBalance || vaultBalance.isZero()) ? `Pool vault for ${symbol} is empty.` :
-                                        isDelisted ? "Withdraw specified wLQI amount (~5% Bonus, 0% net fee)" :
-                                        withdrawTitle
-                                      }
+                                            isDelisted ? "Withdraw specified wLQI amount (~5% Bonus, 0% net fee)" :
+                                                withdrawTitle
+                                }
                             >
-                                { withdrawInsufficientBalance ? "Insufficient wLQI" :
-                                  withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
-                                  (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
-                                  actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
-                                  isDelisted ? "Withdraw (~5% Bonus)" : // Special label for delisted standard withdraw
-                                  withdrawLabel // Original label for active tokens
+                                {withdrawInsufficientBalance ? "Insufficient wLQI" :
+                                    withdrawalExceedsLiquidity ? `Insufficient Pool ${symbol}` :
+                                        (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
+                                            actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
+                                                isDelisted ? "Withdraw (~5% Bonus)" : // Special label for delisted standard withdraw
+                                                    withdrawLabel // Original label for active tokens
                                 }
                             </button>
                         </>
 
                         {/* --- Withdraw Full Balance Button (Only for Delisted) --- */}
                         {isDelisted && (
-                            <div className="mt-1"> {/* Add some space */} 
+                            <div className="mt-1"> {/* Add some space */}
                                 <button
                                     onClick={handleFullDelistedWithdraw}
                                     disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())}
-                                    className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${BTN_RED} ${ (actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${BTN_RED} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`}
                                     title={ // Tooltip logic remains the same
                                         actionDisabled ? "Action in progress..." :
-                                        (!vaultBalance || vaultBalance.isZero()) ? `Pool vault for ${symbol} is empty.` :
-                                        !requiredWlqiForDelistedFormatted ? "Could not calculate required wLQI." :
-                                        !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted} wLQI, You have ${formattedUserWlqiBalance ?? '--'}.` :
-                                        `Withdraw entire ${symbol} balance (~${formatRawAmountString(vaultBalance?.toString(), decimals, true, 2)} ${symbol}). Requires ~${requiredWlqiForDelistedFormatted} wLQI.`
+                                            (!vaultBalance || vaultBalance.isZero()) ? `Pool vault for ${symbol} is empty.` :
+                                                !requiredWlqiForDelistedFormatted ? "Could not calculate required wLQI." :
+                                                    !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted} wLQI, You have ${formattedUserWlqiBalance ?? '--'}.` :
+                                                        `Withdraw entire ${symbol} balance (~${formatRawAmountString(vaultBalance?.toString(), decimals, true, 2)} ${symbol}). Requires ~${requiredWlqiForDelistedFormatted} wLQI.`
                                     }
                                 >
                                     {/* Dynamic Label */}
-                                    { actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
-                                      (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
-                                      !userHasEnoughForDelisted ? "Insufficient wLQI" :
-                                      `Withdraw Full Balance`
+                                    {actionDisabled ? (isWithdrawing ? 'Withdrawing...' : 'Loading...') :
+                                        (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" :
+                                            !userHasEnoughForDelisted ? "Insufficient wLQI" :
+                                                `Withdraw Full Balance`
                                     }
                                 </button>
                             </div>
@@ -1195,9 +1184,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             Target %{getSortIndicator('targetPercent')}
                         </th>
                         {!hideDepositColumn && (
-                            <th className="p-2 w-40 text-center">Deposit</th> 
+                            <th className="p-2 w-40 text-center">Deposit</th>
                         )}
-                        <th className="p-2 w-40 text-center">Withdraw</th> 
+                        <th className="p-2 w-40 text-center">Withdraw</th>
                     </tr>
                 </thead>
                 <tbody>

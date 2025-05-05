@@ -359,7 +359,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                     // @ts-expect-error // IDL vs generated type mismatch for user_destination_ata key
                     user_destination_ata: userDestinationAta, // Use snake_case from IDL
                     feeRecipient: poolConfig.feeRecipient,
-                    // @ts-expect-error // IDL vs generated type mismatch for pool_config key
+                    // Removed unused @ts-expect-error for pool_config
                     pool_config: poolConfigPda!, 
                     poolAuthority: poolAuthorityPda,
                     wliMint: poolConfig.wliMint,
