@@ -754,17 +754,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
         const actualPercentBN = token.actualDominancePercent !== null && token.actualDominancePercent !== undefined
              ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE)) // Convert percentage back to scaled BN for comparison
              : null;
-        const deviationScaled = actualPercentBN ? actualPercentBN.sub(targetScaled) : new BN(0); // Calculate scaled deviation
-        const deviationBpsString = formatScaledToPercentageString(deviationScaled); // Pass only the scaled value
-        const deviationClass = actualPercentBN?.gt(targetScaled) ? 'text-green-400' : actualPercentBN?.lt(targetScaled) ? 'text-red-400' : 'text-gray-400';
 
         // --- Button State Logic ---
         const actionDisabled = isDepositing || isWithdrawing || isLoadingPublicData || isLoadingUserData;
         let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted;
-        let withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled;
 
         // --- Create Fee Display Strings --- (Moved Up)
-        const formatFeeString = (estimatedBps: number, isDeposit: boolean, dynamicFeeBpsBN: BN | null) => {
+        const formatFeeString = (estimatedBps: number, isDeposit: boolean) => {
             let feeString: string;
             let title: string;
 
@@ -812,6 +808,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         let withdrawLabel = isWithdrawing ? 'Withdrawing...' : 'Withdraw';
         let depositTitle = 'Enter amount to deposit';
         let withdrawTitle = 'Enter wLQI amount to withdraw';
+        let withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled;
 
         if (!actionDisabled) { // Only calculate/display fees when not loading/transacting
             // Deposit Fee/Color
@@ -833,14 +830,14 @@ export const TokenTable = React.memo<TokenTableProps>(({
             }
 
             // Format Fee Strings
-            const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true, depositDynamicFeeBpsBN);
+            const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true);
             depositLabel = `Deposit ${depositFeeString}`;
             depositTitle = depositTitleBase;
 
             const { feeString: withdrawFeeString, title: withdrawTitleBase } = 
                 isDelisted 
                     ? formatDelistedWithdrawFeeString() 
-                    : formatFeeString(estimatedWithdrawFeeBps, false, withdrawDynamicFeeBpsBN);
+                    : formatFeeString(estimatedWithdrawFeeBps, false);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         }
