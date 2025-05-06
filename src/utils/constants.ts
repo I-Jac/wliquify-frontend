@@ -2,8 +2,8 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer'; // Ensure Buffer is available
 
 // Network Configuration
-//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
-export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
+export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
+//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
 
 // Program IDs
 export const W_LIQUIFY_POOL_PROGRAM_ID = new PublicKey(

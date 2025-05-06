@@ -84,12 +84,13 @@ export interface TokenInfoDecoded {
     dominance: string; // Keep as string from BN for simplicity?
     address: string;   // Keep as string from bytesToString
     priceFeedId: string; // Keep as string from bytesToString
+    timestamp: string; // ADDED: Keep as string from BN
 }
 
 export interface AggregatedOracleDataDecoded {
     authority: string;
     totalTokens: number;
-    data: TokenInfoDecoded[];
+    data: TokenInfoDecoded[]; // Will include timestamp via TokenInfoDecoded
 }
 
 export interface DynamicTokenData {
@@ -105,8 +106,8 @@ export interface TokenProcessingInfo {
     priceFeed: PublicKey;
     userAta?: PublicKey; // Optional user ATA
     vaultIndex: number;
-    priceFeedIndex: number;
-    historyPdaIndex: number; 
+    priceFeedIndex: number | undefined; // Updated to allow undefined
+    historyPdaIndex: number;
     userAtaIndex?: number; // Optional user ATA index
     mintDecimals: number;
 }
@@ -115,10 +116,11 @@ export interface TokenProcessingInfo {
 // Represents the decoded string data from the oracle aggregator
 export interface ParsedOracleTokenInfo {
     symbol: string;
-    dominance: string; 
-    address: string;   
+    dominance: string;
+    address: string;
     priceFeedId: string;
-} 
+    timestamp: string; // ADDED
+}
 
 // --- Added from src/types/index.ts ---
 
@@ -128,7 +130,7 @@ export interface SupportedToken {
     vault: PublicKey;       // Pool's vault ATA for this token
     tokenHistory: PublicKey; // PDA for historical data
     priceFeed: PublicKey;    // Price feed account (e.g., Pyth)
-    targetDominanceBps: number; // ADDED: Target dominance (basis points, u16 in Rust)
+    // targetDominanceBps: number; // REMOVED: Not present in latest PoolConfig based on other files
 }
 
 // Mirror of Rust struct from w-liquify-pool/state.rs
@@ -150,8 +152,18 @@ export interface ProcessedTokenData {
     symbol: string;
     icon: string;
     poolValueUSD: string;
-    tokenValueScaled: BN;
+    // tokenValueScaled: BN; // Maybe remove if poolValueUSD is sufficient?
     actualDominancePercent: number;
-    targetDominance: BN;
+    targetDominance: BN; // Keep BN for potential calcs
     targetDominancePercent: number;
+    targetDominanceDisplay: string; // Pre-formatted target
+    decimals: number; // Added decimals
+    isDelisted: boolean;
+    depositFeeOrBonusBps: number | null;
+    withdrawFeeOrBonusBps: number | null;
+    priceFeedId: string; // Price feed address string
+    vaultBalance: BN; // Vault balance BN
+    priceData: import('@/utils/calculations').DecodedPriceData; // Ensure type is correct
+    userBalance: BN | null; // User balance BN
+    timestamp: string; // ADDED: Timestamp as string
 } 

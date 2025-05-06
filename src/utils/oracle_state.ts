@@ -9,6 +9,7 @@ export interface TokenInfo {
     dominance: anchor.BN; // Represents u64
     address: number[]; // Represents [u8; 64] - Raw bytes, need parsing
     priceFeedId: number[]; // Represents [u8; 64] - Raw bytes, need parsing
+    timestamp: anchor.BN; // ADDED: Represents i64
 }
 
 // Mirroring AggregatedOracleData from oracle_program/src/lib.rs
@@ -23,10 +24,12 @@ const DISCRIMINATOR_LENGTH = 8;
 const PUBKEY_LENGTH = 32;
 const U32_LENGTH = 4;
 const U64_LENGTH = 8;
+const I64_LENGTH = 8; // ADDED for timestamp
 const SYMBOL_LENGTH = 10;
 const ADDRESS_PADDED_LENGTH = 64;
 const PRICE_FEED_ID_PADDED_LENGTH = 64;
-const TOKEN_INFO_SERIALIZED_SIZE = SYMBOL_LENGTH + U64_LENGTH + ADDRESS_PADDED_LENGTH + PRICE_FEED_ID_PADDED_LENGTH;
+// UPDATE size to include timestamp
+const TOKEN_INFO_SERIALIZED_SIZE = SYMBOL_LENGTH + U64_LENGTH + ADDRESS_PADDED_LENGTH + PRICE_FEED_ID_PADDED_LENGTH + I64_LENGTH; // Now 154
 
 /**
  * Parses the raw account data buffer of the Oracle Program's AggregatedOracleData account.
@@ -87,13 +90,18 @@ export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {
 
         // Price Feed ID (padded string)
         const priceFeedIdBytes = Array.from(tokenSlice.subarray(tokenOffset, tokenOffset + PRICE_FEED_ID_PADDED_LENGTH));
+        tokenOffset += PRICE_FEED_ID_PADDED_LENGTH; // Move offset past price feed
+
+        // Timestamp (i64) - ADDED
+        const timestampBn = new BN(tokenSlice.subarray(tokenOffset, tokenOffset + I64_LENGTH), 'le');
         // No need to update tokenOffset here as it's the last field
 
         tokenInfoArray.push({
             symbol: symbolBytes,
             dominance: dominanceBn,
             address: addressBytes,
-            priceFeedId: priceFeedIdBytes
+            priceFeedId: priceFeedIdBytes,
+            timestamp: timestampBn // Add timestamp
         });
 
         offset += TOKEN_INFO_SERIALIZED_SIZE; // Move to the next item in the main buffer

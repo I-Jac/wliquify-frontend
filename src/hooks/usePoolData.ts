@@ -6,6 +6,8 @@ import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import {
     USD_SCALE,
+    ORACLE_PROGRAM_ID, // Assuming it's available in constants
+    ORACLE_AGGREGATOR_SEED, // Assuming it's available in constants
 } from '@/utils/constants';
 import { Buffer } from 'buffer';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
@@ -21,7 +23,7 @@ import {
     DynamicTokenData,
     HistoricalTokenDataDecoded,
     TokenProcessingInfo,
-    ParsedOracleTokenInfo,
+    ParsedOracleTokenInfo, // This type now includes timestamp
 } from '@/utils/types';
 import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
@@ -93,7 +95,7 @@ export function usePoolData({
             setPoolConfig(fetchedConfig);
             // console.log("usePoolData Hook: Fetched Pool Config:", fetchedConfig);
 
-            // --- Set TVL directly from fetched config --- 
+            // --- Set TVL directly from fetched config ---
             setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled);
             // console.log("usePoolData Hook: Set TVL from PoolConfig: ", fetchedConfig.currentTotalPoolValueScaled.toString());
 
@@ -104,33 +106,46 @@ export function usePoolData({
             }
             const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
             if (!oracleAccountInfo) throw new Error(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
-            
-            // Manual Deserialization (based on previous logic)
+
+            // --- UPDATE Manual Deserialization Logic within hook ---
             const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8)); // Skip discriminator
             let offset = 0;
             const authorityPubkey = new PublicKey(oracleDataBuffer.subarray(offset, offset + 32)); offset += 32;
             const totalTokens = oracleDataBuffer.readUInt32LE(offset); offset += 4;
             const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-            const tokenInfoSize = 10 + 8 + 64 + 64; // symbol[10], dominance u64, address[64], feedId[64]
-            
+
+            // --- UPDATE Token Info Size ---
+            const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // symbol[10], dominance u64, address[64], feedId[64], timestamp i64
+
             const decodedTokens: ParsedOracleTokenInfo[] = [];
             for (let i = 0; i < vecLen; i++) {
                 const start = offset;
                 const end = start + tokenInfoSize;
                 if (end > oracleDataBuffer.length) throw new Error(`Oracle buffer overflow reading token ${i + 1}.`);
                 const tokenSlice = oracleDataBuffer.subarray(start, end);
+
+                // Read fields based on NEW structure
+                const symbol = bytesToString(tokenSlice.subarray(0, 10));
+                const dominance = new BN(tokenSlice.subarray(10, 18), 'le').toString();
+                const address = bytesToString(tokenSlice.subarray(18, 18 + 64));
+                const priceFeedId = bytesToString(tokenSlice.subarray(18 + 64, 18 + 64 + 64));
+                const timestamp = new BN(tokenSlice.subarray(18 + 64 + 64, end), 'le').toString(); // Read timestamp
+
                 decodedTokens.push({
-                    symbol: bytesToString(tokenSlice.subarray(0, 10)),
-                    dominance: new BN(tokenSlice.subarray(10, 18), 'le').toString(),
-                    address: bytesToString(tokenSlice.subarray(18, 18 + 64)),
-                    priceFeedId: bytesToString(tokenSlice.subarray(18 + 64, end))
+                    symbol,
+                    dominance,
+                    address,
+                    priceFeedId,
+                    timestamp // Add timestamp to the decoded object
                 });
                 offset = end;
             }
+            // --- END UPDATE Manual Deserialization Logic ---
+
             const decodedOracleData: AggregatedOracleDataDecoded = {
                 authority: authorityPubkey.toBase58(),
                 totalTokens: totalTokens,
-                data: decodedTokens
+                data: decodedTokens // This now includes the timestamp string
             };
             setOracleData(decodedOracleData);
             // console.log("usePoolData Hook: Decoded Oracle Data:", decodedOracleData);
@@ -368,6 +383,80 @@ export function usePoolData({
         }
     }, [wallet.connected, wallet.publicKey, connection, poolConfig]); // Dependencies for user data fetch
 
+    // --- NEW: Targeted function to fetch only oracle data ---
+    const fetchAndSetOracleData = useCallback(async () => {
+        if (!connection || !poolConfig || !poolConfig.oracleAggregatorAccount || poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
+            console.warn("usePoolData Hook: fetchAndSetOracleData skipped - connection or oracleAggregatorAccount in poolConfig not ready.");
+            return;
+        }
+
+        const oracleAggregatorAddress = poolConfig.oracleAggregatorAccount;
+        // console.log("usePoolData Hook: Fetching ONLY oracle data for:", oracleAggregatorAddress.toBase58());
+
+        try {
+            const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
+            if (!oracleAccountInfo) {
+                console.error(`usePoolData Hook: fetchAndSetOracleData - Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
+                // Consider setting a specific error or leaving oracleData as is if it disappears temporarily
+                // For now, let's update the error state and potentially clear/stale the oracleData
+                setError(prevError => prevError ? `${prevError}, Oracle account for subscription not found` : "Oracle account for subscription not found");
+                setOracleData(null); // Or a more specific "stale" state
+                return;
+            }
+
+            // --- Manual Deserialization Logic (adapted from fetchPublicPoolData) ---
+            const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8)); // Skip discriminator
+            let offset = 0;
+            const authorityPubkey = new PublicKey(oracleDataBuffer.subarray(offset, offset + 32)); offset += 32;
+            const totalTokensInHeader = oracleDataBuffer.readUInt32LE(offset); offset += 4;
+            const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
+
+            const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // symbol[10], dominance u64, address[64], feedId[64], timestamp i64
+
+            const decodedTokens: ParsedOracleTokenInfo[] = [];
+            for (let i = 0; i < vecLen; i++) {
+                const start = offset;
+                const end = start + tokenInfoSize;
+                if (end > oracleDataBuffer.length) {
+                    console.error(`usePoolData Hook: fetchAndSetOracleData - Oracle buffer overflow reading token ${i + 1}.`);
+                    setError(prevError => prevError ? `${prevError}, Oracle data buffer overflow on refresh` : "Oracle data buffer overflow on refresh");
+                    // Set a partial/error state for oracleData to prevent crashing UI
+                    setOracleData(prevData => ({
+                        authority: prevData?.authority || authorityPubkey.toBase58(),
+                        totalTokens: prevData?.totalTokens || totalTokensInHeader,
+                        data: prevData?.data || [], // Keep previous data or empty on error
+                    }));
+                    return;
+                }
+                const tokenSlice = oracleDataBuffer.subarray(start, end);
+
+                const symbol = bytesToString(tokenSlice.subarray(0, 10));
+                const dominance = new BN(tokenSlice.subarray(10, 18), 'le').toString();
+                const address = bytesToString(tokenSlice.subarray(18, 18 + 64));
+                const priceFeedId = bytesToString(tokenSlice.subarray(18 + 64, 18 + 64 + 64));
+                const timestamp = new BN(tokenSlice.subarray(18 + 64 + 64, end), 'le').toString();
+
+                decodedTokens.push({ symbol, dominance, address, priceFeedId, timestamp });
+                offset = end;
+            }
+
+            const newOracleData: AggregatedOracleDataDecoded = {
+                authority: authorityPubkey.toBase58(),
+                totalTokens: totalTokensInHeader,
+                data: decodedTokens
+            };
+            setOracleData(newOracleData); // Update only oracleData
+            // console.log("usePoolData Hook: Updated Oracle Data via fetchAndSetOracleData:", newOracleData);
+            // Avoid clearing general error, unless specifically an oracle error is resolved.
+            // setError(null); 
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            console.error("usePoolData Hook: Error in fetchAndSetOracleData:", errorMessage);
+            setError(prevError => prevError ? `${prevError}, Failed to refresh oracle data: ${errorMessage}` : `Failed to refresh oracle data: ${errorMessage}`);
+            // Don't null out oracleData here necessarily, might want to keep stale data on transient network error
+        }
+    }, [connection, poolConfig, setOracleData, setError]); // bytesToString is a stable import
+
     // --- Refresh Functions --- (Moved Up)
     const refreshPublicData = useCallback(() => {
         // console.log("usePoolData Hook: Refreshing public data...");
@@ -542,6 +631,7 @@ export function usePoolData({
                     vaultBalance: data.vaultBalance!,
                     priceData: priceData!,
                     userBalance: userTokenBalances.get(mintAddress) ?? null,
+                    timestamp: oracleInfo?.timestamp ?? '0', // Add timestamp from oracleInfo
                 };
             }).filter((data): data is ProcessedTokenData => data !== null);
 
@@ -676,6 +766,35 @@ export function usePoolData({
         };
 
     }, [connection, poolConfigPda, refreshPublicData]); // Reverted dependencies
+
+    // --- Effect to Subscribe to Oracle Aggregator Account Changes --- (NEW)
+    useEffect(() => {
+        // Ensure poolConfig and its oracleAggregatorAccount are loaded and valid
+        if (!connection || !poolConfig || !poolConfig.oracleAggregatorAccount || poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
+            // console.log("Oracle Aggregator Subscription effect: Waiting for connection or valid oracleAggregatorAccount from poolConfig.");
+            return;
+        }
+
+        const oracleAggregatorAddress = poolConfig.oracleAggregatorAccount;
+        // console.log(`Subscribing to Oracle Aggregator account: ${oracleAggregatorAddress.toBase58()}`);
+
+        const subscriptionId = connection.onAccountChange(
+            oracleAggregatorAddress,
+            (_accountInfo) => { // We get accountInfo, but our new function handles the full re-fetch and parse
+                console.log(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) changed via subscription, refreshing ONLY oracle data...`);
+                fetchAndSetOracleData(); // Call the new targeted function
+            },
+            "confirmed" // Or use "processed" / "finalized" based on desired speed/certainty
+        );
+
+        // Cleanup function to remove the listener
+        return () => {
+            // console.log(`Removing Oracle Aggregator listener for ${oracleAggregatorAddress.toBase58()}...`);
+            connection.removeAccountChangeListener(subscriptionId).catch(err => {
+                console.error(`Error removing Oracle Aggregator listener for ${oracleAggregatorAddress.toBase58()}:`, err);
+            });
+        };
+    }, [connection, poolConfig, fetchAndSetOracleData]); // Dependencies: re-subscribe if connection or poolConfig changes, or if fetchAndSetOracleData itself changes (due to its own deps)
 
     // --- Effect to fetch W-LQI Mint address from Pool Config --- (NEW)
     useEffect(() => {
