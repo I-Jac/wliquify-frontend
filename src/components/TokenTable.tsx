@@ -170,8 +170,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
 }) => {
 
     // --- Sorting State ---
-    const [sortKey, setSortKey] = useState<SortableKey | null>(null);
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
     // Calculate total target dominance once using useMemo
     const totalTargetDominance = useMemo(() => {
