@@ -102,7 +102,7 @@ async function scrapeCoinDataFromCMC() {
             await tableRowsDropdownTrigger.click();
             await new Promise(r => setTimeout(r, 1500));
             let selectedOption = false;
-            const rowCountOptionsToTry = ['200', '100'];
+            const rowCountOptionsToTry = ['500', '200', '100']; // PREFER 500, then 200, then 100
             for (const count of rowCountOptionsToTry) {
                 const optionXPath = `//div[contains(@class, 'OptionItem_base') and .//div[contains(text(), '${count}')]] | //div[contains(@class, 'tippy-content')]//div[contains(text(), '${count}')] | //li[contains(., '${count}')] | //button[contains(., '${count}')]`;
                 const clickedViaEvaluate = await page.evaluate((xpathForEval) => {
@@ -162,8 +162,8 @@ async function scrapeCoinDataFromCMC() {
     console.log('Starting iterative scraping for virtual scroll...');
     let allCoinData = [];
     let seenSymbols = new Set();
-    const MAX_SCROLL_ATTEMPTS = 30; // Increased attempts
-    const TARGET_COIN_COUNT = 200; // Target 200 unique coins
+    const MAX_SCROLL_ATTEMPTS = 90; // Target 500, so more attempts
+    const TARGET_COIN_COUNT = 500; // Target 500 unique coins
     let noNewCoinsStreak = 0;
 
     const tableBodySelector = 'table.cmc-table tbody'; // Keep this selector for consistency
