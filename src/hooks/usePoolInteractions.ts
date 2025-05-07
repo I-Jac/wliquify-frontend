@@ -213,6 +213,38 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             
             if (error instanceof Error) {
                 errorMessage = error.message;
+                let customErrorCode: number | null = null;
+
+                // Attempt to parse "custom program error: 0x..." from logs or error message
+                const logErrorMatch = errorLogs?.join('\n').match(/custom program error: 0x([0-9a-fA-F]+)/) || errorMessage.match(/custom program error: 0x([0-9a-fA-F]+)/);
+                if (logErrorMatch && logErrorMatch[1]) {
+                    customErrorCode = parseInt(logErrorMatch[1], 16);
+                } else {
+                    // Fallback to checking the JSON stringified error in the message
+                    const txErrorMatch = errorMessage.match(/Transaction failed confirmation: (\{.*\})/);
+                    if (txErrorMatch && txErrorMatch[1]) {
+                        try {
+                            const errDetails = JSON.parse(txErrorMatch[1]);
+                            if (errDetails.InstructionError && Array.isArray(errDetails.InstructionError) && errDetails.InstructionError.length === 2) {
+                                const customErrorDetail = errDetails.InstructionError[1];
+                                if (customErrorDetail && typeof customErrorDetail.Custom === 'number') {
+                                    customErrorCode = customErrorDetail.Custom;
+                                }
+                            }
+                        } catch (parseError) {
+                            console.warn("Failed to parse transaction error details from message:", parseError);
+                        }
+                    }
+                }
+
+                if (customErrorCode !== null) {
+                    const programError = program!.idl.errors.find(e => e.code === customErrorCode);
+                    if (programError) {
+                        errorMessage = programError.msg;
+                    } else {
+                        errorMessage = `An unknown program error occurred (Code: ${customErrorCode}).`;
+                    }
+                }
             } else if (!errorLogs) { // Only stringify if it's not an Error and logs weren't found
                 try {
                     errorMessage = JSON.stringify(error);
@@ -447,9 +479,41 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                  }
              }
              
-             if (error instanceof Error) {
-                 errorMessage = error.message;
-             } else if (!errorLogs) {
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                let customErrorCode: number | null = null;
+
+                // Attempt to parse "custom program error: 0x..." from logs or error message
+                const logErrorMatch = errorLogs?.join('\n').match(/custom program error: 0x([0-9a-fA-F]+)/) || errorMessage.match(/custom program error: 0x([0-9a-fA-F]+)/);
+                if (logErrorMatch && logErrorMatch[1]) {
+                    customErrorCode = parseInt(logErrorMatch[1], 16);
+                } else {
+                    // Fallback to checking the JSON stringified error in the message
+                    const txErrorMatch = errorMessage.match(/Transaction failed confirmation: (\{.*\})/);
+                    if (txErrorMatch && txErrorMatch[1]) {
+                        try {
+                            const errDetails = JSON.parse(txErrorMatch[1]);
+                            if (errDetails.InstructionError && Array.isArray(errDetails.InstructionError) && errDetails.InstructionError.length === 2) {
+                                const customErrorDetail = errDetails.InstructionError[1];
+                                if (customErrorDetail && typeof customErrorDetail.Custom === 'number') {
+                                    customErrorCode = customErrorDetail.Custom;
+                                }
+                            }
+                        } catch (parseError) {
+                            console.warn("Failed to parse transaction error details from message:", parseError);
+                        }
+                    }
+                }
+
+                if (customErrorCode !== null) {
+                    const programError = program!.idl.errors.find(e => e.code === customErrorCode);
+                    if (programError) {
+                        errorMessage = programError.msg;
+                    } else {
+                        errorMessage = `An unknown program error occurred (Code: ${customErrorCode}).`;
+                    }
+                }
+            } else if (!errorLogs) {
                  try {
                      errorMessage = JSON.stringify(error);
                  } catch { /* Ignore stringify errors */ }

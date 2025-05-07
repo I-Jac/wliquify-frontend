@@ -966,7 +966,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             className="w-5 h-5 rounded-full" // Basic size/shape
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
-                                target.src = '/tokens/btc.png'; // REVERTED: Fallback to btc.png
+                                target.src = '/tokens/default.png'; // UPDATED: Fallback to default.png
                                 target.onerror = null; // Prevent infinite loop if fallback also fails
                             }}
                         />
