@@ -3,33 +3,28 @@
 import { PublicKey, AccountInfo } from "@solana/web3.js";
 import { Buffer } from "buffer";
 import { BN } from '@coral-xyz/anchor';
-import { USD_SCALE, DOMINANCE_SCALE_FACTOR } from "./constants"; // Remove BPS_SCALE import
+import { 
+    USD_SCALE,
+    DOMINANCE_SCALE_FACTOR,
+    PRICE_SCALE_FACTOR,
+    PERCENTAGE_CALC_SCALE,
+    BN_PERCENTAGE_CALC_SCALE,
+    BPS_SCALE,
+    BN_BPS_SCALE,
+    BN_BASE_FEE_BPS,
+    BN_FEE_K_FACTOR_NUMERATOR,
+    BN_FEE_K_FACTOR_DENOMINATOR,
+    BN_DEPOSIT_PREMIUM_CAP_BPS,
+    BN_WITHDRAW_FEE_FLOOR_BPS,
+    BN_DEPOSIT_MAX_FEE_BPS,
+    BN_WITHDRAW_MAX_FEE_BPS,
+    BN_DOMINANCE_SCALE,
+    PRECISION_SCALE_FACTOR
+} from "./constants";
 import { formatUnits, parseUnits } from 'ethers';
 import { PoolConfig } from '@/utils/types';
 
-// --- Constants ---
-export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for scaling prices
 
-// Constant for percentage scaling (Scaled by 1,000,000: 1% = 10,000 scaled units)
-const PERCENTAGE_CALC_SCALE = 1000000;
-const BN_PERCENTAGE_CALC_SCALE = new BN(PERCENTAGE_CALC_SCALE);
-
-// Define BPS_SCALE locally if not exported from constants
-const BPS_SCALE = 10000;
-
-// Add BN versions of constants needed for fee calculation
-const BN_BPS_SCALE = new BN(BPS_SCALE);
-const BN_BASE_FEE_BPS = new BN(10); // 0.1%
-const BN_FEE_K_FACTOR_NUMERATOR = new BN(2); // k = 0.2
-const BN_FEE_K_FACTOR_DENOMINATOR = new BN(10);
-const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(-500); // Max dynamic *discount* is 500 BPS
-const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(0);     // Min total fee is 0 BPS
-const BN_DEPOSIT_MAX_FEE_BPS = new BN(9999); // Max total deposit fee is 99.99%
-const BN_WITHDRAW_MAX_FEE_BPS = new BN(9999); // Max total withdraw fee is 99.99%
-const DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR); // Rename imported constant for local use
-
-// Define a precision scale factor for internal division
-const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12
 
 // --- Type Definitions (You might want to centralize these) ---
 
@@ -667,7 +662,7 @@ export const estimateFeeBpsBN = (
     if (!effectiveValueChangeUsdScaled) effectiveValueChangeUsdScaled = new BN(0);
 
     try {
-        const actualDomPreScaled = tokenValuePreUsdScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePreUsdScaled);
+        const actualDomPreScaled = tokenValuePreUsdScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePreUsdScaled);
         const relDevPreBpsBN = calculateRelativeDeviationBpsBN(actualDomPreScaled, targetDominanceScaledBn);
 
         if (effectiveValueChangeUsdScaled.isZero()) {
@@ -696,7 +691,7 @@ export const estimateFeeBpsBN = (
 
         const actualDomPostScaled = totalPoolValuePostScaled.isZero() 
             ? new BN(0) 
-            : tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled);
+            : tokenValuePostScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePostScaled);
         const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
 
         const scaleFactor = new BN(100); 

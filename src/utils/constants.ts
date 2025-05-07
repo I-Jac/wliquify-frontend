@@ -1,5 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer'; // Ensure Buffer is available
+import { BN } from '@coral-xyz/anchor'; // Import BN for BN constants
 
 // Network Configuration
 //export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
@@ -31,6 +32,32 @@ export const ORACLE_AGGREGATOR_SEED = Buffer.from("aggregator_v2");
 export const USD_SCALE = 6;
 export const DOMINANCE_SCALE_FACTOR = BigInt(10_000_000_000);
 export const BASE_FEE_BPS = 10; // 0.1% Base Fee (Added)
+
+// Calculation Constants (Moved from calculations.ts)
+export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for scaling prices
+
+// Constant for percentage scaling (Scaled by 1,000,000: 1% = 10,000 scaled units)
+export const PERCENTAGE_CALC_SCALE = 1000000;
+export const BN_PERCENTAGE_CALC_SCALE = new BN(PERCENTAGE_CALC_SCALE);
+
+// BPS Scale
+export const BPS_SCALE = 10000;
+export const BN_BPS_SCALE = new BN(BPS_SCALE);
+
+// Fee Calculation Constants
+export const BN_BASE_FEE_BPS = new BN(10); // 0.1%
+export const BN_FEE_K_FACTOR_NUMERATOR = new BN(2); // k = 0.2
+export const BN_FEE_K_FACTOR_DENOMINATOR = new BN(10);
+export const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(-500); // Max dynamic *discount* is 500 BPS
+export const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(0);     // Min total fee is 0 BPS
+export const BN_DEPOSIT_MAX_FEE_BPS = new BN(9999); // Max total deposit fee is 99.99%
+export const BN_WITHDRAW_MAX_FEE_BPS = new BN(9999); // Max total withdraw fee is 99.99%
+
+// Dominance Scale (BN version)
+export const BN_DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR); // Use existing DOMINANCE_SCALE_FACTOR
+
+// Precision Scale for Division
+export const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12
 
 // UI Defaults
 export const DEFAULT_ICON = '/tokens/default.png';
