@@ -1154,8 +1154,8 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                         <span>Balance: {displayUserWlqiBalance}</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set 50%">Half</button>
-                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set Max">Max</button>
+                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set amount to 50% of your wLQI balance"> Half </button>
+                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set amount to your maximum wLQI balance"> Max </button>
                     </div>
                 </div>
                 <div className="flex items-center space-x-2 mb-1">
