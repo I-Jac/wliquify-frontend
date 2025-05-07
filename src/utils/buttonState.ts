@@ -1,6 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { BTN_GREEN, BTN_RED, BTN_GRAY } from './constants';
-import { formatFeeString, formatDelistedWithdrawFeeString } from './feeFormatting';
+import { formatFeeString, formatDelistedWithdrawFeeString } from './fees';
 
 interface ButtonStateProps {
     actionDisabled: boolean;

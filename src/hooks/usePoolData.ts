@@ -29,7 +29,7 @@ import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { bytesToString } from '../utils/accounts'; // Assuming bytesToString is in accounts
+import { bytesToString } from '@/utils/oracle_state';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -37,6 +37,21 @@ interface UsePoolDataProps {
     readOnlyProvider: AnchorProvider | null;
     connection: Connection;
     wallet: WalletContextState; // Use the broader WalletContextState type
+}
+
+// Add rate limiting constants
+const RATE_LIMIT_DELAY = 1000; // Base delay in ms
+const MAX_RETRIES = 3; // Maximum number of retries
+const MAX_DELAY = 8000; // Maximum delay in ms
+
+// Add rate limiting utility
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Add rate limiting state
+interface RateLimitState {
+    lastRequestTime: number;
+    retryCount: number;
+    isRetrying: boolean;
 }
 
 export function usePoolData({
@@ -65,6 +80,55 @@ export function usePoolData({
     const hasFetchedPublicData = useRef(false);
     const hasFetchedUserData = useRef(false);
     const [wLqiMint, setWLqiMint] = useState<PublicKey | null>(null);
+    const rateLimitRef = useRef<RateLimitState>({
+        lastRequestTime: 0,
+        retryCount: 0,
+        isRetrying: false
+    });
+
+    // Add rate limiting wrapper for RPC calls
+    const rateLimitedFetch = useCallback(async <T>(
+        fetchFn: () => Promise<T>,
+        errorMessage: string
+    ): Promise<T> => {
+        const now = Date.now();
+        const state = rateLimitRef.current;
+        
+        // If we're already retrying, wait
+        if (state.isRetrying) {
+            await sleep(RATE_LIMIT_DELAY);
+        }
+
+        // Calculate delay based on last request time
+        const timeSinceLastRequest = now - state.lastRequestTime;
+        if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+            await sleep(RATE_LIMIT_DELAY - timeSinceLastRequest);
+        }
+
+        try {
+            state.lastRequestTime = Date.now();
+            state.isRetrying = false;
+            state.retryCount = 0;
+            return await fetchFn();
+        } catch (error) {
+            if (error instanceof Error && error.message.includes('429') && state.retryCount < MAX_RETRIES) {
+                state.retryCount++;
+                state.isRetrying = true;
+                
+                // Calculate exponential backoff delay
+                const backoffDelay = Math.min(
+                    RATE_LIMIT_DELAY * Math.pow(2, state.retryCount - 1),
+                    MAX_DELAY
+                );
+                
+                console.log(`Rate limit hit. Retrying in ${backoffDelay}ms (attempt ${state.retryCount}/${MAX_RETRIES})`);
+                await sleep(backoffDelay);
+                
+                return rateLimitedFetch(fetchFn, errorMessage);
+            }
+            throw error;
+        }
+    }, []);
 
     // --- Fetch Public Pool Data (Moved from Component) ---
     const fetchPublicPoolData = useCallback(async () => {
@@ -91,7 +155,13 @@ export function usePoolData({
             const programId = program.programId;
             const configPda = findPoolConfigPDA(programId);
             setPoolConfigPda(configPda);
-            fetchedConfig = await program.account.poolConfig.fetch(configPda) as PoolConfig;
+
+            // Wrap the config fetch in rate limiting
+            fetchedConfig = await rateLimitedFetch(
+                () => program.account.poolConfig.fetch(configPda) as Promise<PoolConfig>,
+                "Failed to fetch pool config"
+            );
+            
             setPoolConfig(fetchedConfig);
             // console.log("usePoolData Hook: Fetched Pool Config:", fetchedConfig);
 
@@ -104,7 +174,13 @@ export function usePoolData({
             if (!oracleAggregatorAddress || oracleAggregatorAddress.equals(SystemProgram.programId)) {
                 throw new Error("Oracle Aggregator not set in Pool Config.");
             }
-            const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
+
+            // Wrap oracle data fetching in rate limiting
+            const oracleAccountInfo = await rateLimitedFetch(
+                () => connection.getAccountInfo(oracleAggregatorAddress),
+                "Failed to fetch oracle account info"
+            );
+
             if (!oracleAccountInfo) throw new Error(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
 
             // --- UPDATE Manual Deserialization Logic within hook ---
@@ -151,8 +227,18 @@ export function usePoolData({
             // console.log("usePoolData Hook: Decoded Oracle Data:", decodedOracleData);
 
             // --- wLQI Mint Info ---
-            const fetchedWlqiSupply = (await connection.getTokenSupply(fetchedConfig.wliMint)).value.amount;
-            const fetchedWlqiDecimals = (await getMint(connection, fetchedConfig.wliMint)).decimals;
+            const wlqiSupplyData = await rateLimitedFetch(
+                () => connection.getTokenSupply(fetchedConfig!.wliMint),
+                "Failed to fetch wLQI supply"
+            );
+            const fetchedWlqiSupply = wlqiSupplyData.value.amount;
+
+            const wlqiMintData = await rateLimitedFetch(
+                () => getMint(connection, fetchedConfig!.wliMint),
+                "Failed to fetch wLQI mint data"
+            );
+            const fetchedWlqiDecimals = wlqiMintData.decimals;
+
             setWlqiSupply(fetchedWlqiSupply);
             setWlqiDecimals(fetchedWlqiDecimals);
             // console.log("usePoolData Hook: wLQI Supply & Decimals:", fetchedWlqiSupply, fetchedWlqiDecimals);
@@ -297,7 +383,7 @@ export function usePoolData({
         } finally {
             setIsLoadingPublicData(false);
         }
-    }, [program, provider, readOnlyProvider, connection]); // Dependencies for public data fetch
+    }, [program, provider, readOnlyProvider, connection, rateLimitedFetch]); // Dependencies for public data fetch
 
     // --- Fetch User Account Data (Moved from Component) ---
     const fetchUserAccountData = useCallback(async () => {

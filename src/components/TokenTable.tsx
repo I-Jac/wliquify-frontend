@@ -16,7 +16,7 @@ import {
     calculateRelativeDeviationBpsBN
 } from '@/utils/calculations';
 import { calculateButtonStates } from '@/utils/buttonState';
-import { calculateFees } from '@/utils/feeCalculations';
+import { calculateFees } from '@/utils/fees';
 import { TokenInputControls } from './TokenInputControls';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
 import {

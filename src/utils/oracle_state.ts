@@ -1,7 +1,8 @@
 import * as anchor from "@coral-xyz/anchor"; // For BN
-import { PublicKey } from "@solana/web3.js"; // Removed Connection
+import { PublicKey, AccountInfo } from "@solana/web3.js"; // Removed Connection
 import { Buffer } from 'buffer'; // Import Buffer
 import { BN } from "@coral-xyz/anchor"; // BN needed for parsing
+import { HistoricalTokenDataDecoded } from './types';
 
 // Mirroring TokenInfo from oracle_program/src/lib.rs
 export interface TokenInfo {
@@ -120,3 +121,39 @@ export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {
 // When fetching data using the Anchor client (`mockOracleClient.account.aggregatedOracleData.fetch`),
 // Anchor typically handles the deserialization and provides an object matching this structure.
 // The `number[]` fields will contain the raw byte arrays from the Rust fixed-size arrays.
+
+// --- Helper Functions ---
+export const bytesToString = (bytes: Buffer): string => {
+    const firstNull = bytes.indexOf(0);
+    const relevantBytes = firstNull === -1 ? bytes : bytes.subarray(0, firstNull);
+    return relevantBytes.toString('utf8');
+};
+
+// --- Historical Token Data Functions ---
+export const decodeHistoricalTokenData = (accountInfo: AccountInfo<Buffer> | null): HistoricalTokenDataDecoded | null => {
+    if (!accountInfo || accountInfo.data.length === 0) return null;
+
+    if (accountInfo.data.length < 51) {
+        console.warn("HistoricalTokenData buffer too small:", accountInfo.data.length);
+        return null;
+    }
+    
+    const data = accountInfo.data.slice(8); // Skip discriminator
+    
+    try {
+        const feedIdBytes = data.slice(0, 32);
+        const feedId = new PublicKey(feedIdBytes).toBase58(); 
+        const decimals = data.readUInt8(32);
+        const symbolBytes = data.slice(33, 33 + 10);
+        const symbol = bytesToString(symbolBytes);
+
+        return {
+            feedId,
+            decimals,
+            symbol,
+        };
+    } catch (error) {
+        console.error("Error decoding HistoricalTokenData:", error);
+        return null;
+    }
+};

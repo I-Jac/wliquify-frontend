@@ -1,16 +1,8 @@
 import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { HistoricalTokenDataDecoded } from './types'; // Import the type
-import { AccountLayout, MintLayout } from '@solana/spl-token'; // Import layouts
-import { BN } from '@coral-xyz/anchor'; // Import BN
-
-// --- Placeholder Helper --- 
-// TODO: Find or create a proper bytesToString helper
-export const bytesToString = (bytes: Buffer): string => {
-    const firstNull = bytes.indexOf(0);
-    const relevantBytes = firstNull === -1 ? bytes : bytes.subarray(0, firstNull);
-    return relevantBytes.toString('utf8');
-};
+import { AccountLayout, MintLayout } from '@solana/spl-token';
+import { BN } from '@coral-xyz/anchor';
+import { bytesToString, decodeHistoricalTokenData } from './oracle_state';
 
 /**
  * Fetches and parses multiple accounts using getMultipleAccountsInfo.
@@ -29,14 +21,11 @@ export const fetchMultipleAccounts = async (
         return accountsInfo;
     } catch (error) {
         console.error("Error fetching multiple accounts:", error);
-        // Return an array of nulls matching the input length on error
         return new Array(publicKeys.length).fill(null);
     }
 };
 
-// --- Account Decoders --- 
-
-// Moved from PoolInfoDisplay
+// --- Account Decoders ---
 export const decodeTokenAccountAmountBN = (buffer: Buffer): BN => {
     try { return new BN(AccountLayout.decode(buffer).amount.toString()); }
     catch (e) {
@@ -46,7 +35,6 @@ export const decodeTokenAccountAmountBN = (buffer: Buffer): BN => {
     }
 };
 
-// Moved from PoolInfoDisplay
 export const decodeMintAccountSupplyString = (buffer: Buffer): string => {
     try { return MintLayout.decode(buffer).supply.toString(); }
     catch (e) {
@@ -56,32 +44,5 @@ export const decodeMintAccountSupplyString = (buffer: Buffer): string => {
     }
 };
 
-// --- MOVED from oracle_state.ts: Decode HistoricalTokenData Account --- 
-export const decodeHistoricalTokenData = (accountInfo: AccountInfo<Buffer> | null): HistoricalTokenDataDecoded | null => {
-    if (!accountInfo || accountInfo.data.length === 0) return null;
-
-    // Layout: 8b discriminator + 32b feed_id + 1b decimals + 10b symbol
-    if (accountInfo.data.length < 51) {
-        console.warn("HistoricalTokenData buffer too small:", accountInfo.data.length);
-        return null;
-    }
-    
-    const data = accountInfo.data.slice(8); // Skip discriminator
-    
-    try {
-        const feedIdBytes = data.slice(0, 32);
-        const feedId = new PublicKey(feedIdBytes).toBase58(); 
-        const decimals = data.readUInt8(32);
-        const symbolBytes = data.slice(33, 33 + 10);
-        const symbol = bytesToString(symbolBytes); // Use local helper
-
-        return {
-            feedId,
-            decimals,
-            symbol,
-        };
-    } catch (error) {
-        console.error("Error decoding HistoricalTokenData:", error);
-        return null;
-    }
-}; 
+// Re-export oracle functions for backward compatibility
+export { bytesToString, decodeHistoricalTokenData }; 
