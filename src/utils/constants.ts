@@ -27,37 +27,39 @@ export const TOKEN_HISTORY_SEED = Buffer.from("token_history");
 export const WLI_MINT_SEED = Buffer.from("wli_mint");
 export const ORACLE_AGGREGATOR_SEED = Buffer.from("aggregator_v2");
 
-// You might add other constants from the pool program's constants.rs if needed
-// e.g., USD_SCALE, BPS_SCALE etc. for frontend calculations
+// Frontend Calculation Constants
 export const USD_SCALE = 6;
 export const DOMINANCE_SCALE_FACTOR = BigInt(10_000_000_000);
-export const BASE_FEE_BPS = 10; // 0.1% Base Fee (Added)
-
-// Calculation Constants (Moved from calculations.ts)
 export const PRICE_SCALE_FACTOR = new BN(10).pow(new BN(10)); // 10^10 used for scaling prices
-
-// Constant for percentage scaling (Scaled by 1,000,000: 1% = 10,000 scaled units)
-export const PERCENTAGE_CALC_SCALE = 1000000;
+export const PERCENTAGE_CALC_SCALE = 1000000; // Scaled by 1,000,000: 1% = 10,000 scaled units
 export const BN_PERCENTAGE_CALC_SCALE = new BN(PERCENTAGE_CALC_SCALE);
-
-// BPS Scale
-export const BPS_SCALE = 10000;
+export const BPS_SCALE = 10000; // For converting BPS to decimal percentage
 export const BN_BPS_SCALE = new BN(BPS_SCALE);
+export const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12 for high precision
 
 // Fee Calculation Constants
-export const BN_BASE_FEE_BPS = new BN(10); // 0.1%
-export const BN_FEE_K_FACTOR_NUMERATOR = new BN(2); // k = 0.2
-export const BN_FEE_K_FACTOR_DENOMINATOR = new BN(10);
-export const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(-500); // Max dynamic *discount* is 500 BPS
-export const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(0);     // Min total fee is 0 BPS
-export const BN_DEPOSIT_MAX_FEE_BPS = new BN(9999); // Max total deposit fee is 99.99%
-export const BN_WITHDRAW_MAX_FEE_BPS = new BN(9999); // Max total withdraw fee is 99.99%
+export const BASE_FEE_BPS = 10; // 0.1%
+export const BN_BASE_FEE_BPS = new BN(BASE_FEE_BPS);
+export const FEE_K_FACTOR_NUMERATOR = 2; // k = 0.2
+export const BN_FEE_K_FACTOR_NUMERATOR = new BN(FEE_K_FACTOR_NUMERATOR);
+export const FEE_K_FACTOR_DENOMINATOR = 10;
+export const BN_FEE_K_FACTOR_DENOMINATOR = new BN(FEE_K_FACTOR_DENOMINATOR);
+export const DEPOSIT_PREMIUM_CAP_BPS = -500; // Max dynamic *discount* is 500 BPS
+export const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(DEPOSIT_PREMIUM_CAP_BPS);
+export const WITHDRAW_FEE_FLOOR_BPS = 0;     // Min total fee is 0 BPS
+export const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(WITHDRAW_FEE_FLOOR_BPS);
+export const DEPOSIT_MAX_FEE_BPS = 9999; // Max total deposit fee is 99.99%
+export const BN_DEPOSIT_MAX_FEE_BPS = new BN(DEPOSIT_MAX_FEE_BPS);
+export const WITHDRAW_MAX_FEE_BPS = 9999; // Max total withdraw fee is 99.99%
+export const BN_WITHDRAW_MAX_FEE_BPS = new BN(WITHDRAW_MAX_FEE_BPS);
 
-// Dominance Scale (BN version)
-export const BN_DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR); // Use existing DOMINANCE_SCALE_FACTOR
-
-// Precision Scale for Division
-export const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12
+// Dominance Scale (BN version) - Based on DOMINANCE_SCALE_FACTOR
+export const BN_DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR.toString()); // Use existing DOMINANCE_SCALE_FACTOR
 
 // UI Defaults
 export const DEFAULT_ICON = '/tokens/default.png';
+
+// Button Colors (Moved from TokenTable.tsx)
+export const BTN_GREEN = "bg-green-600 hover:bg-green-700";
+export const BTN_RED = "bg-red-600 hover:bg-red-700";
+export const BTN_GRAY = "bg-gray-500 hover:bg-gray-600 cursor-not-allowed"; // Neutral/disabled look

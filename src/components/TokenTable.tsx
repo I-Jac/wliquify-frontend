@@ -10,10 +10,37 @@ import {
     calculateTargetPercentageScaled,
     formatScaledBnToDollarString,
     formatRawAmountString,
-    formatScaledToPercentageString,
+    formatScaledToPercentageString
 } from '@/utils/calculations';
-import { USD_SCALE } from '@/utils/constants';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
+import {
+    USD_SCALE,
+    DOMINANCE_SCALE_FACTOR,
+    BN_DOMINANCE_SCALE,
+    PRICE_SCALE_FACTOR,
+    PERCENTAGE_CALC_SCALE,
+    BN_PERCENTAGE_CALC_SCALE,
+    BPS_SCALE,
+    BN_BPS_SCALE,
+    BASE_FEE_BPS,
+    BN_BASE_FEE_BPS,
+    FEE_K_FACTOR_NUMERATOR,
+    BN_FEE_K_FACTOR_NUMERATOR,
+    FEE_K_FACTOR_DENOMINATOR,
+    BN_FEE_K_FACTOR_DENOMINATOR,
+    DEPOSIT_PREMIUM_CAP_BPS,
+    BN_DEPOSIT_PREMIUM_CAP_BPS,
+    WITHDRAW_FEE_FLOOR_BPS,
+    BN_WITHDRAW_FEE_FLOOR_BPS,
+    DEPOSIT_MAX_FEE_BPS,
+    BN_DEPOSIT_MAX_FEE_BPS,
+    WITHDRAW_MAX_FEE_BPS,
+    BN_WITHDRAW_MAX_FEE_BPS,
+    PRECISION_SCALE_FACTOR,
+    BTN_GREEN,
+    BTN_RED,
+    BTN_GRAY
+} from '@/utils/constants';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 
@@ -69,35 +96,6 @@ type TokenCardProps = Omit<TokenRowProps, 'index'>;
 
 // Define type for sortable keys
 type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent';
-
-// --- Constants for Button Colors ---
-const BTN_GREEN = "bg-green-600 hover:bg-green-700";
-const BTN_RED = "bg-red-600 hover:bg-red-700";
-const BTN_GRAY = "bg-gray-500 hover:bg-gray-600 cursor-not-allowed"; // Neutral/disabled look
-
-// --- Fee Estimation Constants ---
-const BASE_FEE_BPS = 10; // 0.1%
-const BPS_SCALE = 10000; // For converting BPS to decimal percentage
-const DOMINANCE_SCALE = new BN(10_000_000_000); // 10^10, matching Rust constant
-const FEE_K_FACTOR_NUMERATOR = 2; // k = 0.2
-const FEE_K_FACTOR_DENOMINATOR = 10;
-const DEPOSIT_PREMIUM_CAP_BPS = -500; // Max dynamic *discount* is 500 BPS
-const WITHDRAW_FEE_FLOOR_BPS = 0;     // Min total fee is 0 BPS
-const DEPOSIT_MAX_FEE_BPS = 9999; // Max total deposit fee is 99.99%
-const WITHDRAW_MAX_FEE_BPS = 9999; // Max total withdraw fee is 99.99%
-
-// Define a precision scale factor
-const PRECISION_SCALE_FACTOR = new BN(10).pow(new BN(12)); // 1e12 for high precision
-
-// BN versions for precise calculations
-const BN_BPS_SCALE = new BN(BPS_SCALE);
-const BN_BASE_FEE_BPS = new BN(BASE_FEE_BPS);
-const BN_DEPOSIT_PREMIUM_CAP_BPS = new BN(DEPOSIT_PREMIUM_CAP_BPS);
-const BN_WITHDRAW_FEE_FLOOR_BPS = new BN(WITHDRAW_FEE_FLOOR_BPS);
-const BN_FEE_K_FACTOR_NUMERATOR = new BN(FEE_K_FACTOR_NUMERATOR);
-const BN_FEE_K_FACTOR_DENOMINATOR = new BN(FEE_K_FACTOR_DENOMINATOR);
-const BN_DEPOSIT_MAX_FEE_BPS = new BN(DEPOSIT_MAX_FEE_BPS);
-const BN_WITHDRAW_MAX_FEE_BPS = new BN(WITHDRAW_MAX_FEE_BPS);
 
 // --- Calculation Helper: Convert USD to Token Amount ---
 // FIX: Corrected implementation based on derived formula
@@ -257,10 +255,10 @@ const TokenRow: React.FC<TokenRowProps> = React.memo(({
             estimatedWithdrawFeeBps = BASE_FEE_BPS;
         } else {
             const targetDominanceScaledBn = (totalTargetDominance && !totalTargetDominance.isZero())
-                ? targetDominance.mul(DOMINANCE_SCALE).div(totalTargetDominance)
+                ? targetDominance.mul(BN_DOMINANCE_SCALE).div(totalTargetDominance)
                 : new BN(0);
             const actualDomPreScaled = (tokenValueUsd && !totalPoolValueScaled.isZero())
-                ? tokenValueUsd.mul(DOMINANCE_SCALE).div(totalPoolValueScaled)
+                ? tokenValueUsd.mul(BN_DOMINANCE_SCALE).div(totalPoolValueScaled)
                 : null;
 
             if (actualDomPreScaled === null) {
@@ -277,7 +275,7 @@ const TokenRow: React.FC<TokenRowProps> = React.memo(({
                             const totalPoolValuePostScaled = totalPoolValueScaled.add(valueChangeUsdScaled);
                             const tokenValuePostScaled = (tokenValueUsd ?? new BN(0)).add(valueChangeUsdScaled);
                             const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
-                                ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
+                                ? tokenValuePostScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePostScaled)
                                 : null;
                             if (actualDomPostScaled !== null) {
                                 const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
@@ -356,7 +354,7 @@ const TokenRow: React.FC<TokenRowProps> = React.memo(({
                             const currentTokenValue = tokenValueUsd ?? new BN(0);
                             const tokenValuePostScaled = currentTokenValue.gt(valueChangeUsdScaled) ? currentTokenValue.sub(valueChangeUsdScaled) : new BN(0);
                             const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
-                                ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
+                                ? tokenValuePostScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePostScaled)
                                 : null;
                             if (actualDomPostScaled !== null) {
                                 const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
@@ -402,6 +400,7 @@ const TokenRow: React.FC<TokenRowProps> = React.memo(({
                         totalFeePreBN = BN_WITHDRAW_MAX_FEE_BPS;
                     }
                     estimatedWithdrawFeeBps = Math.round(totalFeePreBN.toNumber());
+                    withdrawalExceedsLiquidity = false; // Assume ok if no amount entered
                 }
             }
         }
@@ -738,10 +737,10 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
             estimatedWithdrawFeeBps = BASE_FEE_BPS;
         } else {
             const targetDominanceScaledBn = (totalTargetDominance && !totalTargetDominance.isZero())
-                ? targetDominance.mul(DOMINANCE_SCALE).div(totalTargetDominance)
+                ? targetDominance.mul(BN_DOMINANCE_SCALE).div(totalTargetDominance)
                 : new BN(0);
             const actualDomPreScaled = (tokenValueUsd && !totalPoolValueScaled.isZero())
-                ? tokenValueUsd.mul(DOMINANCE_SCALE).div(totalPoolValueScaled)
+                ? tokenValueUsd.mul(BN_DOMINANCE_SCALE).div(totalPoolValueScaled)
                 : null;
 
             if (actualDomPreScaled === null) {
@@ -759,7 +758,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                             const totalPoolValuePostScaled = totalPoolValueScaled.add(valueChangeUsdScaled);
                             const tokenValuePostScaled = (tokenValueUsd ?? new BN(0)).add(valueChangeUsdScaled);
                             const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
-                                ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
+                                ? tokenValuePostScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePostScaled)
                                 : null;
                             if (actualDomPostScaled !== null) {
                                 const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
@@ -806,7 +805,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                         estimatedDepositFeeBps = BASE_FEE_BPS;
                     }
                 } else {
-                     // No deposit amount or missing data, estimate based on pre-state
+                    // No deposit amount or missing data, estimate based on pre-state
                     const rawDynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
                     let effectiveDynamicFeePreBpsBN = rawDynamicFeePreBpsBN;
                     if (effectiveDynamicFeePreBpsBN.lt(BN_DEPOSIT_PREMIUM_CAP_BPS)) {
@@ -842,7 +841,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                             const currentTokenValue = tokenValueUsd ?? new BN(0);
                             const tokenValuePostScaled = currentTokenValue.gt(valueChangeUsdScaled) ? currentTokenValue.sub(valueChangeUsdScaled) : new BN(0);
                             const actualDomPostScaled = (!totalPoolValuePostScaled.isZero())
-                                ? tokenValuePostScaled.mul(DOMINANCE_SCALE).div(totalPoolValuePostScaled)
+                                ? tokenValuePostScaled.mul(BN_DOMINANCE_SCALE).div(totalPoolValuePostScaled)
                                 : null;
                             if (actualDomPostScaled !== null) {
                                 const relDevPostBpsBN = calculateRelativeDeviationBpsBN(actualDomPostScaled, targetDominanceScaledBn);
@@ -867,7 +866,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                                 estimatedWithdrawFeeBps = Math.round(totalFeePreBN.toNumber());
                             }
                         } else if (!withdrawalExceedsLiquidity) {
-                             // Value change zero or liquidity sufficient, estimate based on pre-state
+                            // Value change zero or liquidity sufficient, estimate based on pre-state
                             const dynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
                             let totalFeePreBN = BN_BASE_FEE_BPS.sub(dynamicFeePreBpsBN);
                             if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
@@ -884,7 +883,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                         withdrawalExceedsLiquidity = false; // Assume ok if calc fails
                     }
                 } else {
-                     // No withdraw amount or missing data, estimate based on pre-state
+                    // No withdraw amount or missing data, estimate based on pre-state
                     const dynamicFeePreBpsBN = relDevPreBps.mul(BN_FEE_K_FACTOR_NUMERATOR).div(BN_FEE_K_FACTOR_DENOMINATOR);
                     let totalFeePreBN = BN_BASE_FEE_BPS.sub(dynamicFeePreBpsBN);
                     if (totalFeePreBN.lt(BN_WITHDRAW_FEE_FLOOR_BPS)) {
@@ -907,10 +906,10 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
     // --- Button State & Labels (Copied and adapted from TokenRow) --- START
     let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted || depositInsufficientBalance;
     // Combine all withdraw disabling conditions
-    let withdrawButtonDisabled = actionDisabled 
-        || !isWithdrawInputFilled 
-        || withdrawInsufficientBalance 
-        || withdrawalExceedsLiquidity 
+    let withdrawButtonDisabled = actionDisabled
+        || !isWithdrawInputFilled
+        || withdrawInsufficientBalance
+        || withdrawalExceedsLiquidity
         || (isDelisted && (!vaultBalance || vaultBalance.isZero()));
 
     let depositBtnClass = BTN_GRAY;
@@ -967,19 +966,19 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
         }
         // Only set withdraw color if not disabled by liquidity/balance issues
         if (!withdrawalExceedsLiquidity && !withdrawInsufficientBalance && !(isDelisted && (!vaultBalance || vaultBalance.isZero()))) {
-             if (isDelisted) {
-                 withdrawBtnClass = BTN_GREEN; // Delisted withdraw always shows green if possible
-             } else if (estimatedWithdrawFeeBps === 0) {
-                 withdrawBtnClass = BTN_GREEN;
-             } else if (estimatedWithdrawFeeBps > 0) {
-                 withdrawBtnClass = BTN_RED;
-             }
-         }
-        
+            if (isDelisted) {
+                withdrawBtnClass = BTN_GREEN; // Delisted withdraw always shows green if possible
+            } else if (estimatedWithdrawFeeBps === 0) {
+                withdrawBtnClass = BTN_GREEN;
+            } else if (estimatedWithdrawFeeBps > 0) {
+                withdrawBtnClass = BTN_RED;
+            }
+        }
+
         const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true);
         depositLabel = `Deposit ${depositFeeString}`;
         depositTitle = depositTitleBase;
-        
+
         const { feeString: withdrawFeeString, title: withdrawTitleBase } = isDelisted ? formatDelistedWithdrawFeeString() : formatFeeString(estimatedWithdrawFeeBps, false);
         withdrawLabel = `Withdraw ${withdrawFeeString}`;
         withdrawTitle = withdrawTitleBase;
@@ -1003,10 +1002,10 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
         withdrawButtonDisabled = true; // Ensure disabled
         withdrawBtnClass = BTN_GRAY;
     } else if (isDelisted && (!vaultBalance || vaultBalance.isZero())) {
-         withdrawLabel = "Pool Empty";
-         withdrawTitle = "No balance of this delisted token in the pool to withdraw.";
-         withdrawButtonDisabled = true; // Ensure disabled
-         withdrawBtnClass = BTN_GRAY;
+        withdrawLabel = "Pool Empty";
+        withdrawTitle = "No balance of this delisted token in the pool to withdraw.";
+        withdrawButtonDisabled = true; // Ensure disabled
+        withdrawBtnClass = BTN_GRAY;
     }
     // --- Button State & Labels (Copied and adapted from TokenRow) --- END
 
@@ -1109,7 +1108,7 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-4 text-sm">
                 <div className="text-gray-400">Pool Balance:</div>
                 <div className="text-right text-white font-medium">{displayValue}</div>
-                
+
                 <div className="text-gray-400"></div> {/* Empty cell for alignment */}
                 <div className="text-right text-gray-300 text-xs">{displayBalance} {displaySymbol}</div>
 
@@ -1125,14 +1124,14 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
                 <div className="mb-4 border-t border-gray-600 pt-3">
                     <h4 className="text-sm font-semibold mb-2 text-gray-200">Deposit {displaySymbol}</h4>
                     <div className="text-gray-400 text-xs mb-1 flex items-center justify-between">
-                         <div className="flex items-center">
-                             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1"><path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path></svg>
-                             <span>Balance: {displayUserTokenBalance}</span>
-                         </div>
-                         <div className="flex items-center space-x-1">
-                             <button onClick={() => handleSetAmount(mintAddress, 'deposit', 0.5)} disabled={actionDisabled || token.userBalance === null || isDelisted} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set 50%">Half</button>
-                             <button onClick={() => handleSetAmount(mintAddress, 'deposit', 1)} disabled={actionDisabled || token.userBalance === null || isDelisted} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set Max">Max</button>
-                         </div>
+                        <div className="flex items-center">
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1"><path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path></svg>
+                            <span>Balance: {displayUserTokenBalance}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 0.5)} disabled={actionDisabled || token.userBalance === null || isDelisted} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set 50%">Half</button>
+                            <button onClick={() => handleSetAmount(mintAddress, 'deposit', 1)} disabled={actionDisabled || token.userBalance === null || isDelisted} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || token.userBalance === null || isDelisted) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set Max">Max</button>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2 mb-1">
                         <input id={`deposit-card-${mintAddress}`} type="number" step="any" min="0" placeholder={`Amount (${symbol})`} value={currentDepositAmount} onChange={(e) => handleAmountChange(mintAddress, 'deposit', e.target.value)} className="flex-grow bg-gray-800 text-white px-2 py-1.5 rounded border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" disabled={actionDisabled || isDelisted} />
@@ -1147,31 +1146,31 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
 
             {/* --- Withdraw Section --- */}
             <div className={`${!hideDepositColumn && !isDelisted ? 'border-t border-gray-600 pt-3' : '' }`}>
-                 {/* MODIFIED: Changed heading to use displaySymbol */}
-                 <h4 className="text-sm font-semibold mb-2 text-gray-200">Withdraw {displaySymbol}</h4>
-                 <div className="text-gray-400 text-xs mb-1 flex items-center justify-between">
-                     <div className="flex items-center">
-                         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1"><path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path></svg>
-                         <span>Balance: {displayUserWlqiBalance}</span>
-                     </div>
-                     <div className="flex items-center space-x-1">
-                          <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set 50%">Half</button>
-                          <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set Max">Max</button>
-                     </div>
-                 </div>
-                 <div className="flex items-center space-x-2 mb-1">
-                     <input id={`withdraw-card-${mintAddress}`} type="number" step="any" min="0" placeholder="Amount (wLQI)" value={currentWithdrawAmount} onChange={(e) => handleAmountChange(mintAddress, 'withdraw', e.target.value)} className="flex-grow bg-gray-800 text-white px-2 py-1.5 rounded border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" disabled={actionDisabled} />
-                     {!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled) && (
-                         <button onClick={() => handleSetTargetAmount(mintAddress, 'withdraw')} disabled={actionDisabled} className={`px-1.5 py-1 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center whitespace-nowrap ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title="Set target amount">To Target</button>
-                     )}
-                 </div>
-                 <div className="text-gray-400 text-xs text-right h-4 mb-1">{displayWithdrawInputUsdValue}</div>
-                 <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
+                {/* MODIFIED: Changed heading to use displaySymbol */}
+                <h4 className="text-sm font-semibold mb-2 text-gray-200">Withdraw {displaySymbol}</h4>
+                <div className="text-gray-400 text-xs mb-1 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="mr-1"><path d="M13.8205 12.2878C13.8205 12.4379 13.791 12.5865 13.7335 12.7252C13.6761 12.8638 13.5919 12.9898 13.4858 13.0959C13.3797 13.2021 13.2537 13.2863 13.115 13.3437C12.9764 13.4011 12.8278 13.4307 12.6777 13.4307H3.04911C2.746 13.4307 2.45531 13.3103 2.24099 13.0959C2.02666 12.8816 1.90625 12.5909 1.90625 12.2878V4.18992C1.90625 3.68474 2.10693 3.20026 2.46414 2.84305C2.82135 2.48584 3.30584 2.28516 3.81101 2.28516H10.3718C10.6749 2.28516 10.9656 2.40556 11.1799 2.61989C11.3942 2.83422 11.5146 3.12491 11.5146 3.42801L11.5142 4.20668H12.6777C12.8278 4.20668 12.9764 4.23624 13.115 4.29367C13.2537 4.35111 13.3797 4.43529 13.4858 4.54141C13.5919 4.64754 13.6761 4.77353 13.7335 4.91218C13.791 5.05084 13.8205 5.19946 13.8205 5.34954V12.2878ZM12.6777 5.34954H3.04911V12.2878H12.6777L12.6773 10.356H8.43996V7.28173L12.6773 7.28135V5.34992L12.6777 5.34954ZM12.6777 8.4242H9.58244V9.21316H12.6773V8.42459L12.6777 8.4242ZM10.3718 3.42801H3.81101C3.60894 3.42801 3.41515 3.50829 3.27226 3.65117C3.12938 3.79405 3.04911 3.98785 3.04911 4.18992L3.04873 4.20668H10.3714V3.42801H10.3718Z"></path></svg>
+                        <span>Balance: {displayUserWlqiBalance}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 0.5)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set 50%">Half</button>
+                        <button onClick={() => handleSetAmount(mintAddress, 'withdraw', 1)} disabled={actionDisabled || userWlqiBalance === null} className={`px-1.5 py-0.5 text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center ${(actionDisabled || userWlqiBalance === null) ? 'cursor-not-allowed opacity-50' : ''}`} title="Set Max">Max</button>
+                    </div>
+                </div>
+                <div className="flex items-center space-x-2 mb-1">
+                    <input id={`withdraw-card-${mintAddress}`} type="number" step="any" min="0" placeholder="Amount (wLQI)" value={currentWithdrawAmount} onChange={(e) => handleAmountChange(mintAddress, 'withdraw', e.target.value)} className="flex-grow bg-gray-800 text-white px-2 py-1.5 rounded border border-gray-600 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" disabled={actionDisabled} />
+                    {!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled) && (
+                        <button onClick={() => handleSetTargetAmount(mintAddress, 'withdraw')} disabled={actionDisabled} className={`px-1.5 py-1 text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center whitespace-nowrap ${actionDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title="Set target amount">To Target</button>
+                    )}
+                </div>
+                <div className="text-gray-400 text-xs text-right h-4 mb-1">{displayWithdrawInputUsdValue}</div>
+                <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
                 {isDelisted && (
                     <div className="mt-2">
                         <button onClick={handleFullDelistedWithdraw} disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${BTN_RED} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`} title={actionDisabled ? "..." : (!vaultBalance || vaultBalance.isZero()) ? `Pool vault empty.` : !requiredWlqiForDelistedFormatted ? "Calc error." : !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted}` : `Withdraw entire ${symbol} balance. Requires ~${requiredWlqiForDelistedFormatted} wLQI.`}>{actionDisabled ? (isWithdrawing ? 'Withdrawing...' : '...') : (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" : !userHasEnoughForDelisted ? "Insufficient wLQI" : `Withdraw Full Balance`}</button>
                     </div>
-                 )}
+                )}
             </div>
         </div>
     );
@@ -1391,10 +1390,10 @@ export const TokenTable = React.memo<TokenTableProps>(({ // Existing React.memo 
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="bg-gray-600">
                         <tr><th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}
-                                >Symbol{getSortIndicator('symbol')}</th><th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}
-                                >Pool Balance{getSortIndicator('value')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}
-                                >Actual %{/*getSortIndicator('actualPercent')*/}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}
-                                >Target %{getSortIndicator('targetPercent')}</th>
+                        >Symbol{getSortIndicator('symbol')}</th><th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}
+                        >Pool Balance{getSortIndicator('value')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}
+                        >Actual %{/*getSortIndicator('actualPercent')*/}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}
+                        >Target %{getSortIndicator('targetPercent')}</th>
                             {!hideDepositColumn && (
                                 <th className="p-2 w-40 text-center">Deposit</th>
                             )}
