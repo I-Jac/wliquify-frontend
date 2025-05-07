@@ -64,6 +64,7 @@ export interface ProcessedTokenData {
     actualDominancePercent: number;
     targetDominancePercent: number;
     targetDominanceDisplay: string;
+    timestamp: string; // ADDED: Oracle data timestamp for this token
 }
 
 // Represents the aggregated data for a single token from the Oracle (e.g., Switchboard function)

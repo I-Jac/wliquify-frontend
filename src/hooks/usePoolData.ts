@@ -6,8 +6,8 @@ import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import {
     USD_SCALE,
-    ORACLE_PROGRAM_ID, // Assuming it's available in constants
-    ORACLE_AGGREGATOR_SEED, // Assuming it's available in constants
+    // ORACLE_PROGRAM_ID, // REMOVED: Unused import
+    // ORACLE_AGGREGATOR_SEED, // REMOVED: Unused import
 } from '@/utils/constants';
 import { Buffer } from 'buffer';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
@@ -780,7 +780,7 @@ export function usePoolData({
 
         const subscriptionId = connection.onAccountChange(
             oracleAggregatorAddress,
-            (_accountInfo) => { // We get accountInfo, but our new function handles the full re-fetch and parse
+            () => { // REMOVED _accountInfo as it's not used
                 console.log(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) changed via subscription, refreshing ONLY oracle data...`);
                 fetchAndSetOracleData(); // Call the new targeted function
             },
