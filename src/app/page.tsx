@@ -1,37 +1,72 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
+// import { TokenTable } from "../components/TokenTable"; // Removed
 import { usePoolData } from '@/hooks/usePoolData';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
+// import { usePoolInteractions } from '../hooks/usePoolInteractions'; // Removed
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+// import { useSearchParams } from 'next/navigation'
 
 export default function Home() {
+  // const searchParams = useSearchParams()
+  // const ref = searchParams.get('ref'); // Removed
+
   const { program, provider, readOnlyProvider } = useAnchorProgram();
-  const { connection } = useConnection();
   const wallet = useWallet();
+  const { connection } = useConnection();
+
+  // const [depositAmounts, setDepositAmounts] = useState<Record<string, string>>({}); // Removed
+  // const [withdrawAmounts, setWithdrawAmounts] = useState<Record<string, string>>({}); // Removed
+
+  // const handleAmountChange = (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => { // Removed
+  //   const setter = action === 'deposit' ? setDepositAmounts : setWithdrawAmounts;
+  //   setter(prev => ({ ...prev, [mintAddress]: amount }));
+  // };
+
+  const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
 
   const {
     poolConfig,
     poolConfigPda,
-    oracleData,
-    wLqiSupply,
-    wLqiDecimals,
     processedTokenData,
     totalPoolValueScaled,
     wLqiValueScaled,
+    wLqiDecimals,
     userWlqiBalance,
+    wLqiSupply,
+    oracleData,
     isLoadingPublicData,
     isLoadingUserData,
-    error,
+    error: poolDataError,
     refreshAllData,
-  } = usePoolData({
-    program,
-    provider,
-    readOnlyProvider,
-    connection,
-    wallet,
-  });
+  } = usePoolData({ program, provider, readOnlyProvider, connection, wallet });
+
+  // const onTransactionSuccess = useCallback(async (affectedMintAddress?: string) => { // Removed
+  //   console.log("Transaction success, refreshing data. Affected mint:", affectedMintAddress);
+  //   toast.success('Transaction confirmed!');
+  //   refreshAllData();
+  // }, [refreshAllData]);
+
+  // const onClearInput = useCallback((mintAddress: string) => { // Removed
+  //   setDepositAmounts(prev => ({ ...prev, [mintAddress]: '' }));
+  //   setWithdrawAmounts(prev => ({ ...prev, [mintAddress]: '' }));
+  // }, []);
+
+  // const { // Removed
+  //   handleDeposit,
+  //   handleWithdraw,
+  //   isDepositing,
+  //   isWithdrawing,
+  // } = usePoolInteractions({ 
+  //   program,
+  //   poolConfig,
+  //   poolConfigPda,
+  //   oracleData,
+  //   onTransactionSuccess,
+  //   // onClearInput, // This would also be removed if onClearInput is removed
+  // });
 
   const openTokenFaucet = () => {
     window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
@@ -40,48 +75,86 @@ export default function Home() {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const displayError = poolDataError;
+
   return (
     <div className="grid grid-rows-[auto_1fr_auto] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] relative">
-       <div className="fixed top-4 left-4 z-50 flex space-x-2">
-           <button
-               onClick={openTokenFaucet}
-               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
-               title="Faucet for minting test tokens and adding price feeds"
-           >
-               Token Mint & Change Token Price
-           </button>
-           <button
-               onClick={() => openSolFaucet('https://solfaucet.com/')}
-               className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-1 px-3 rounded text-sm"
-               title="Link to SolFaucet (solfaucet.com) for Devnet/Testnet SOL"
-           >
-               Solana Airdrop 1
-           </button>
-           <button
-               onClick={() => openSolFaucet('https://solfate.com/faucet')}
-               className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-1 px-3 rounded text-sm"
-               title="Link to Solfate Faucet (solfate.com) for Devnet/Testnet SOL"
-           >
-               Solana Airdrop 2
-           </button>
-       </div>
+      <div className="fixed top-4 left-4 z-50">
+        <div className="relative">
+          <button
+            onClick={() => setIsDevToolsOpen(!isDevToolsOpen)}
+            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded text-sm flex items-center space-x-1"
+          >
+            <span>Dev Tools</span>
+            <svg className={`w-3 h-3 transition-transform ${isDevToolsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
 
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start w-full max-w-4xl">
+          {isDevToolsOpen && (
+            <div className="absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+              <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                <button
+                  onClick={() => { openTokenFaucet(); setIsDevToolsOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  role="menuitem"
+                  title="Faucet for minting test tokens and adding price feeds"
+                >
+                  Token Mint & Change Price
+                </button>
+                <button
+                  onClick={() => { openSolFaucet('https://solfaucet.com/'); setIsDevToolsOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  role="menuitem"
+                  title="Link to SolFaucet (solfaucet.com)"
+                >
+                   Airdrop SOL (solfaucet.com)
+                 </button>
+                 <button
+                   onClick={() => { openSolFaucet('https://solfate.com/faucet'); setIsDevToolsOpen(false); }}
+                   className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                   role="menuitem"
+                   title="Link to Solfate Faucet (solfate.com)"
+                 >
+                   Airdrop SOL (solfate.com)
+                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <main className="flex flex-col items-center gap-8 w-full max-w-4xl">
+        {displayError && <div className="text-red-500 bg-red-900/30 p-2 rounded">Error: {displayError}</div>}
         <PoolInfoDisplay
           poolConfig={poolConfig}
           poolConfigPda={poolConfigPda}
           oracleData={oracleData}
           wLqiSupply={wLqiSupply}
           wLqiDecimals={wLqiDecimals}
-          processedTokenData={processedTokenData}
-          totalPoolValueScaled={totalPoolValueScaled}
           wLqiValueScaled={wLqiValueScaled}
-          userWlqiBalance={userWlqiBalance}
+          totalPoolValueScaled={totalPoolValueScaled}
           isLoadingPublicData={isLoadingPublicData}
+          processedTokenData={processedTokenData}
+          userWlqiBalance={userWlqiBalance}
           isLoadingUserData={isLoadingUserData}
-          error={error}
+          error={poolDataError}
           refreshAllData={refreshAllData}
         />
+        {/* <TokenTable 
+          tokenData={processedTokenData} 
+          totalPoolValueScaled={totalPoolValueScaled}
+          wLqiValueScaled={wLqiValueScaled}
+          wLqiDecimals={wLqiDecimals}
+          userWlqiBalance={userWlqiBalance}
+          depositAmounts={depositAmounts}
+          withdrawAmounts={withdrawAmounts}
+          handleAmountChange={handleAmountChange}
+          onDeposit={handleDeposit}
+          onWithdraw={handleWithdraw}
+          isDepositing={isDepositing}
+          isWithdrawing={isWithdrawing}
+          isLoadingPublicData={isLoadingPublicData}
+          isLoadingUserData={isLoadingUserData}
+        /> */}
       </main>
     </div>
   );
