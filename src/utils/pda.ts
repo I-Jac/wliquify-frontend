@@ -3,7 +3,7 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token
 import { POOL_AUTHORITY_SEED, TOKEN_HISTORY_SEED, POOL_CONFIG_SEED } from './constants'; // Assuming constants are defined here
 
 // IMPORTANT: Replace with your actual program ID
-const PROGRAM_ID = new PublicKey('FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn'); // Placeholder - GET FROM YOUR IDL or ENV
+const PROGRAM_ID = new PublicKey('EsKuTFP341vcfKidSAxgKZy91ZVmKqFxRw3CbM6bnfA9'); // Placeholder - GET FROM YOUR IDL or ENV
 
 /**
  * Finds the Pool Config PDA.

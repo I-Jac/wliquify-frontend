@@ -2,15 +2,15 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer'; // Ensure Buffer is available
 
 // Network Configuration
-export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
-//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
+//export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
+export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
 
 // Program IDs
 export const W_LIQUIFY_POOL_PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn"
+    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "EsKuTFP341vcfKidSAxgKZy91ZVmKqFxRw3CbM6bnfA9"
 );
 export const ORACLE_PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_ORACLE_PROGRAM_ID || "DP9kZHS77pbTuTHKNsaxqFjrUboFLGXvyCQsxYvWM26c"
+    process.env.NEXT_PUBLIC_ORACLE_PROGRAM_ID || "3ZfM451hf9LUizdUL14N1R9fwmsPS8M8ZCGai2nm6SVY"
 );
 
 // Official Program IDs
@@ -33,4 +33,4 @@ export const DOMINANCE_SCALE_FACTOR = BigInt(10_000_000_000);
 export const BASE_FEE_BPS = 10; // 0.1% Base Fee (Added)
 
 // UI Defaults
-export const DEFAULT_ICON = '/tokens/btc.png';
+export const DEFAULT_ICON = '/tokens/default.png';

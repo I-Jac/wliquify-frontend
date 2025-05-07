@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/w_liquify_pool.json`.
  */
 export type WLiquifyPool = {
-  "address": "FkB99u2Nr9XbbNWEoBgYWHCJEeQD8NByXXoL9Z27Pjtn",
+  "address": "EsKuTFP341vcfKidSAxgKZy91ZVmKqFxRw3CbM6bnfA9",
   "metadata": {
     "name": "wLiquifyPool",
     "version": "0.1.0",
