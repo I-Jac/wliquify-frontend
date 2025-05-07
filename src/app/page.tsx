@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
 // import { TokenTable } from "../components/TokenTable"; // Removed
 import { usePoolData } from '@/hooks/usePoolData';
@@ -26,6 +26,21 @@ export default function Home() {
   // };
 
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
+  const devToolsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (devToolsRef.current && !devToolsRef.current.contains(event.target as Node)) {
+        setIsDevToolsOpen(false);
+      }
+    }
+    if (isDevToolsOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isDevToolsOpen]);
 
   const {
     poolConfig,
@@ -80,7 +95,7 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[auto_1fr_auto] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] relative">
       <div className="fixed top-4 left-4 z-50">
-        <div className="relative">
+        <div className="relative" ref={devToolsRef}>
           <button
             onClick={() => setIsDevToolsOpen(!isDevToolsOpen)}
             className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded text-sm flex items-center space-x-1"
@@ -91,31 +106,34 @@ export default function Home() {
 
           {isDevToolsOpen && (
             <div className="absolute left-0 mt-2 w-60 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+              <div className="px-4 pt-2 pb-1 text-xs text-gray-400">
+                <p>Tip: Click wallet button (top-right) & &apos;Copy address&apos; to paste into faucets.</p>
+              </div>
               <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                <button
-                  onClick={() => { openTokenFaucet(); setIsDevToolsOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
-                  role="menuitem"
-                  title="Faucet for minting test tokens and adding price feeds"
-                >
-                  Token Mint & Change Price
-                </button>
                 <button
                   onClick={() => { openSolFaucet('https://solfaucet.com/'); setIsDevToolsOpen(false); }}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
                   role="menuitem"
-                  title="Link to SolFaucet (solfaucet.com)"
+                  title="Get Devnet/Testnet SOL from solfaucet.com (Option 1)"
                 >
-                   Airdrop SOL (solfaucet.com)
+                   1. Airdrop SOL (solfaucet.com)
                  </button>
                  <button
                    onClick={() => { openSolFaucet('https://solfate.com/faucet'); setIsDevToolsOpen(false); }}
                    className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
                    role="menuitem"
-                   title="Link to Solfate Faucet (solfate.com)"
+                   title="Get Devnet/Testnet SOL from solfate.com (Option 2)"
                  >
-                   Airdrop SOL (solfate.com)
+                   1. Airdrop SOL (solfate.com)
                  </button>
+                <button
+                  onClick={() => { openTokenFaucet(); setIsDevToolsOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  role="menuitem"
+                  title="Faucet for minting test tokens (requires SOL for transaction fees)"
+                >
+                  2. Mint Test Tokens (after SOL Airdrop)
+                </button>
               </div>
             </div>
           )}
