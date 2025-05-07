@@ -30,6 +30,8 @@ import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/a
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { bytesToString } from '@/utils/oracle_state';
+import { useOracleData } from './useOracleData';
+import { processTokenData } from '@/utils/tokenProcessing';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -64,7 +66,6 @@ export function usePoolData({
     // --- State managed by the hook ---
     const [poolConfig, setPoolConfig] = useState<PoolConfig | null>(null);
     const [poolConfigPda, setPoolConfigPda] = useState<PublicKey | null>(null);
-    const [oracleData, setOracleData] = useState<AggregatedOracleDataDecoded | null>(null);
     const [dynamicData, setDynamicData] = useState<Map<string, DynamicTokenData>>(new Map());
     const [historicalData, setHistoricalData] = useState<Map<string, HistoricalTokenDataDecoded | null>>(new Map());
     const [wLqiSupply, setWlqiSupply] = useState<string | null>(null);
@@ -84,6 +85,12 @@ export function usePoolData({
         lastRequestTime: 0,
         retryCount: 0,
         isRetrying: false
+    });
+
+    // Use the new useOracleData hook
+    const { oracleData, error: oracleError, refreshOracleData } = useOracleData({
+        connection,
+        oracleAggregatorAddress: poolConfig?.oracleAggregatorAccount ?? null
     });
 
     // Add rate limiting wrapper for RPC calls
@@ -142,106 +149,39 @@ export function usePoolData({
         setError(null);
         // Reset relevant states before fetch
         setPoolConfig(null);
-        setOracleData(null);
-        setWlqiSupply(null);
         setDynamicData(new Map());
         setHistoricalData(new Map());
         setWlqiValueScaled(null);
         hasFetchedPublicData.current = false;
-
-        let fetchedConfig: PoolConfig | null = null;
 
         try {
             const programId = program.programId;
             const configPda = findPoolConfigPDA(programId);
             setPoolConfigPda(configPda);
 
-            // Wrap the config fetch in rate limiting
-            fetchedConfig = await rateLimitedFetch(
+            const fetchedConfig = await rateLimitedFetch(
                 () => program.account.poolConfig.fetch(configPda) as Promise<PoolConfig>,
                 "Failed to fetch pool config"
             );
             
             setPoolConfig(fetchedConfig);
-            // console.log("usePoolData Hook: Fetched Pool Config:", fetchedConfig);
-
-            // --- Set TVL directly from fetched config ---
             setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled);
-            // console.log("usePoolData Hook: Set TVL from PoolConfig: ", fetchedConfig.currentTotalPoolValueScaled.toString());
-
-            // --- Oracle Data Fetching ---
-            const oracleAggregatorAddress = fetchedConfig.oracleAggregatorAccount;
-            if (!oracleAggregatorAddress || oracleAggregatorAddress.equals(SystemProgram.programId)) {
-                throw new Error("Oracle Aggregator not set in Pool Config.");
-            }
-
-            // Wrap oracle data fetching in rate limiting
-            const oracleAccountInfo = await rateLimitedFetch(
-                () => connection.getAccountInfo(oracleAggregatorAddress),
-                "Failed to fetch oracle account info"
-            );
-
-            if (!oracleAccountInfo) throw new Error(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
-
-            // --- UPDATE Manual Deserialization Logic within hook ---
-            const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8)); // Skip discriminator
-            let offset = 0;
-            const authorityPubkey = new PublicKey(oracleDataBuffer.subarray(offset, offset + 32)); offset += 32;
-            const totalTokens = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-            const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-
-            // --- UPDATE Token Info Size ---
-            const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // symbol[10], dominance u64, address[64], feedId[64], timestamp i64
-
-            const decodedTokens: ParsedOracleTokenInfo[] = [];
-            for (let i = 0; i < vecLen; i++) {
-                const start = offset;
-                const end = start + tokenInfoSize;
-                if (end > oracleDataBuffer.length) throw new Error(`Oracle buffer overflow reading token ${i + 1}.`);
-                const tokenSlice = oracleDataBuffer.subarray(start, end);
-
-                // Read fields based on NEW structure
-                const symbol = bytesToString(tokenSlice.subarray(0, 10));
-                const dominance = new BN(tokenSlice.subarray(10, 18), 'le').toString();
-                const address = bytesToString(tokenSlice.subarray(18, 18 + 64));
-                const priceFeedId = bytesToString(tokenSlice.subarray(18 + 64, 18 + 64 + 64));
-                const timestamp = new BN(tokenSlice.subarray(18 + 64 + 64, end), 'le').toString(); // Read timestamp
-
-                decodedTokens.push({
-                    symbol,
-                    dominance,
-                    address,
-                    priceFeedId,
-                    timestamp // Add timestamp to the decoded object
-                });
-                offset = end;
-            }
-            // --- END UPDATE Manual Deserialization Logic ---
-
-            const decodedOracleData: AggregatedOracleDataDecoded = {
-                authority: authorityPubkey.toBase58(),
-                totalTokens: totalTokens,
-                data: decodedTokens // This now includes the timestamp string
-            };
-            setOracleData(decodedOracleData);
-            // console.log("usePoolData Hook: Decoded Oracle Data:", decodedOracleData);
 
             // --- wLQI Mint Info ---
             const wlqiSupplyData = await rateLimitedFetch(
-                () => connection.getTokenSupply(fetchedConfig!.wliMint),
+                () => connection.getTokenSupply(fetchedConfig.wliMint),
                 "Failed to fetch wLQI supply"
             );
             const fetchedWlqiSupply = wlqiSupplyData.value.amount;
 
             const wlqiMintData = await rateLimitedFetch(
-                () => getMint(connection, fetchedConfig!.wliMint),
+                () => getMint(connection, fetchedConfig.wliMint),
                 "Failed to fetch wLQI mint data"
             );
             const fetchedWlqiDecimals = wlqiMintData.decimals;
 
             setWlqiSupply(fetchedWlqiSupply);
             setWlqiDecimals(fetchedWlqiDecimals);
-            // console.log("usePoolData Hook: wLQI Supply & Decimals:", fetchedWlqiSupply, fetchedWlqiDecimals);
 
             // --- Fetching Vaults, Price Feeds, History for Supported Tokens ---
             const publicAddressesToFetch: PublicKey[] = [];
@@ -253,7 +193,7 @@ export function usePoolData({
                 .filter((mint): mint is PublicKey => mint !== null);
             const mintInfoPromises = allConfiguredMints.map((mint: PublicKey) => getMint(connection, mint).catch(err => {
                 console.warn(`usePoolData Hook: Failed to get mint info for ${mint.toBase58()}: ${err.message}`);
-                return null; // Handle potential errors for missing mints
+                return null;
             }));
             const mintInfos = await Promise.all(mintInfoPromises);
             const decimalsMap = new Map<string, number>();
@@ -271,8 +211,8 @@ export function usePoolData({
                     return;
                 }
                 const mintAddress = mint.toBase58();
-                const priceFeedAddress = supportedToken.priceFeed; // Use priceFeed from config
-                const vault = supportedToken.vault; // Use vault from config
+                const priceFeedAddress = supportedToken.priceFeed;
+                const vault = supportedToken.vault;
                 const decimals = decimalsMap.get(mintAddress);
 
                 if (!vault) {
@@ -371,15 +311,11 @@ export function usePoolData({
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error("usePoolData Hook: Error fetching public pool data:", errorMessage);
             setError(`Failed to load public pool data: ${errorMessage}`);
-            // Reset states on error
             setPoolConfig(null);
-            setOracleData(null);
             setWlqiSupply(null);
             setDynamicData(new Map());
             setHistoricalData(new Map());
             setPoolConfigPda(null);
-            // Keep previous TVL on error? Or reset?
-            // setTotalPoolValueScaled(null); // Decide if reset on error is desired
         } finally {
             setIsLoadingPublicData(false);
         }
@@ -486,7 +422,6 @@ export function usePoolData({
                 // Consider setting a specific error or leaving oracleData as is if it disappears temporarily
                 // For now, let's update the error state and potentially clear/stale the oracleData
                 setError(prevError => prevError ? `${prevError}, Oracle account for subscription not found` : "Oracle account for subscription not found");
-                setOracleData(null); // Or a more specific "stale" state
                 return;
             }
 
@@ -506,12 +441,6 @@ export function usePoolData({
                 if (end > oracleDataBuffer.length) {
                     console.error(`usePoolData Hook: fetchAndSetOracleData - Oracle buffer overflow reading token ${i + 1}.`);
                     setError(prevError => prevError ? `${prevError}, Oracle data buffer overflow on refresh` : "Oracle data buffer overflow on refresh");
-                    // Set a partial/error state for oracleData to prevent crashing UI
-                    setOracleData(prevData => ({
-                        authority: prevData?.authority || authorityPubkey.toBase58(),
-                        totalTokens: prevData?.totalTokens || totalTokensInHeader,
-                        data: prevData?.data || [], // Keep previous data or empty on error
-                    }));
                     return;
                 }
                 const tokenSlice = oracleDataBuffer.subarray(start, end);
@@ -531,7 +460,7 @@ export function usePoolData({
                 totalTokens: totalTokensInHeader,
                 data: decodedTokens
             };
-            setOracleData(newOracleData); // Update only oracleData
+            refreshOracleData(); // Update oracle data
             // console.log("usePoolData Hook: Updated Oracle Data via fetchAndSetOracleData:", newOracleData);
             // Avoid clearing general error, unless specifically an oracle error is resolved.
             // setError(null); 
@@ -541,7 +470,7 @@ export function usePoolData({
             setError(prevError => prevError ? `${prevError}, Failed to refresh oracle data: ${errorMessage}` : `Failed to refresh oracle data: ${errorMessage}`);
             // Don't null out oracleData here necessarily, might want to keep stale data on transient network error
         }
-    }, [connection, poolConfig, setOracleData, setError]); // bytesToString is a stable import
+    }, [connection, poolConfig, refreshOracleData, setError]); // bytesToString is a stable import
 
     // --- Refresh Functions --- (Moved Up)
     const refreshPublicData = useCallback(() => {
