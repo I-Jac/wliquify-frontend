@@ -670,8 +670,7 @@ export function usePoolData({
     // --- Effect for Initial Public Data Fetch ---
     useEffect(() => {
         if (program && (provider || readOnlyProvider) && connection && !hasFetchedPublicData.current) {
-            // console.log("usePoolData Hook: Triggering initial public data fetch.");
-             fetchPublicPoolData();
+            fetchPublicPoolData();
         }
     }, [program, provider, readOnlyProvider, connection, fetchPublicPoolData]);
 
@@ -679,100 +678,85 @@ export function usePoolData({
     useEffect(() => {
         // Fetch user data only if wallet is connected AND public data is ready
         if (wallet.connected && wallet.publicKey && poolConfig && !hasFetchedUserData.current) {
-            // console.log("usePoolData Hook: Triggering initial user data fetch (wallet connected, public data ready).");
             fetchUserAccountData();
         } else if (!wallet.connected) {
             // Reset user data if wallet disconnects
             if (hasFetchedUserData.current) {
-                // console.log("usePoolData Hook: Wallet disconnected, resetting user data.");
                 setUserWlqiBalance(null);
                 setUserTokenBalances(new Map());
                 hasFetchedUserData.current = false;
             }
         }
-    }, [wallet.connected, wallet.publicKey, poolConfig, fetchUserAccountData]); // Re-run when wallet or poolConfig changes
+    }, [wallet.connected, wallet.publicKey, poolConfig, fetchUserAccountData]);
 
     // --- Effect to Subscribe to PoolConfig Changes --- 
     useEffect(() => {
-        // Add program to dependencies and check here
         if (!connection || !poolConfigPda) { 
-            // console.log("Subscription effect: Waiting for connection or Pda");
             return;
         }
 
-        // console.log(`Subscribing to PoolConfig account: ${poolConfigPda.toBase58()}`)
         const subscriptionId = connection.onAccountChange(
             poolConfigPda,
             () => { 
                 console.log("PoolConfig account changed via subscription, refreshing public data...");
                 refreshPublicData();
             },
-            "confirmed" // Or use "processed" / "finalized" based on desired speed/certainty
+            "confirmed"
         );
 
-        // Cleanup function to remove the listener when the component unmounts
         return () => {
-            // console.log("Removing PoolConfig listener...");
             connection.removeAccountChangeListener(subscriptionId).catch(err => {
                 console.error("Error removing PoolConfig listener:", err);
             });
         };
 
-    }, [connection, poolConfigPda, refreshPublicData]); // Reverted dependencies
+    }, [connection, poolConfigPda, refreshPublicData]);
 
-    // --- Effect to Subscribe to Oracle Aggregator Account Changes --- (NEW)
+    // --- Effect to Subscribe to Oracle Aggregator Account Changes ---
     useEffect(() => {
-        // Ensure poolConfig and its oracleAggregatorAccount are loaded and valid
         if (!connection || !poolConfig || !poolConfig.oracleAggregatorAccount || poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
-            // console.log("Oracle Aggregator Subscription effect: Waiting for connection or valid oracleAggregatorAccount from poolConfig.");
             return;
         }
 
         const oracleAggregatorAddress = poolConfig.oracleAggregatorAccount;
-        // console.log(`Subscribing to Oracle Aggregator account: ${oracleAggregatorAddress.toBase58()}`);
 
         const subscriptionId = connection.onAccountChange(
             oracleAggregatorAddress,
-            () => { // REMOVED _accountInfo as it's not used
+            () => {
                 console.log(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) changed via subscription, refreshing ONLY oracle data...`);
-                fetchAndSetOracleData(); // Call the new targeted function
+                fetchAndSetOracleData();
             },
-            "confirmed" // Or use "processed" / "finalized" based on desired speed/certainty
+            "confirmed"
         );
 
-        // Cleanup function to remove the listener
         return () => {
-            // console.log(`Removing Oracle Aggregator listener for ${oracleAggregatorAddress.toBase58()}...`);
             connection.removeAccountChangeListener(subscriptionId).catch(err => {
                 console.error(`Error removing Oracle Aggregator listener for ${oracleAggregatorAddress.toBase58()}:`, err);
             });
         };
-    }, [connection, poolConfig, fetchAndSetOracleData]); // Dependencies: re-subscribe if connection or poolConfig changes, or if fetchAndSetOracleData itself changes (due to its own deps)
+    }, [connection, poolConfig, fetchAndSetOracleData]);
 
-    // --- Effect to fetch W-LQI Mint address from Pool Config --- (NEW)
+    // --- Effect to fetch W-LQI Mint address from Pool Config ---
     useEffect(() => {
         if (poolConfig) {
             setWLqiMint(poolConfig.wliMint);
-            // console.log("usePoolData: Set wLqiMint:", poolConfig.wliMint?.toBase58());
         }
     }, [poolConfig]);
 
-    // --- Effect for Subscribing to User Token Account Changes --- (NEW)
+    // --- Effect for Subscribing to User Token Account Changes ---
     const userAccountSubscriptionIdsRef = useRef<number[]>([]);
     useEffect(() => {
         if (!connection || !wallet.publicKey || !poolConfig || !wLqiMint || !poolConfig.supportedTokens) {
-            // console.log("usePoolData User Subscription: Dependencies not ready.");
-            return; // Need connection, wallet, pool config, and token mints
+            return;
         }
 
         const publicKey = wallet.publicKey;
         const tokenMints = poolConfig.supportedTokens.map(t => t.mint);
-        const allMints = [wLqiMint, ...tokenMints]; // Include wLQI mint
+        const allMints = [wLqiMint, ...tokenMints];
         const currentSubs = userAccountSubscriptionIdsRef.current;
 
-        // If there are existing subscriptions, remove them first
+        // Cleanup existing subscriptions
         if (currentSubs.length > 0) {
-            // console.log(`usePoolData User Subscription: Removing ${currentSubs.length} old listeners.`);
             currentSubs.forEach(subId => {
                 connection.removeAccountChangeListener(subId).catch(err => {
                     console.error("Error removing user account listener:", err);
@@ -782,36 +766,28 @@ export function usePoolData({
         }
 
         const newSubIds: number[] = [];
-        // console.log(`usePoolData User Subscription: Setting up listeners for ${allMints.length} mints.`);
 
         allMints.forEach(mint => {
-            if (!mint) return; // Should not happen, but safety check
+            if (!mint) return;
             try {
-                const userAta = getAssociatedTokenAddressSync(mint, publicKey, true); // Allow off-curve
-                // console.log(`usePoolData User Subscription: Subscribing to ATA ${userAta.toBase58()} for mint ${mint.toBase58()}`);
+                const userAta = getAssociatedTokenAddressSync(mint, publicKey, true);
                 const subId = connection.onAccountChange(
                     userAta,
                     (accountInfo) => { 
-                        // Decode the balance directly from the changed account info
                         const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
-                        // console.log(`usePoolData User Subscription: Account change detected for ATA ${userAta.toBase58()} (Mint: ${mint.toBase58()}). New balance: ${newBalance.toString()}`);
 
-                        // Update the specific state variable
                         if (mint.equals(wLqiMint)) {
-                            // console.log(`usePoolData User Subscription: Updating wLQI balance.`);
                             setUserWlqiBalance(newBalance);
                         } else {
                             const mintAddressStr = mint.toBase58();
-                            // console.log(`usePoolData User Subscription: Updating balance for token ${mintAddressStr}.`);
                             setUserTokenBalances(prevBalances => {
-                                // Use functional update to safely modify the map
                                 const newBalances = new Map(prevBalances);
                                 newBalances.set(mintAddressStr, newBalance);
                                 return newBalances;
                             });
                         }
                     },
-                    'confirmed' // Or 'processed'/'finalized' depending on desired speed vs certainty
+                    'confirmed'
                 );
                 newSubIds.push(subId);
             } catch (err) {
@@ -820,46 +796,33 @@ export function usePoolData({
         });
 
         userAccountSubscriptionIdsRef.current = newSubIds;
-        // console.log(`usePoolData User Subscription: Setup complete with ${newSubIds.length} listeners.`);
 
-        // Cleanup function
         return () => {
             const subsToRemove = userAccountSubscriptionIdsRef.current;
-            // console.log(`usePoolData User Subscription: Cleanup - Removing ${subsToRemove.length} listeners.`);
             subsToRemove.forEach(subId => {
                 connection.removeAccountChangeListener(subId).catch(err => {
                     console.error("Error removing user account listener during cleanup:", err);
                 });
             });
             userAccountSubscriptionIdsRef.current = [];
-            // console.log("usePoolData User Subscription: Cleanup complete.");
         };
 
-    }, [connection, wallet.publicKey, poolConfig, wLqiMint]); // REMOVED refreshUserData dependency
-
-    // --- Initial Data Load ---
-    useEffect(() => {
-        // console.log("usePoolData: Initial load effect");
-        if (program && (provider || readOnlyProvider) && connection && !hasFetchedPublicData.current) {
-            // console.log("usePoolData Hook: Triggering initial public data fetch.");
-             fetchPublicPoolData();
-        }
-    }, [program, provider, readOnlyProvider, connection, fetchPublicPoolData]);
+    }, [connection, wallet.publicKey, poolConfig, wLqiMint]);
 
     // --- Return Hook State and Functions ---
     return {
         poolConfig,
         poolConfigPda,
         oracleData,
-        dynamicData, // Maybe not needed externally if processedTokenData is sufficient
-        historicalData, // Maybe not needed externally
-        wLqiSupply, // Maybe not needed externally
+        dynamicData,
+        historicalData,
+        wLqiSupply,
         wLqiDecimals,
         processedTokenData,
         totalPoolValueScaled,
         wLqiValueScaled,
         userWlqiBalance,
-        userTokenBalances, // Maybe not needed externally if processedTokenData has userBalance
+        userTokenBalances,
         isLoadingPublicData,
         isLoadingUserData,
         error,
