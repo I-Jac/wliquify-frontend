@@ -4,6 +4,7 @@ import {
     calculateTokenValueUsdScaled,
     calculateRelativeDeviationBpsBN,
     usdToTokenAmount,
+    DecodedPriceData
 } from '@/utils/calculations';
 import {
     BASE_FEE_BPS,
@@ -32,7 +33,7 @@ interface FeeCalculationProps {
     decimals: number | null;
     wLqiDecimals: number | null;
     wLqiValueScaled: BN | null;
-    priceData: any;
+    priceData: DecodedPriceData | null;
     vaultBalance: BN | null;
 }
 

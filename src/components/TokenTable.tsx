@@ -12,8 +12,7 @@ import {
     formatRawAmountString,
     formatScaledToPercentageString,
     usdToTokenAmount,
-    usdToWlqiAmount,
-    calculateRelativeDeviationBpsBN
+    usdToWlqiAmount
 } from '@/utils/calculations';
 import { calculateButtonStates } from '@/utils/buttonState';
 import { calculateFees } from '@/utils/fees';
@@ -21,31 +20,10 @@ import { TokenInputControls } from './TokenInputControls';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
 import {
     USD_SCALE,
-    DOMINANCE_SCALE_FACTOR,
-    BN_DOMINANCE_SCALE,
-    PRICE_SCALE_FACTOR,
-    PERCENTAGE_CALC_SCALE,
-    BN_PERCENTAGE_CALC_SCALE,
-    BPS_SCALE,
-    BN_BPS_SCALE,
-    BASE_FEE_BPS,
-    BN_BASE_FEE_BPS,
-    FEE_K_FACTOR_NUMERATOR,
-    BN_FEE_K_FACTOR_NUMERATOR,
-    FEE_K_FACTOR_DENOMINATOR,
-    BN_FEE_K_FACTOR_DENOMINATOR,
-    DEPOSIT_PREMIUM_CAP_BPS,
-    BN_DEPOSIT_PREMIUM_CAP_BPS,
-    WITHDRAW_FEE_FLOOR_BPS,
-    BN_WITHDRAW_FEE_FLOOR_BPS,
-    DEPOSIT_MAX_FEE_BPS,
-    BN_DEPOSIT_MAX_FEE_BPS,
-    WITHDRAW_MAX_FEE_BPS,
-    BN_WITHDRAW_MAX_FEE_BPS,
     PRECISION_SCALE_FACTOR,
-    BTN_GREEN,
     BTN_RED,
-    BTN_GRAY
+    BTN_GRAY,
+    BPS_SCALE
 } from '@/utils/constants';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
@@ -221,38 +199,6 @@ const TokenRow: React.FC<TokenRowProps> = React.memo(({
     const displayActualPercent = (typeof token.actualDominancePercent === 'number')
         ? token.actualDominancePercent.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
         : '--.--';
-    const currentUserBalance = token.userBalance;
-    const formattedUserTokenBalance = currentUserBalance !== null
-        ? formatRawAmountString(currentUserBalance.toString(), decimals, true, 2)
-        : null;
-    const displayUserTokenBalance = formattedUserTokenBalance ? `${formattedUserTokenBalance} ${symbol}` : '--.--';
-    const formattedUserWlqiBalance = userWlqiBalance !== null && wLqiDecimals !== null
-        ? formatRawAmountString(userWlqiBalance.toString(), wLqiDecimals, true, 2)
-        : null;
-    const displayUserWlqiBalance = formattedUserWlqiBalance ? `${formattedUserWlqiBalance} wLQI` : '--.--';
-    let displayDepositInputUsdValue = '$ --.--';
-    if (isDepositInputFilled && decimals !== null && priceData) {
-        try {
-            const inputAmountBn = new BN(parseUnits(currentDepositAmount, decimals).toString());
-            const inputUsdValueScaled = calculateTokenValueUsdScaled(inputAmountBn, decimals, priceData);
-            displayDepositInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-        } catch { displayDepositInputUsdValue = '$ Invalid'; }
-    } else if (currentDepositAmount === '' || currentDepositAmount === '0') {
-        displayDepositInputUsdValue = '$ 0.00';
-    }
-    let displayWithdrawInputUsdValue = '$ --.--';
-    if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled) {
-        try {
-            const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
-            const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
-            if (!scaleFactorWlqi.isZero()) {
-                const inputUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
-                displayWithdrawInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-            }
-        } catch { displayWithdrawInputUsdValue = '$ Invalid'; }
-    } else if (currentWithdrawAmount === '' || currentWithdrawAmount === '0') {
-        displayWithdrawInputUsdValue = '$ 0.00';
-    }
 
     // Button callbacks
     const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
@@ -476,38 +422,9 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
     const displayActualPercent = (typeof token.actualDominancePercent === 'number')
         ? token.actualDominancePercent.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
         : '--.--';
-    const currentUserBalance = token.userBalance;
-    const formattedUserTokenBalance = currentUserBalance !== null
-        ? formatRawAmountString(currentUserBalance.toString(), decimals, true, 2)
+    const actualPercentBN = token.actualDominancePercent !== null && token.actualDominancePercent !== undefined
+        ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE))
         : null;
-    const displayUserTokenBalance = formattedUserTokenBalance ? `${formattedUserTokenBalance} ${symbol}` : '--.--';
-    const formattedUserWlqiBalance = userWlqiBalance !== null && wLqiDecimals !== null
-        ? formatRawAmountString(userWlqiBalance.toString(), wLqiDecimals, true, 2)
-        : null;
-    const displayUserWlqiBalance = formattedUserWlqiBalance ? `${formattedUserWlqiBalance} wLQI` : '--.--';
-    let displayDepositInputUsdValue = '$ --.--';
-    if (isDepositInputFilled && decimals !== null && priceData) {
-        try {
-            const inputAmountBn = new BN(parseUnits(currentDepositAmount, decimals).toString());
-            const inputUsdValueScaled = calculateTokenValueUsdScaled(inputAmountBn, decimals, priceData);
-            displayDepositInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-        } catch { displayDepositInputUsdValue = '$ Invalid'; }
-    } else if (currentDepositAmount === '' || currentDepositAmount === '0') {
-        displayDepositInputUsdValue = '$ 0.00';
-    }
-    let displayWithdrawInputUsdValue = '$ --.--';
-    if (isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled) {
-        try {
-            const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
-            const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
-            if (!scaleFactorWlqi.isZero()) {
-                const inputUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
-                displayWithdrawInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-            }
-        } catch { displayWithdrawInputUsdValue = '$ Invalid'; }
-    } else if (currentWithdrawAmount === '' || currentWithdrawAmount === '0') {
-        displayWithdrawInputUsdValue = '$ 0.00';
-    }
 
     // Button callbacks
     const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
@@ -537,9 +454,6 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
             userHasEnoughForDelisted = false;
         }
     }
-    const actualPercentBN = token.actualDominancePercent !== null && token.actualDominancePercent !== undefined
-        ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE))
-        : null;
 
     return (
         <div className={`border border-gray-600 rounded-lg p-3 ${isDelisted ? 'bg-red-900/20' : 'bg-gray-750'} ${actionDisabled ? 'opacity-50' : ''}`}>
@@ -636,7 +550,6 @@ const TokenCard: React.FC<TokenCardProps> = React.memo(({
     );
 });
 TokenCard.displayName = 'TokenCard';
-
 // --- TokenTable Component --- (Main component definition)
 export const TokenTable = React.memo<TokenTableProps>(({ // Existing React.memo wrapper
     tokenData,

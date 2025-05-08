@@ -4,11 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import {
-    USD_SCALE,
-    // ORACLE_PROGRAM_ID, // REMOVED: Unused import
-    // ORACLE_AGGREGATOR_SEED, // REMOVED: Unused import
-} from '@/utils/constants';
+import { USD_SCALE } from '@/utils/constants';
 import { Buffer } from 'buffer';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 import {
@@ -19,11 +15,10 @@ import {
     estimateFeeBpsBN,
 } from '@/utils/calculations';
 import {
-    AggregatedOracleDataDecoded,
     DynamicTokenData,
     HistoricalTokenDataDecoded,
     TokenProcessingInfo,
-    ParsedOracleTokenInfo, // This type now includes timestamp
+    ParsedOracleTokenInfo,
 } from '@/utils/types';
 import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
@@ -31,7 +26,6 @@ import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { bytesToString } from '@/utils/oracle_state';
 import { useOracleData } from './useOracleData';
-import { processTokenData } from '@/utils/tokenProcessing';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -88,7 +82,7 @@ export function usePoolData({
     });
 
     // Use the new useOracleData hook
-    const { oracleData, error: oracleError, refreshOracleData } = useOracleData({
+    const { oracleData, refreshOracleData } = useOracleData({
         connection,
         oracleAggregatorAddress: poolConfig?.oracleAggregatorAccount ?? null
     });
@@ -428,8 +422,8 @@ export function usePoolData({
             // --- Manual Deserialization Logic (adapted from fetchPublicPoolData) ---
             const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8)); // Skip discriminator
             let offset = 0;
-            const authorityPubkey = new PublicKey(oracleDataBuffer.subarray(offset, offset + 32)); offset += 32;
-            const totalTokensInHeader = oracleDataBuffer.readUInt32LE(offset); offset += 4;
+            offset += 32; // Skip authority
+            offset += 4; // Skip totalTokens
             const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
 
             const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // symbol[10], dominance u64, address[64], feedId[64], timestamp i64
@@ -455,13 +449,8 @@ export function usePoolData({
                 offset = end;
             }
 
-            const newOracleData: AggregatedOracleDataDecoded = {
-                authority: authorityPubkey.toBase58(),
-                totalTokens: totalTokensInHeader,
-                data: decodedTokens
-            };
             refreshOracleData(); // Update oracle data
-            // console.log("usePoolData Hook: Updated Oracle Data via fetchAndSetOracleData:", newOracleData);
+            // console.log("usePoolData Hook: Updated Oracle Data via fetchAndSetOracleData");
             // Avoid clearing general error, unless specifically an oracle error is resolved.
             // setError(null); 
         } catch (err) {

@@ -1,6 +1,6 @@
 import { Program } from '@coral-xyz/anchor';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { Connection, TransactionError } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
 interface HandleTransactionErrorParams {
     error: unknown;

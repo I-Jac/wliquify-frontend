@@ -1,7 +1,7 @@
 import React from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits, parseUnits } from 'ethers';
-import { formatScaledBnToDollarString, calculateTokenValueUsdScaled } from '@/utils/calculations';
+import { formatScaledBnToDollarString, calculateTokenValueUsdScaled, DecodedPriceData } from '@/utils/calculations';
 import { USD_SCALE } from '@/utils/constants';
 
 interface TokenInputControlsProps {
@@ -10,7 +10,7 @@ interface TokenInputControlsProps {
     action: 'deposit' | 'withdraw';
     currentAmount: string;
     decimals: number | null;
-    priceData: any;
+    priceData: DecodedPriceData | null;
     wLqiValueScaled: BN | null;
     wLqiDecimals: number | null;
     userBalance: BN | null;

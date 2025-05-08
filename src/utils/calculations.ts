@@ -5,9 +5,6 @@ import { Buffer } from "buffer";
 import { BN } from '@coral-xyz/anchor';
 import { 
     USD_SCALE,
-    DOMINANCE_SCALE_FACTOR,
-    PRICE_SCALE_FACTOR,
-    PERCENTAGE_CALC_SCALE,
     BN_PERCENTAGE_CALC_SCALE,
     BPS_SCALE,
     BN_BPS_SCALE,
