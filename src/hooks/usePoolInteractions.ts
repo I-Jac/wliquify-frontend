@@ -25,6 +25,7 @@ import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; // Update im
 import toast from "react-hot-toast";
 import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
+import { handleTransactionError } from '@/utils/transactionErrorHandling';
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
@@ -173,97 +174,57 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
 
             if (confirmation.value.err) {
                 console.error('Transaction Confirmation Error:', confirmation.value.err);
-                // Attempt to fetch transaction logs even on confirmation error
-                try {
-                    const failedTx = await connection.getTransaction(txid, { maxSupportedTransactionVersion: 0 });
-                    console.error('Failed Transaction Logs:', failedTx?.meta?.logMessages);
-                } catch (logError) {
-                    console.error('Could not fetch logs for failed transaction:', logError);
-                }
-                throw new Error(`Transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`);
+                const errorMessage = await handleTransactionError({ 
+                    error: new Error(`Transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
+                    program,
+                    connection,
+                    txid
+                });
+                toast.error(`Deposit failed: ${errorMessage}`, { 
+                    id: toastId,
+                    style: {
+                        maxWidth: '90vw',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                    }
+                });
+                setIsDepositing(false);
+                return;
             }
 
             console.log('Deposit successful!');
-            toast.success(`Deposit successful! Tx: ${txid.substring(0, 8)}...`, { id: toastId });
+            toast.success(`Deposit successful! Tx: ${txid.substring(0, 8)}...`, { 
+                id: toastId,
+                style: {
+                    maxWidth: '90vw',
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
+                }
+            });
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (depositMint) {
                 await onTransactionSuccess(depositMint.toBase58());
                 onClearInput(depositMint.toBase58(), 'deposit'); // Clear deposit input
             } else {
                  await onTransactionSuccess(); // Refresh wLQI at least (shouldn't happen here)
-                 // Potentially clear all inputs if mint is unknown? Or do nothing.
             }
             // --- END ADD --- 
 
-        } catch (error: unknown) { // Type error as unknown
-            console.error("Deposit failed Raw:", error); // Log the whole error object
-            let errorMessage = 'Unknown error';
-            let errorLogs: string[] | null | undefined = null;
-
-            // Refined type-safe check for logs property
-            if (typeof error === 'object' && error !== null && Object.prototype.hasOwnProperty.call(error, 'logs')) {
-                const potentialLogs = (error as { logs?: unknown }).logs;
-                if (Array.isArray(potentialLogs)) {
-                    // Check if array elements are strings (optional but safer)
-                    if (potentialLogs.every(item => typeof item === 'string')) {
-                         errorLogs = potentialLogs as string[];
-                    }
+        } catch (error: unknown) {
+            console.error("Deposit failed Raw:", error);
+            const errorMessage = await handleTransactionError({ 
+                error, 
+                program,
+                connection
+            });
+            toast.error(`Deposit failed: ${errorMessage}`, { 
+                id: toastId,
+                style: {
+                    maxWidth: '90vw',
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
                 }
-            }
-            
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                let customErrorCode: number | null = null;
-
-                // Attempt to parse "custom program error: 0x..." from logs or error message
-                const logErrorMatch = errorLogs?.join('\n').match(/custom program error: 0x([0-9a-fA-F]+)/) || errorMessage.match(/custom program error: 0x([0-9a-fA-F]+)/);
-                if (logErrorMatch && logErrorMatch[1]) {
-                    customErrorCode = parseInt(logErrorMatch[1], 16);
-                } else {
-                    // Fallback to checking the JSON stringified error in the message
-                    const txErrorMatch = errorMessage.match(/Transaction failed confirmation: (\{.*\})/);
-                    if (txErrorMatch && txErrorMatch[1]) {
-                        try {
-                            const errDetails = JSON.parse(txErrorMatch[1]);
-                            if (errDetails.InstructionError && Array.isArray(errDetails.InstructionError) && errDetails.InstructionError.length === 2) {
-                                const customErrorDetail = errDetails.InstructionError[1];
-                                if (customErrorDetail && typeof customErrorDetail.Custom === 'number') {
-                                    customErrorCode = customErrorDetail.Custom;
-                                }
-                            }
-                        } catch (parseError) {
-                            console.warn("Failed to parse transaction error details from message:", parseError);
-                        }
-                    }
-                }
-
-                if (customErrorCode !== null) {
-                    const programError = program!.idl.errors.find(e => e.code === customErrorCode);
-                    if (programError) {
-                        errorMessage = programError.msg;
-                    } else {
-                        errorMessage = `An unknown program error occurred (Code: ${customErrorCode}).`;
-                    }
-                }
-            } else if (!errorLogs) { // Only stringify if it's not an Error and logs weren't found
-                try {
-                    errorMessage = JSON.stringify(error);
-                } catch { /* Ignore stringify errors */ }
-            }
-
-            if (errorLogs) {
-                 console.error("Deposit Transaction Logs (from error object):", errorLogs);
-                 // Set error message from logs if primary message is generic
-                 if (errorMessage === 'Unknown error' || errorMessage === 'Error' || !errorMessage) {
-                     errorMessage = errorLogs.find(log => log.toLowerCase().includes('error')) || errorLogs[errorLogs.length - 1] || 'Deposit failed, see logs.';
-                 }
-            }
-             // Ensure errorMessage is set if it wasn't found via other means
-             if (!errorMessage) { 
-                 errorMessage = 'An unknown error occurred during deposit.'; 
-             }
-            
-            toast.error(`Deposit failed: ${errorMessage.substring(0, 60)}${errorMessage.length > 60 ? '...' : ''}`, { id: toastId });
+            });
 
         } finally {
             setIsDepositing(false);
@@ -444,17 +405,33 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
 
             if (confirmation.value.err) {
                 console.error('Withdrawal Confirmation Error:', confirmation.value.err);
-                try {
-                    const failedTx = await connection.getTransaction(txid, { maxSupportedTransactionVersion: 0 });
-                    console.error('Failed Withdrawal Transaction Logs:', failedTx?.meta?.logMessages);
-                } catch (logError) {
-                    console.error('Could not fetch logs for failed withdrawal transaction:', logError);
-                }
-                throw new Error(`Withdrawal transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`);
+                const errorMessage = await handleTransactionError({ 
+                    error: new Error(`Withdrawal transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
+                    program,
+                    connection,
+                    txid
+                });
+                toast.error(`Withdrawal failed: ${errorMessage}`, { 
+                    id: toastId,
+                    style: {
+                        maxWidth: '90vw',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                    }
+                });
+                setIsWithdrawing(false);
+                return;
             }
 
             console.log('Withdrawal successful!');
-            toast.success(`Withdrawal successful! Tx: ${txid.substring(0, 8)}...`, { id: toastId });
+            toast.success(`Withdrawal successful! Tx: ${txid.substring(0, 8)}...`, { 
+                id: toastId,
+                style: {
+                    maxWidth: '90vw',
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
+                }
+            });
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (outputMint) {
                  await onTransactionSuccess(outputMint.toBase58());
@@ -464,73 +441,21 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             }
              // --- END ADD --- 
 
-        } catch (error: unknown) { // Type error as unknown
-             console.error("Withdrawal failed Raw:", error); // Log the whole error object
-             let errorMessage = 'Unknown withdrawal error';
-             let errorLogs: string[] | null | undefined = null;
- 
-             // Refined type-safe check for logs property
-             if (typeof error === 'object' && error !== null && Object.prototype.hasOwnProperty.call(error, 'logs')) {
-                 const potentialLogs = (error as { logs?: unknown }).logs;
-                 if (Array.isArray(potentialLogs)) {
-                     if (potentialLogs.every(item => typeof item === 'string')) {
-                          errorLogs = potentialLogs as string[];
-                     }
-                 }
-             }
-             
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                let customErrorCode: number | null = null;
-
-                // Attempt to parse "custom program error: 0x..." from logs or error message
-                const logErrorMatch = errorLogs?.join('\n').match(/custom program error: 0x([0-9a-fA-F]+)/) || errorMessage.match(/custom program error: 0x([0-9a-fA-F]+)/);
-                if (logErrorMatch && logErrorMatch[1]) {
-                    customErrorCode = parseInt(logErrorMatch[1], 16);
-                } else {
-                    // Fallback to checking the JSON stringified error in the message
-                    const txErrorMatch = errorMessage.match(/Transaction failed confirmation: (\{.*\})/);
-                    if (txErrorMatch && txErrorMatch[1]) {
-                        try {
-                            const errDetails = JSON.parse(txErrorMatch[1]);
-                            if (errDetails.InstructionError && Array.isArray(errDetails.InstructionError) && errDetails.InstructionError.length === 2) {
-                                const customErrorDetail = errDetails.InstructionError[1];
-                                if (customErrorDetail && typeof customErrorDetail.Custom === 'number') {
-                                    customErrorCode = customErrorDetail.Custom;
-                                }
-                            }
-                        } catch (parseError) {
-                            console.warn("Failed to parse transaction error details from message:", parseError);
-                        }
-                    }
+        } catch (error: unknown) {
+            console.error("Withdrawal failed Raw:", error);
+            const errorMessage = await handleTransactionError({ 
+                error, 
+                program,
+                connection
+            });
+            toast.error(`Withdrawal failed: ${errorMessage}`, { 
+                id: toastId,
+                style: {
+                    maxWidth: '90vw',
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
                 }
-
-                if (customErrorCode !== null) {
-                    const programError = program!.idl.errors.find(e => e.code === customErrorCode);
-                    if (programError) {
-                        errorMessage = programError.msg;
-                    } else {
-                        errorMessage = `An unknown program error occurred (Code: ${customErrorCode}).`;
-                    }
-                }
-            } else if (!errorLogs) {
-                 try {
-                     errorMessage = JSON.stringify(error);
-                 } catch { /* Ignore stringify errors */ }
-             }
- 
-             if (errorLogs) {
-                  console.error("Withdrawal Transaction Logs (from error object):", errorLogs);
-                  if (errorMessage === 'Unknown withdrawal error' || errorMessage === 'Error' || !errorMessage) {
-                      errorMessage = errorLogs.find(log => log.toLowerCase().includes('error')) || errorLogs[errorLogs.length - 1] || 'Withdrawal failed, see logs.';
-                  }
-             }
-              if (!errorMessage) { 
-                  errorMessage = 'An unknown error occurred during withdrawal.'; 
-              }
-             
-             toast.error(`Withdrawal failed: ${errorMessage.substring(0, 60)}${errorMessage.length > 60 ? '...' : ''}`, { id: toastId });
- 
+            });
 
         } finally {
             setIsWithdrawing(false);
