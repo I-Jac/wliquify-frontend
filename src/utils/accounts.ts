@@ -2,7 +2,7 @@ import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { AccountLayout, MintLayout } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
-import { decodeHistoricalTokenData } from './oracle_state';
+import { decodeHistoricalTokenData } from './oracleUtils';
 
 /**
  * Fetches and parses multiple accounts using getMultipleAccountsInfo.

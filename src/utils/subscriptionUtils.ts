@@ -1,42 +1,14 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-
-/**
- * Cleans up multiple subscriptions by removing their listeners
- */
-export const cleanupSubscriptions = async (connection: Connection, subscriptionIds: number[]) => {
-    if (!subscriptionIds.length) {
-        console.log('No subscriptions to clean up');
-        return;
-    }
-    
-    console.log(`Cleaning up ${subscriptionIds.length} subscriptions...`);
-    const results = await Promise.allSettled(
-        subscriptionIds.map(async (subId) => {
-            try {
-                await connection.removeAccountChangeListener(subId);
-                console.log(`Successfully removed subscription ${subId}`);
-            } catch (err) {
-                console.error(`Error removing subscription ${subId}:`, err);
-            }
-        })
-    );
-
-    // Log summary of cleanup
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const failureCount = results.filter(r => r.status === 'rejected').length;
-    console.log(`Subscription cleanup complete: ${successCount} successful, ${failureCount} failed`);
-};
+import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
 
 /**
  * Throttles a function to limit execution rate
  */
-const throttle = <T extends (...args: unknown[]) => void>(fn: T, limit: number) => {
+const throttle = <T extends (arg: AccountInfo<Buffer>) => void>(fn: T, limit: number) => {
     let inThrottle = false;
     
-    return function(this: unknown, ...args: Parameters<T>) {
+    return function(this: unknown, arg: AccountInfo<Buffer>) {
         if (!inThrottle) {
-            fn.apply(this, args);
+            fn.call(this, arg);
             inThrottle = true;
             setTimeout(() => inThrottle = false, limit);
         }
@@ -44,7 +16,24 @@ const throttle = <T extends (...args: unknown[]) => void>(fn: T, limit: number) 
 };
 
 /**
- * Sets up a subscription for an account with throttled callback
+ * Cleanup multiple subscriptions at once
+ */
+export const cleanupSubscriptions = async (connection: Connection, subscriptionIds: number[]) => {
+    if (!subscriptionIds.length) return;
+    
+    await Promise.allSettled(
+        subscriptionIds.map(async (subId) => {
+            try {
+                await connection.removeAccountChangeListener(subId);
+            } catch (err) {
+                console.error(`Error removing subscription ${subId}:`, err);
+            }
+        })
+    );
+};
+
+/**
+ * Setup a subscription for an account
  */
 export const setupSubscription = (
     connection: Connection,
@@ -53,21 +42,16 @@ export const setupSubscription = (
     accountName: string
 ): number | null => {
     try {
-        console.log(`Setting up subscription for ${accountName} (${account.toBase58()})...`);
-        
         // Throttle the callback to prevent rapid successive calls
         const throttledCallback = throttle(() => {
-            console.log(`[${accountName}] Account changed, triggering refresh...`);
             callback();
         }, 500); // 500ms throttle time
 
-        const subId = connection.onAccountChange(
+        return connection.onAccountChange(
             account,
             throttledCallback,
             'confirmed'
         );
-        console.log(`Successfully subscribed to ${accountName} (ID: ${subId})`);
-        return subId;
     } catch (e) {
         console.error(`Failed to subscribe to ${accountName} (${account.toBase58()}):`, e);
         return null;
@@ -75,25 +59,26 @@ export const setupSubscription = (
 };
 
 /**
- * Sets up a subscription for a user's token account
+ * Setup a subscription for a user's token account
  */
 export const setupUserTokenSubscription = (
     connection: Connection,
-    mint: PublicKey,
-    publicKey: PublicKey,
-    refreshUserData: () => void
+    userAta: PublicKey,
+    onBalanceChange: (accountInfo: AccountInfo<Buffer>) => void
 ): number | null => {
     try {
-        const userAta = getAssociatedTokenAddressSync(mint, publicKey);
-        console.log(`Setting up user token subscription for ${mint.toBase58()} (ATA: ${userAta.toBase58()})...`);
-        return setupSubscription(
-            connection,
+        // Throttle the callback to prevent rapid successive calls
+        const throttledCallback = throttle((accountInfo: AccountInfo<Buffer>) => {
+            onBalanceChange(accountInfo);
+        }, 500); // 500ms throttle time
+
+        return connection.onAccountChange(
             userAta,
-            refreshUserData,
-            `User ATA for ${mint.toBase58()}`
+            throttledCallback,
+            'confirmed'
         );
     } catch (error) {
-        console.error(`Failed to get ATA or subscribe for token ${mint.toBase58()}:`, error);
+        console.error(`Failed to subscribe to user ATA ${userAta.toBase58()}:`, error);
         return null;
     }
 }; 

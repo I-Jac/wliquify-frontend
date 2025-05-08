@@ -1,20 +1,66 @@
-import { PublicKey, AccountInfo } from "@solana/web3.js"; // Removed Connection
-import { Buffer } from 'buffer'; // Import Buffer
-import { BN } from "@coral-xyz/anchor"; // BN needed for parsing
-import { HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from './types';
+import { Connection, PublicKey, SystemProgram, AccountInfo } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
+import { Buffer } from 'buffer';
+import { ParsedOracleTokenInfo, HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from './types';
 import { bytesToString } from './helpers';
 
 // --- Constants ---
 const DISCRIMINATOR_LENGTH = 8;
-const I64_LENGTH = 8; // ADDED for timestamp
+const I64_LENGTH = 8;
 const SYMBOL_LENGTH = 10;
 const U64_LENGTH = 8;
 const ADDRESS_PADDED_LENGTH = 64;
 const PRICE_FEED_ID_PADDED_LENGTH = 64;
-// UPDATE size to include timestamp
-const TOKEN_INFO_SERIALIZED_SIZE = SYMBOL_LENGTH + U64_LENGTH + ADDRESS_PADDED_LENGTH + PRICE_FEED_ID_PADDED_LENGTH + I64_LENGTH; // Now 154
+const TOKEN_INFO_SERIALIZED_SIZE = SYMBOL_LENGTH + U64_LENGTH + ADDRESS_PADDED_LENGTH + PRICE_FEED_ID_PADDED_LENGTH + I64_LENGTH;
 
-// --- Oracle Data Functions ---
+export interface OracleProcessingResult {
+    decodedTokens: ParsedOracleTokenInfo[];
+    error: string | null;
+}
+
+/**
+ * Process oracle data from an account
+ */
+export async function processOracleData(
+    connection: Connection,
+    oracleAggregatorAddress: PublicKey
+): Promise<OracleProcessingResult> {
+    if (oracleAggregatorAddress.equals(SystemProgram.programId)) {
+        return { decodedTokens: [], error: null };
+    }
+
+    try {
+        const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
+        if (!oracleAccountInfo) {
+            return { 
+                decodedTokens: [], 
+                error: "Oracle account not found" 
+            };
+        }
+
+        const { data: tokenInfoArray } = parseOracleData(Buffer.from(oracleAccountInfo.data));
+        
+        const decodedTokens: ParsedOracleTokenInfo[] = tokenInfoArray.map(info => ({
+            symbol: bytesToString(info.symbol),
+            dominance: info.dominance.toString(),
+            address: bytesToString(info.address),
+            priceFeedId: bytesToString(info.priceFeedId),
+            timestamp: info.timestamp.toString()
+        }));
+
+        return { decodedTokens, error: null };
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        return { 
+            decodedTokens: [], 
+            error: `Oracle refresh failed: ${errorMessage}` 
+        };
+    }
+}
+
+/**
+ * Parse raw oracle data buffer into structured format
+ */
 export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {
     if (rawDataBuffer.length < DISCRIMINATOR_LENGTH) {
         throw new Error(`Buffer too small: ${rawDataBuffer.length} bytes`);
@@ -62,18 +108,17 @@ export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {
 
         // Price Feed ID (padded string)
         const priceFeedIdBytes = Array.from(tokenSlice.subarray(tokenOffset, tokenOffset + PRICE_FEED_ID_PADDED_LENGTH));
-        tokenOffset += PRICE_FEED_ID_PADDED_LENGTH; // Move offset past price feed
+        tokenOffset += PRICE_FEED_ID_PADDED_LENGTH;
 
-        // Timestamp (i64) - ADDED
+        // Timestamp (i64)
         const timestampBn = new BN(tokenSlice.subarray(tokenOffset, tokenOffset + I64_LENGTH), 'le');
-        // No need to update tokenOffset here as it's the last field
 
         tokenInfoArray.push({
             symbol: symbolBytes,
             dominance: dominanceBn,
             address: addressBytes,
             priceFeedId: priceFeedIdBytes,
-            timestamp: timestampBn // Add timestamp
+            timestamp: timestampBn
         });
 
         offset += TOKEN_INFO_SERIALIZED_SIZE;
@@ -86,7 +131,9 @@ export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {
     };
 }
 
-// --- Historical Token Data Functions ---
+/**
+ * Decode historical token data from an account
+ */
 export const decodeHistoricalTokenData = (accountInfo: AccountInfo<Buffer> | null): HistoricalTokenDataDecoded | null => {
     if (!accountInfo || accountInfo.data.length === 0) return null;
 
@@ -113,4 +160,4 @@ export const decodeHistoricalTokenData = (accountInfo: AccountInfo<Buffer> | nul
         console.error("Error decoding HistoricalTokenData:", error);
         return null;
     }
-};
+}; 

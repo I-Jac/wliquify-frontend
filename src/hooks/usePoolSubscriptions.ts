@@ -1,17 +1,22 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptionUtils';
+import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { decodeTokenAccountAmountBN } from '@/utils/accounts';
+import { BN } from '@coral-xyz/anchor';
 
 interface UsePoolSubscriptionsProps {
-    connection: Connection | null;
-    poolConfig: PoolConfig | null;
+    connection: Connection;
+    poolConfig: PoolConfig;
     poolConfigPda: PublicKey | null;
-    publicKey: PublicKey | null; // User's public key
-    refreshPublicData: () => void; // Callback to refresh public data
-    refreshUserData: () => void;   // Callback to refresh user data
+    publicKey: PublicKey;
+    refreshPublicData: () => void;
+    refreshUserData: () => void;
+    setUserWlqiBalance: (balance: BN) => void;
+    setUserTokenBalances: (callback: (prev: Map<string, BN>) => Map<string, BN>) => void;
 }
 
 /**
@@ -23,8 +28,12 @@ export function usePoolSubscriptions({
     poolConfigPda,
     publicKey,
     refreshPublicData,
-    refreshUserData
+    refreshUserData,
+    setUserWlqiBalance,
+    setUserTokenBalances
 }: UsePoolSubscriptionsProps) {
+    const subscriptionIdsRef = useRef<number[]>([]);
+
     // Memoize the cleanup function to prevent unnecessary recreations
     const cleanup = useCallback((connection: Connection, subscriptions: number[]) => {
         if (subscriptions.length > 0) {
@@ -75,42 +84,53 @@ export function usePoolSubscriptions({
             }
         });
 
+        subscriptionIdsRef.current = subscriptions;
+
         return () => cleanup(connection, subscriptions);
     }, [connection, poolConfig, poolConfigPda, refreshPublicData, cleanup]);
 
     // --- User Account Subscriptions ---
     useEffect(() => {
-        if (!connection || !publicKey || !poolConfig?.wliMint) {
-            return;
-        }
-
-        console.log("usePoolSubscriptions: Setting up account subscriptions for user:", publicKey.toBase58());
         const subscriptionIds: number[] = [];
 
-        // Subscribe to user's wLQI ATA
+        // Subscribe to wLQI balance changes
         const wLqiSub = setupUserTokenSubscription(
             connection,
-            poolConfig.wliMint,
-            publicKey,
-            refreshUserData
+            getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey, true),
+            (accountInfo) => {
+                const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
+                setUserWlqiBalance(newBalance);
+                refreshUserData();
+            }
         );
         if (wLqiSub) subscriptionIds.push(wLqiSub);
 
-        // Subscribe to user's other supported token ATAs
-        poolConfig.supportedTokens.forEach((token: SupportedToken) => {
-            if (token.mint && !token.mint.equals(poolConfig.wliMint)) {
-                const subId = setupUserTokenSubscription(
-                    connection,
-                    token.mint,
-                    publicKey,
-                    refreshUserData
-                );
-                if (subId) subscriptionIds.push(subId);
-            }
+        // Subscribe to other token balance changes
+        poolConfig.supportedTokens.forEach(token => {
+            if (!token.mint) return;
+            const userAta = getAssociatedTokenAddressSync(token.mint, publicKey, true);
+            const sub = setupUserTokenSubscription(
+                connection,
+                userAta,
+                (accountInfo) => {
+                    const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
+                    setUserTokenBalances(prev => {
+                        const next = new Map(prev);
+                        next.set(token.mint!.toBase58(), newBalance);
+                        return next;
+                    });
+                    refreshUserData();
+                }
+            );
+            if (sub) subscriptionIds.push(sub);
         });
 
-        return () => cleanup(connection, subscriptionIds);
-    }, [connection, publicKey, poolConfig, refreshUserData, cleanup]);
+        subscriptionIdsRef.current = subscriptionIds;
 
-    // This hook doesn't return anything, it just sets up listeners
+        return () => {
+            cleanup(connection, subscriptionIds);
+        };
+    }, [connection, poolConfig, publicKey, refreshUserData, setUserWlqiBalance, setUserTokenBalances, cleanup]);
+
+    return subscriptionIdsRef;
 } 

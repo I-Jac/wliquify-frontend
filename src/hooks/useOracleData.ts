@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
-import { Buffer } from 'buffer';
-import { AggregatedOracleDataDecoded, ParsedOracleTokenInfo } from '@/utils/types';
-import { parseOracleData } from '@/utils/oracle_state';
+import { AggregatedOracleDataDecoded } from '@/utils/types';
+import { processOracleData } from '@/utils/oracleUtils';
 
 interface UseOracleDataProps {
     connection: Connection | null;
@@ -24,30 +23,18 @@ export function useOracleData({ connection, oracleAggregatorAddress }: UseOracle
         }
 
         try {
-            const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
-            if (!oracleAccountInfo) {
-                const errorMsg = `Oracle account (${oracleAggregatorAddress.toBase58()}) not found`;
-                console.error(`useOracleData: ${errorMsg}`);
-                setError(errorMsg);
+            const { decodedTokens, error: oracleError } = await processOracleData(connection, oracleAggregatorAddress);
+            
+            if (oracleError) {
+                console.error(`useOracleData: ${oracleError}`);
+                setError(oracleError);
                 setOracleData(null);
                 return;
             }
 
-            // Use the parseOracleData function from oracle_state.ts
-            const parsedData = parseOracleData(Buffer.from(oracleAccountInfo.data));
-            
-            // Convert the parsed data to the expected format
-            const decodedTokens: ParsedOracleTokenInfo[] = parsedData.data.map(token => ({
-                symbol: token.symbol.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
-                dominance: token.dominance.toString(),
-                address: token.address.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
-                priceFeedId: token.priceFeedId.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
-                timestamp: token.timestamp.toString()
-            }));
-
             const newOracleData: AggregatedOracleDataDecoded = {
-                authority: parsedData.authority.toBase58(),
-                totalTokens: parsedData.totalTokens,
+                authority: oracleAggregatorAddress.toBase58(),
+                totalTokens: decodedTokens.length,
                 data: decodedTokens
             };
 

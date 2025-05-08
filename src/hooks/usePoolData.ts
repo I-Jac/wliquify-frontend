@@ -4,11 +4,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import { Buffer } from 'buffer';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
-import {
-    calculateWLqiValue,
-} from '@/utils/calculations';
+import { calculateWLqiValue } from '@/utils/calculations';
 import {
     DynamicTokenData,
     HistoricalTokenDataDecoded,
@@ -20,10 +17,11 @@ import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { bytesToString } from '@/utils/helpers';
 import { useOracleData } from './useOracleData';
 import { createRateLimitedFetch } from '@/utils/hookUtils';
 import { processSingleToken } from '@/utils/singleTokenProcessing';
+import { processOracleData } from '@/utils/oracleUtils';
+import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptionUtils';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -58,18 +56,6 @@ export function usePoolData({
     const hasFetchedPublicData = useRef(false);
     const hasFetchedUserData = useRef(false);
     const [wLqiMint, setWLqiMint] = useState<PublicKey | null>(null);
-
-    const processTokenDataWithCache = useCallback((mintAddress: string, data: DynamicTokenData, tokenConfig: SupportedToken, oracleInfo: ParsedOracleTokenInfo | undefined, history: HistoricalTokenDataDecoded | null, currentTvlFromState: BN, calculatedWlqiValue: BN, wLqiDecimals: number, userBalance: BN | null) => {
-        return processSingleToken({
-            mintAddress,
-            data,
-            tokenConfig,
-            oracleInfo,
-            history,
-            currentTvlFromState,
-            userBalance
-        });
-    }, []);
 
     // Create rate limited fetch function
     const rateLimitedFetch = useMemo(() => createRateLimitedFetch(connection), [connection]);
@@ -362,65 +348,19 @@ export function usePoolData({
 
     // --- NEW: Targeted function to fetch only oracle data ---
     const fetchAndSetOracleData = useCallback(async () => {
-        if (!connection || !poolConfig || !poolConfig.oracleAggregatorAccount || poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
-            console.warn("usePoolData Hook: fetchAndSetOracleData skipped - connection or oracleAggregatorAccount in poolConfig not ready.");
+        if (!connection || !poolConfig?.oracleAggregatorAccount) {
             return;
         }
 
-        const oracleAggregatorAddress = poolConfig.oracleAggregatorAccount;
-        // console.log("usePoolData Hook: Fetching ONLY oracle data for:", oracleAggregatorAddress.toBase58());
-
-        try {
-            const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
-            if (!oracleAccountInfo) {
-                console.error(`usePoolData Hook: fetchAndSetOracleData - Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
-                // Consider setting a specific error or leaving oracleData as is if it disappears temporarily
-                // For now, let's update the error state and potentially clear/stale the oracleData
-                setError(prevError => prevError ? `${prevError}, Oracle account for subscription not found` : "Oracle account for subscription not found");
-                return;
-            }
-
-            // --- Manual Deserialization Logic (adapted from fetchPublicPoolData) ---
-            const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8)); // Skip discriminator
-            let offset = 0;
-            offset += 32; // Skip authority
-            offset += 4; // Skip totalTokens
-            const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-
-            const tokenInfoSize = 10 + 8 + 64 + 64 + 8; // symbol[10], dominance u64, address[64], feedId[64], timestamp i64
-
-            const decodedTokens: ParsedOracleTokenInfo[] = [];
-            for (let i = 0; i < vecLen; i++) {
-                const start = offset;
-                const end = start + tokenInfoSize;
-                if (end > oracleDataBuffer.length) {
-                    console.error(`usePoolData Hook: fetchAndSetOracleData - Oracle buffer overflow reading token ${i + 1}.`);
-                    setError(prevError => prevError ? `${prevError}, Oracle data buffer overflow on refresh` : "Oracle data buffer overflow on refresh");
-                    return;
-                }
-                const tokenSlice = oracleDataBuffer.subarray(start, end);
-
-                const symbol = bytesToString(tokenSlice.subarray(0, 10));
-                const dominance = new BN(tokenSlice.subarray(10, 18), 'le').toString();
-                const address = bytesToString(tokenSlice.subarray(18, 18 + 64));
-                const priceFeedId = bytesToString(tokenSlice.subarray(18 + 64, 18 + 64 + 64));
-                const timestamp = new BN(tokenSlice.subarray(18 + 64 + 64, end), 'le').toString();
-
-                decodedTokens.push({ symbol, dominance, address, priceFeedId, timestamp });
-                offset = end;
-            }
-
-            refreshOracleData(); // Update oracle data
-            // console.log("usePoolData Hook: Updated Oracle Data via fetchAndSetOracleData");
-            // Avoid clearing general error, unless specifically an oracle error is resolved.
-            // setError(null); 
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            console.error("usePoolData Hook: Error in fetchAndSetOracleData:", errorMessage);
-            setError(prevError => prevError ? `${prevError}, Failed to refresh oracle data: ${errorMessage}` : `Failed to refresh oracle data: ${errorMessage}`);
-            // Don't null out oracleData here necessarily, might want to keep stale data on transient network error
+        const { error } = await processOracleData(connection, poolConfig.oracleAggregatorAccount);
+        
+        if (error) {
+            setError(prevError => prevError ? `${prevError}, ${error}` : error);
+            return;
         }
-    }, [connection, poolConfig, refreshOracleData, setError]); // bytesToString is a stable import
+
+        refreshOracleData();
+    }, [connection, poolConfig, refreshOracleData]);
 
     // --- Refresh Functions --- (Moved Up)
     const refreshPublicData = useCallback(() => {
@@ -479,17 +419,15 @@ export function usePoolData({
                         return null;
                     }
 
-                    return processTokenDataWithCache(
+                    return processSingleToken({
                         mintAddress,
                         data,
                         tokenConfig,
                         oracleInfo,
                         history,
                         currentTvlFromState,
-                        calculatedWlqiValue,
-                        wLqiDecimals,
                         userBalance
-                    );
+                    });
                 })
                 .filter((data): data is ProcessedTokenData => data !== null);
 
@@ -525,7 +463,7 @@ export function usePoolData({
             setProcessedTokenData(null);
             setWlqiValueScaled(null);
         }
-    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData, processTokenDataWithCache]);
+    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData]);
 
     // --- Effect for Initial Public Data Fetch ---
     useEffect(() => {
@@ -549,79 +487,24 @@ export function usePoolData({
         }
     }, [wallet.connected, wallet.publicKey, poolConfig, fetchUserAccountData]);
 
-    // --- Effect to Subscribe to PoolConfig Changes --- 
-    useEffect(() => {
-        if (!connection || !poolConfigPda) { 
-            return;
-        }
-
-        const subscriptionId = connection.onAccountChange(
-            poolConfigPda,
-            () => { 
-                console.log("PoolConfig account changed via subscription, refreshing public data...");
-                refreshPublicData();
-            },
-            "confirmed"
-        );
-
-        return () => {
-            connection.removeAccountChangeListener(subscriptionId).catch(err => {
-                console.error("Error removing PoolConfig listener:", err);
-            });
-        };
-
-    }, [connection, poolConfigPda, refreshPublicData]);
-
-    // --- Effect to Subscribe to Oracle Aggregator Account Changes ---
-    useEffect(() => {
-        if (!connection || !poolConfig || !poolConfig.oracleAggregatorAccount || poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
-            return;
-        }
-
-        const oracleAggregatorAddress = poolConfig.oracleAggregatorAccount;
-
-        const subscriptionId = connection.onAccountChange(
-            oracleAggregatorAddress,
-            () => {
-                console.log(`Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) changed via subscription, refreshing ONLY oracle data...`);
-                fetchAndSetOracleData();
-            },
-            "confirmed"
-        );
-
-        return () => {
-            connection.removeAccountChangeListener(subscriptionId).catch(err => {
-                console.error(`Error removing Oracle Aggregator listener for ${oracleAggregatorAddress.toBase58()}:`, err);
-            });
-        };
-    }, [connection, poolConfig, fetchAndSetOracleData]);
-
-    // --- Effect to fetch W-LQI Mint address from Pool Config ---
-    useEffect(() => {
-        if (poolConfig) {
-            setWLqiMint(poolConfig.wliMint);
-        }
-    }, [poolConfig]);
-
     // --- Effect for Subscribing to User Token Account Changes ---
     const userAccountSubscriptionIdsRef = useRef<number[]>([]);
+    const isSubscribingRef = useRef(false);
+
     useEffect(() => {
-        if (!connection || !wallet.publicKey || !poolConfig || !wLqiMint || !poolConfig.supportedTokens) {
+        if (!connection || !wallet.publicKey || !poolConfig || !wLqiMint || !poolConfig.supportedTokens || isSubscribingRef.current) {
             return;
         }
+
+        isSubscribingRef.current = true;
 
         const publicKey = wallet.publicKey;
         const tokenMints = poolConfig.supportedTokens.map(t => t.mint);
         const allMints = [wLqiMint, ...tokenMints];
-        const currentSubs = userAccountSubscriptionIdsRef.current;
 
         // Cleanup existing subscriptions
-        if (currentSubs.length > 0) {
-            currentSubs.forEach(subId => {
-                connection.removeAccountChangeListener(subId).catch(err => {
-                    console.error("Error removing user account listener:", err);
-                });
-            });
+        if (userAccountSubscriptionIdsRef.current.length > 0) {
+            cleanupSubscriptions(connection, userAccountSubscriptionIdsRef.current);
             userAccountSubscriptionIdsRef.current = [];
         }
 
@@ -631,7 +514,8 @@ export function usePoolData({
             if (!mint) return;
             try {
                 const userAta = getAssociatedTokenAddressSync(mint, publicKey, true);
-                const subId = connection.onAccountChange(
+                const subId = setupUserTokenSubscription(
+                    connection,
                     userAta,
                     (accountInfo) => { 
                         const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
@@ -646,28 +530,117 @@ export function usePoolData({
                                 return newBalances;
                             });
                         }
-                    },
-                    'confirmed'
+                    }
                 );
-                newSubIds.push(subId);
+                if (subId !== null) {
+                    newSubIds.push(subId);
+                }
             } catch (err) {
                 console.error(`Error getting ATA or subscribing for mint ${mint.toBase58()}:`, err);
             }
         });
 
         userAccountSubscriptionIdsRef.current = newSubIds;
+        isSubscribingRef.current = false;
 
         return () => {
-            const subsToRemove = userAccountSubscriptionIdsRef.current;
-            subsToRemove.forEach(subId => {
-                connection.removeAccountChangeListener(subId).catch(err => {
-                    console.error("Error removing user account listener during cleanup:", err);
-                });
-            });
+            cleanupSubscriptions(connection, userAccountSubscriptionIdsRef.current);
             userAccountSubscriptionIdsRef.current = [];
+            isSubscribingRef.current = false;
         };
 
     }, [connection, wallet.publicKey, poolConfig, wLqiMint]);
+
+    // --- Effect to Subscribe to PoolConfig Changes --- 
+    const poolConfigSubscriptionRef = useRef<number | null>(null);
+    const isPoolConfigSubscribingRef = useRef(false);
+
+    useEffect(() => {
+        if (!connection || !poolConfigPda || isPoolConfigSubscribingRef.current) { 
+            return;
+        }
+
+        isPoolConfigSubscribingRef.current = true;
+
+        // Cleanup existing subscription
+        if (poolConfigSubscriptionRef.current !== null) {
+            cleanupSubscriptions(connection, [poolConfigSubscriptionRef.current]);
+            poolConfigSubscriptionRef.current = null;
+        }
+
+        const subscriptionId = setupSubscription(
+            connection,
+            poolConfigPda,
+            () => { 
+                refreshPublicData();
+            },
+            "PoolConfig"
+        );
+
+        if (subscriptionId !== null) {
+            poolConfigSubscriptionRef.current = subscriptionId;
+        }
+
+        isPoolConfigSubscribingRef.current = false;
+
+        return () => {
+            if (poolConfigSubscriptionRef.current !== null) {
+                cleanupSubscriptions(connection, [poolConfigSubscriptionRef.current]);
+                poolConfigSubscriptionRef.current = null;
+            }
+            isPoolConfigSubscribingRef.current = false;
+        };
+    }, [connection, poolConfigPda, refreshPublicData]);
+
+    // --- Effect to Subscribe to Oracle Aggregator Account Changes ---
+    const oracleSubscriptionRef = useRef<number | null>(null);
+    const isOracleSubscribingRef = useRef(false);
+
+    useEffect(() => {
+        if (!connection || !poolConfig?.oracleAggregatorAccount || 
+            poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId) || 
+            isOracleSubscribingRef.current) {
+            return;
+        }
+
+        isOracleSubscribingRef.current = true;
+
+        // Cleanup existing subscription
+        if (oracleSubscriptionRef.current !== null) {
+            cleanupSubscriptions(connection, [oracleSubscriptionRef.current]);
+            oracleSubscriptionRef.current = null;
+        }
+
+        const subscriptionId = setupSubscription(
+            connection,
+            poolConfig.oracleAggregatorAccount,
+            () => {
+                fetchAndSetOracleData();
+            },
+            "Oracle Aggregator"
+        );
+
+        if (subscriptionId !== null) {
+            oracleSubscriptionRef.current = subscriptionId;
+        }
+
+        isOracleSubscribingRef.current = false;
+
+        return () => {
+            if (oracleSubscriptionRef.current !== null) {
+                cleanupSubscriptions(connection, [oracleSubscriptionRef.current]);
+                oracleSubscriptionRef.current = null;
+            }
+            isOracleSubscribingRef.current = false;
+        };
+    }, [connection, poolConfig, fetchAndSetOracleData]);
+
+    // --- Effect to fetch W-LQI Mint address from Pool Config ---
+    useEffect(() => {
+        if (poolConfig) {
+            setWLqiMint(poolConfig.wliMint);
+        }
+    }, [poolConfig]);
 
     // --- Return Hook State and Functions ---
     return {
