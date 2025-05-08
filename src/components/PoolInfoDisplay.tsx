@@ -8,8 +8,8 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import {
     USD_SCALE,
 } from '@/utils/constants';
+import { ProcessedTokenData } from '@/utils/types';
 import {
-    ProcessedTokenData,
     formatScaledBnToDollarString,
     formatRawAmountString,
 } from '@/utils/calculations';

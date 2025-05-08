@@ -3,8 +3,8 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits, parseUnits } from 'ethers';
+import { ProcessedTokenData } from '@/utils/types';
 import {
-    ProcessedTokenData,
     calculateTokenValueUsdScaled,
     calculateTotalTargetDominance,
     calculateTargetPercentageScaled,

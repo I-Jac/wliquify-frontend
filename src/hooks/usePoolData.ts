@@ -10,7 +10,6 @@ import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 import {
     calculateWLqiValue,
     decodePriceData,
-    ProcessedTokenData,
     formatScaledBnToDollarString,
     estimateFeeBpsBN,
 } from '@/utils/calculations';
@@ -19,6 +18,7 @@ import {
     HistoricalTokenDataDecoded,
     TokenProcessingInfo,
     ParsedOracleTokenInfo,
+    ProcessedTokenData,
 } from '@/utils/types';
 import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';

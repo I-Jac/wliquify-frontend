@@ -163,7 +163,50 @@ export interface ProcessedTokenData {
     withdrawFeeOrBonusBps: number | null;
     priceFeedId: string; // Price feed address string
     vaultBalance: BN; // Vault balance BN
-    priceData: import('@/utils/calculations').DecodedPriceData; // Ensure type is correct
+    priceData: DecodedPriceData; // Use local DecodedPriceData type
     userBalance: BN | null; // User balance BN
     timestamp: string; // ADDED: Timestamp as string
+}
+
+// --- Price Data Types ---
+export interface DecodedPriceData {
+    price: BN; // Price, scaled according to expo
+    expo: number;  // Exponent (negative, e.g., -8 for USD)
+}
+
+export interface AggregatedPriceData {
+    price: bigint; 
+    expo: number;
+}
+
+// --- Oracle Data Types ---
+export interface TokenInfo {
+    symbol: number[]; // Represents [u8; 10] - Raw bytes, need parsing
+    dominance: BN; // Represents u64
+    address: number[]; // Represents [u8; 64] - Raw bytes, need parsing
+    priceFeedId: number[]; // Represents [u8; 64] - Raw bytes, need parsing
+    timestamp: BN; // Represents i64
+}
+
+export interface AggregatedOracleData {
+    authority: PublicKey; // Represents Pubkey
+    totalTokens: number; // Represents u32
+    data: TokenInfo[]; // Represents Vec<TokenInfo>
+}
+
+// --- Fee Calculation Types ---
+export interface FeeCalculationProps {
+    totalPoolValueScaled: BN | null;
+    totalTargetDominance: BN;
+    tokenValueUsd: BN | null;
+    targetDominance: BN;
+    isDepositInputFilled: boolean;
+    isWithdrawInputFilled: boolean;
+    currentDepositAmount: string;
+    currentWithdrawAmount: string;
+    decimals: number | null;
+    wLqiDecimals: number | null;
+    wLqiValueScaled: BN | null;
+    priceData: DecodedPriceData | null;
+    vaultBalance: BN | null;
 } 

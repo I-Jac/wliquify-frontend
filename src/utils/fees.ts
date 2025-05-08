@@ -4,7 +4,6 @@ import {
     calculateTokenValueUsdScaled,
     calculateRelativeDeviationBpsBN,
     usdToTokenAmount,
-    DecodedPriceData
 } from '@/utils/calculations';
 import {
     BASE_FEE_BPS,
@@ -19,24 +18,9 @@ import {
     PRECISION_SCALE_FACTOR,
     BPS_SCALE,
 } from '@/utils/constants';
+import { FeeCalculationProps } from '@/utils/types';
 
 // --- Fee Calculation Types ---
-interface FeeCalculationProps {
-    totalPoolValueScaled: BN | null;
-    totalTargetDominance: BN;
-    tokenValueUsd: BN | null;
-    targetDominance: BN;
-    isDepositInputFilled: boolean;
-    isWithdrawInputFilled: boolean;
-    currentDepositAmount: string;
-    currentWithdrawAmount: string;
-    decimals: number | null;
-    wLqiDecimals: number | null;
-    wLqiValueScaled: BN | null;
-    priceData: DecodedPriceData | null;
-    vaultBalance: BN | null;
-}
-
 interface FeeCalculationResult {
     estimatedDepositFeeBps: number;
     estimatedWithdrawFeeBps: number;

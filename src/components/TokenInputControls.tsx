@@ -1,8 +1,9 @@
 import React from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits, parseUnits } from 'ethers';
-import { formatScaledBnToDollarString, calculateTokenValueUsdScaled, DecodedPriceData } from '@/utils/calculations';
+import { formatScaledBnToDollarString, calculateTokenValueUsdScaled } from '@/utils/calculations';
 import { USD_SCALE } from '@/utils/constants';
+import { DecodedPriceData } from '@/utils/types';
 
 interface TokenInputControlsProps {
     mintAddress: string;

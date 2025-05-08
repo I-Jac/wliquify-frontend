@@ -19,94 +19,7 @@ import {
     PRECISION_SCALE_FACTOR
 } from "./constants";
 import { formatUnits, parseUnits } from 'ethers';
-import { PoolConfig } from '@/utils/types';
-
-
-
-// --- Type Definitions (You might want to centralize these) ---
-
-// Structure matching the mock price feed data serialized in oracle_program
-// Note: This assumes the structure from constantbatchedData.ts
-// struct MockPriceFeed {
-//     authority: Pubkey, // 32 bytes
-//     price: i64,        // 8 bytes, little-endian
-//     exponent: i32,     // 4 bytes, little-endian
-// }
-export interface DecodedPriceData {
-    price: BN; // Price, scaled according to expo
-    expo: number;  // Exponent (negative, e.g., -8 for USD)
-    // Add other relevant fields if needed (e.g., symbol, timestamp, status)
-}
-
-// Combined data needed per token for calculations
-export interface ProcessedTokenData {
-    mintAddress: string;
-    symbol: string;
-    icon: string;
-    targetDominance: BN; // From Oracle Data
-    priceFeedId: string; // ADDED: Price feed account address
-    decimals: number | null; // Decimals of the token mint
-    vaultBalance: BN | null; // Raw balance from the token vault ATA
-    priceData: DecodedPriceData | null; // Decoded from Dynamic Data
-    userBalance: BN | null; // User's balance for this token
-    isDelisted: boolean;
-    depositFeeOrBonusBps: number | null;
-    withdrawFeeOrBonusBps: number | null;
-    poolValueUSD: string;
-    actualDominancePercent: number;
-    targetDominancePercent: number;
-    targetDominanceDisplay: string;
-    timestamp: string; // ADDED: Oracle data timestamp for this token
-}
-
-// Represents the aggregated data for a single token from the Oracle (e.g., Switchboard function)
-export interface AggregatedOracleTokenData {
-    address: string; // Mint address
-    symbol: string;
-    priceFeedId: string; // Price feed account address for this token
-}
-
-// Represents the decoded structure of the aggregator account data
-export interface AggregatedOracleDataDecoded {
-    version: number;
-    authority: string;
-    data: AggregatedOracleTokenData[];
-    // Add other fields from the aggregator state if necessary
-}
-
-// Represents the dynamic data fetched for each token (balances, price)
-export interface DynamicTokenData {
-    isLoading: boolean;
-    error: string | null;
-    mint: PublicKey;
-    vaultBalance: bigint | null;
-    userBalance: bigint | null;
-    price: AggregatedPriceData | null;
-    decimals: number | null;
-}
-
-// More specific type for price, mirroring DecodedPriceData but maybe used differently
-// Ensure this matches the price data structure stored in DynamicTokenData
-export interface AggregatedPriceData {
-    price: bigint; 
-    expo: number;
-}
-
-// Structure to hold calculated metrics for a single token
-export interface TokenMetric {
-    mint: PublicKey;
-    symbol: string;
-    actualPercentage: number | null; // Calculated actual percentage of TVL
-    targetPercentage: number | null; // Target percentage (derived from price/market cap)
-}
-
-// Structure to hold overall pool metrics
-export interface PoolMetrics {
-    totalValueUsd: number | null; // Total pool value in USD
-    wLqiValueUsd: number | null; // Value of 1 wLQI token in USD
-    wLqiDecimals: number | null; // Decimals of the wLQI token
-    tokenMetrics: TokenMetric[];
-}
+import { PoolConfig, DecodedPriceData, ProcessedTokenData } from '@/utils/types';
 
 // --- Decoding Functions ---
 
@@ -735,3 +648,19 @@ export const formatFeeBonusString = (bpsBN: BN | null, isDeposit: boolean): { fe
         return { feeString: `(~${displayPercent}% Fee)`, title: `Est. Total Fee: ~${displayPercent}%` };
     }
 };
+
+// Structure to hold calculated metrics for a single token
+export interface TokenMetric {
+    mint: PublicKey;
+    symbol: string;
+    actualPercentage: number | null; // Calculated actual percentage of TVL
+    targetPercentage: number | null; // Target percentage (derived from price/market cap)
+}
+
+// Structure to hold overall pool metrics
+export interface PoolMetrics {
+    totalValueUsd: number | null; // Total pool value in USD
+    wLqiValueUsd: number | null; // Value of 1 wLQI token in USD
+    wLqiDecimals: number | null; // Decimals of the wLQI token
+    tokenMetrics: TokenMetric[];
+}
