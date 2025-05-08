@@ -17,7 +17,7 @@ interface TokenInputControlsProps {
     userBalance: BN | null;
     actionDisabled: boolean;
     isDelisted: boolean;
-    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => void;
+    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string, decimals: number | null) => void;
     handleSetAmount: (mintAddress: string, action: 'deposit' | 'withdraw', fraction: number) => void;
     handleSetTargetAmount?: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
     showTargetButton?: boolean;
@@ -114,7 +114,7 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                         min="0"
                         placeholder={inputPlaceholder}
                         value={currentAmount}
-                        onChange={(e) => handleAmountChange(mintAddress, action, e.target.value)}
+                        onChange={(e) => handleAmountChange(mintAddress, action, e.target.value, decimals)}
                         className={inputClassName}
                         disabled={actionDisabled || (isDeposit && isDelisted)}
                     />

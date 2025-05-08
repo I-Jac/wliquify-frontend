@@ -41,7 +41,7 @@ interface TokenTableProps {
     isWithdrawing: boolean;
     depositAmounts: Record<string, string>;
     withdrawAmounts: Record<string, string>;
-    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => void;
+    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string, decimals: number | null) => void;
     isLoadingUserData: boolean;
     isLoadingPublicData: boolean;
     hideDepositColumn?: boolean;
@@ -61,7 +61,7 @@ interface TokenRowProps {
     isWithdrawing: boolean;
     depositAmounts: Record<string, string>;
     withdrawAmounts: Record<string, string>;
-    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => void;
+    handleAmountChange: (mintAddress: string, action: 'deposit' | 'withdraw', amount: string, decimals: number | null) => void;
     isLoadingUserData: boolean;
     isLoadingPublicData: boolean;
     hideDepositColumn: boolean;
@@ -632,7 +632,7 @@ export const TokenTable = React.memo<TokenTableProps>(({ // Existing React.memo 
         if (amountToSet.endsWith('.0')) {
             amountToSet = amountToSet.substring(0, amountToSet.length - 2);
         }
-        handleAmountChange(mintAddress, action, amountToSet);
+        handleAmountChange(mintAddress, action, amountToSet, action === 'deposit' ? currentToken?.decimals ?? null : wLqiDecimals);
     }, [tokenData, userWlqiBalance, wLqiDecimals, handleAmountChange]);
 
     const handleSetTargetAmount = useCallback((mintAddress: string, action: 'deposit' | 'withdraw') => {
@@ -737,7 +737,7 @@ export const TokenTable = React.memo<TokenTableProps>(({ // Existing React.memo 
             if (parseFloat(amountToSet) <= 0) {
                 toast.error("Calculated target amount is too small."); return;
             }
-            handleAmountChange(mintAddress, action, amountToSet);
+            handleAmountChange(mintAddress, action, amountToSet, action === 'deposit' ? currentToken?.decimals ?? null : wLqiDecimals);
         } catch (error) {
             console.error(`Error calculating target amount for ${action}:`, error);
             toast.error(`Failed to calculate target ${action} amount.`);

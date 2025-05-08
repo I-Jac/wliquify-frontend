@@ -1,15 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { BN } from '@coral-xyz/anchor';
-import { bytesToString } from '@/utils/helpers';
 import { AggregatedOracleDataDecoded, ParsedOracleTokenInfo } from '@/utils/types';
+import { parseOracleData } from '@/utils/oracle_state';
 
 interface UseOracleDataProps {
     connection: Connection | null;
     oracleAggregatorAddress: PublicKey | null;
 }
 
+/**
+ * Hook to manage Oracle data fetching and state
+ * @returns {Object} Object containing oracle data, error state, and refresh function
+ */
 export function useOracleData({ connection, oracleAggregatorAddress }: UseOracleDataProps) {
     const [oracleData, setOracleData] = useState<AggregatedOracleDataDecoded | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -29,54 +32,39 @@ export function useOracleData({ connection, oracleAggregatorAddress }: UseOracle
                 return;
             }
 
-            const oracleDataBuffer = Buffer.from(oracleAccountInfo.data.slice(8));
-            let offset = 0;
-            const authorityPubkey = new PublicKey(oracleDataBuffer.subarray(offset, offset + 32)); offset += 32;
-            const totalTokensInHeader = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-            const vecLen = oracleDataBuffer.readUInt32LE(offset); offset += 4;
-
-            const tokenInfoSize = 10 + 8 + 64 + 64 + 8;
-
-            const decodedTokens: ParsedOracleTokenInfo[] = [];
-            for (let i = 0; i < vecLen; i++) {
-                const start = offset;
-                const end = start + tokenInfoSize;
-                if (end > oracleDataBuffer.length) {
-                    console.error(`useOracleData: Oracle buffer overflow reading token ${i + 1}.`);
-                    setError(prevError => prevError ? `${prevError}, Oracle data buffer overflow` : "Oracle data buffer overflow");
-                    setOracleData(prevData => ({
-                        authority: prevData?.authority || authorityPubkey.toBase58(),
-                        totalTokens: prevData?.totalTokens || totalTokensInHeader,
-                        data: prevData?.data || [],
-                    }));
-                    return;
-                }
-                const tokenSlice = oracleDataBuffer.subarray(start, end);
-
-                const symbol = bytesToString(tokenSlice.subarray(0, 10));
-                const dominance = new BN(tokenSlice.subarray(10, 18), 'le').toString();
-                const address = bytesToString(tokenSlice.subarray(18, 18 + 64));
-                const priceFeedId = bytesToString(tokenSlice.subarray(18 + 64, 18 + 64 + 64));
-                const timestamp = new BN(tokenSlice.subarray(18 + 64 + 64, end), 'le').toString();
-
-                decodedTokens.push({ symbol, dominance, address, priceFeedId, timestamp });
-                offset = end;
-            }
+            // Use the parseOracleData function from oracle_state.ts
+            const parsedData = parseOracleData(Buffer.from(oracleAccountInfo.data));
+            
+            // Convert the parsed data to the expected format
+            const decodedTokens: ParsedOracleTokenInfo[] = parsedData.data.map(token => ({
+                symbol: token.symbol.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
+                dominance: token.dominance.toString(),
+                address: token.address.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
+                priceFeedId: token.priceFeedId.map(b => String.fromCharCode(b)).join('').replace(/\0/g, ''),
+                timestamp: token.timestamp.toString()
+            }));
 
             const newOracleData: AggregatedOracleDataDecoded = {
-                authority: authorityPubkey.toBase58(),
-                totalTokens: totalTokensInHeader,
+                authority: parsedData.authority.toBase58(),
+                totalTokens: parsedData.totalTokens,
                 data: decodedTokens
             };
+
             setOracleData(newOracleData);
             setError(null);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error("useOracleData: Error in fetchAndSetOracleData:", errorMessage);
             setError(prevError => prevError ? `${prevError}, Failed to refresh oracle data: ${errorMessage}` : `Failed to refresh oracle data: ${errorMessage}`);
+            
+            // Keep previous data on error
+            if (!oracleData) {
+                setOracleData(null);
+            }
         }
     }, [connection, oracleAggregatorAddress]);
 
+    // Initial fetch and subscription setup
     useEffect(() => {
         if (connection && oracleAggregatorAddress) {
             fetchAndSetOracleData();
