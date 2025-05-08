@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
@@ -24,8 +24,9 @@ import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { bytesToString } from '@/utils/oracle_state';
+import { bytesToString } from '@/utils/helpers';
 import { useOracleData } from './useOracleData';
+import { createRateLimitedFetch } from '@/utils/hookUtils';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -33,21 +34,6 @@ interface UsePoolDataProps {
     readOnlyProvider: AnchorProvider | null;
     connection: Connection;
     wallet: WalletContextState; // Use the broader WalletContextState type
-}
-
-// Add rate limiting constants
-const RATE_LIMIT_DELAY = 1000; // Base delay in ms
-const MAX_RETRIES = 3; // Maximum number of retries
-const MAX_DELAY = 8000; // Maximum delay in ms
-
-// Add rate limiting utility
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Add rate limiting state
-interface RateLimitState {
-    lastRequestTime: number;
-    retryCount: number;
-    isRetrying: boolean;
 }
 
 export function usePoolData({
@@ -70,66 +56,20 @@ export function usePoolData({
     const [userWlqiBalance, setUserWlqiBalance] = useState<BN | null>(null);
     const [userTokenBalances, setUserTokenBalances] = useState<Map<string, BN | null>>(new Map());
     const [isLoadingPublicData, setIsLoadingPublicData] = useState(true);
-    const [isLoadingUserData, setIsLoadingUserData] = useState(false); // Separate loading state for user data
+    const [isLoadingUserData, setIsLoadingUserData] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const hasFetchedPublicData = useRef(false);
     const hasFetchedUserData = useRef(false);
     const [wLqiMint, setWLqiMint] = useState<PublicKey | null>(null);
-    const rateLimitRef = useRef<RateLimitState>({
-        lastRequestTime: 0,
-        retryCount: 0,
-        isRetrying: false
-    });
+
+    // Create rate limited fetch function
+    const rateLimitedFetch = useMemo(() => createRateLimitedFetch(connection), [connection]);
 
     // Use the new useOracleData hook
     const { oracleData, refreshOracleData } = useOracleData({
         connection,
         oracleAggregatorAddress: poolConfig?.oracleAggregatorAccount ?? null
     });
-
-    // Add rate limiting wrapper for RPC calls
-    const rateLimitedFetch = useCallback(async <T>(
-        fetchFn: () => Promise<T>,
-        errorMessage: string
-    ): Promise<T> => {
-        const now = Date.now();
-        const state = rateLimitRef.current;
-        
-        // If we're already retrying, wait
-        if (state.isRetrying) {
-            await sleep(RATE_LIMIT_DELAY);
-        }
-
-        // Calculate delay based on last request time
-        const timeSinceLastRequest = now - state.lastRequestTime;
-        if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
-            await sleep(RATE_LIMIT_DELAY - timeSinceLastRequest);
-        }
-
-        try {
-            state.lastRequestTime = Date.now();
-            state.isRetrying = false;
-            state.retryCount = 0;
-            return await fetchFn();
-        } catch (error) {
-            if (error instanceof Error && error.message.includes('429') && state.retryCount < MAX_RETRIES) {
-                state.retryCount++;
-                state.isRetrying = true;
-                
-                // Calculate exponential backoff delay
-                const backoffDelay = Math.min(
-                    RATE_LIMIT_DELAY * Math.pow(2, state.retryCount - 1),
-                    MAX_DELAY
-                );
-                
-                console.log(`Rate limit hit. Retrying in ${backoffDelay}ms (attempt ${state.retryCount}/${MAX_RETRIES})`);
-                await sleep(backoffDelay);
-                
-                return rateLimitedFetch(fetchFn, errorMessage);
-            }
-            throw error;
-        }
-    }, []);
 
     // --- Fetch Public Pool Data (Moved from Component) ---
     const fetchPublicPoolData = useCallback(async () => {

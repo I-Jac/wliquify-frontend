@@ -11,7 +11,9 @@ import {
     ComputeBudgetProgram,
     LAMPORTS_PER_SOL,
     Transaction,
-    TransactionInstruction
+    TransactionInstruction,
+    Connection,
+    TransactionError
 } from '@solana/web3.js'; 
 import { 
     TOKEN_PROGRAM_ID, 
@@ -36,6 +38,60 @@ interface UsePoolInteractionsProps {
     onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>;
     onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
 }
+
+// Update the helper function with proper typing
+const handleTransactionConfirmation = async (
+    confirmation: { value: { err: TransactionError | null } },
+    program: Program<WLiquifyPool> | null,
+    connection: Connection,
+    txid: string,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal'
+) => {
+    if (confirmation.value.err) {
+        console.error(`${action} Confirmation Error:`, confirmation.value.err);
+        const errorMessage = await handleTransactionError({ 
+            error: new Error(`${action} transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
+            program,
+            connection,
+            txid
+        });
+        toast.error(`${action} failed: ${errorMessage}`, { 
+            id: toastId,
+            style: {
+                maxWidth: '90vw',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap'
+            }
+        });
+        return false;
+    }
+    return true;
+};
+
+// Add this helper function after handleTransactionConfirmation
+const showSuccessToast = (toastId: string, txid: string, action: 'Deposit' | 'Withdrawal') => {
+    toast.success(
+        React.createElement('div', null, [
+            React.createElement('div', { key: 'message' }, `${action} successful!`),
+            React.createElement('a', {
+                key: 'link',
+                href: `https://solscan.io/tx/${txid}?cluster=devnet`,
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                style: { color: '#4CAF50', textDecoration: 'underline' }
+            }, 'View on Solscan')
+        ]),
+        { 
+            id: toastId,
+            style: {
+                maxWidth: '90vw',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap'
+            }
+        }
+    );
+};
 
 export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, onTransactionSuccess, onClearInput }: UsePoolInteractionsProps) {
     const { connection } = useConnection();
@@ -173,47 +229,13 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 lastValidBlockHeight: lastValidBlockHeight // Use fetched height
              }, 'confirmed');
 
-            if (confirmation.value.err) {
-                console.error('Transaction Confirmation Error:', confirmation.value.err);
-                const errorMessage = await handleTransactionError({ 
-                    error: new Error(`Transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
-                    program,
-                    connection,
-                    txid
-                });
-                toast.error(`Deposit failed: ${errorMessage}`, { 
-                    id: toastId,
-                    style: {
-                        maxWidth: '90vw',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
-                    }
-                });
+            if (!await handleTransactionConfirmation(confirmation, program, connection, txid, toastId, 'Deposit')) {
                 setIsDepositing(false);
                 return;
             }
 
             console.log('Deposit successful!');
-            toast.success(
-                React.createElement('div', null, [
-                    React.createElement('div', { key: 'message' }, 'Deposit successful!'),
-                    React.createElement('a', {
-                        key: 'link',
-                        href: `https://solscan.io/tx/${txid}?cluster=devnet`,
-                        target: '_blank',
-                        rel: 'noopener noreferrer',
-                        style: { color: '#4CAF50', textDecoration: 'underline' }
-                    }, 'View on Solscan')
-                ]),
-                { 
-                    id: toastId,
-                    style: {
-                        maxWidth: '90vw',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
-                    }
-                }
-            );
+            showSuccessToast(toastId, txid, 'Deposit');
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (depositMint) {
                 await onTransactionSuccess(depositMint.toBase58());
@@ -416,47 +438,13 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 lastValidBlockHeight: lastValidBlockHeight
              }, 'confirmed');
 
-            if (confirmation.value.err) {
-                console.error('Withdrawal Confirmation Error:', confirmation.value.err);
-                const errorMessage = await handleTransactionError({ 
-                    error: new Error(`Withdrawal transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
-                    program,
-                    connection,
-                    txid
-                });
-                toast.error(`Withdrawal failed: ${errorMessage}`, { 
-                    id: toastId,
-                    style: {
-                        maxWidth: '90vw',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
-                    }
-                });
+            if (!await handleTransactionConfirmation(confirmation, program, connection, txid, toastId, 'Withdrawal')) {
                 setIsWithdrawing(false);
                 return;
             }
 
             console.log('Withdrawal successful!');
-            toast.success(
-                React.createElement('div', null, [
-                    React.createElement('div', { key: 'message' }, 'Withdrawal successful!'),
-                    React.createElement('a', {
-                        key: 'link',
-                        href: `https://solscan.io/tx/${txid}?cluster=devnet`,
-                        target: '_blank',
-                        rel: 'noopener noreferrer',
-                        style: { color: '#4CAF50', textDecoration: 'underline' }
-                    }, 'View on Solscan')
-                ]),
-                { 
-                    id: toastId,
-                    style: {
-                        maxWidth: '90vw',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
-                    }
-                }
-            );
+            showSuccessToast(toastId, txid, 'Withdrawal');
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (outputMint) {
                  await onTransactionSuccess(outputMint.toBase58());

@@ -2,7 +2,7 @@ import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { AccountLayout, MintLayout } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
-import { bytesToString, decodeHistoricalTokenData } from './oracle_state';
+import { decodeHistoricalTokenData } from './oracle_state';
 
 /**
  * Fetches and parses multiple accounts using getMultipleAccountsInfo.
@@ -27,8 +27,13 @@ export const fetchMultipleAccounts = async (
 
 // --- Account Decoders ---
 export const decodeTokenAccountAmountBN = (buffer: Buffer): BN => {
-    try { return new BN(AccountLayout.decode(buffer).amount.toString()); }
-    catch (e) {
+    if (!Buffer.isBuffer(buffer)) {
+        console.error("Decode Account BN Error: Input must be a Buffer");
+        return new BN(0);
+    }
+    try { 
+        return new BN(AccountLayout.decode(buffer).amount.toString()); 
+    } catch (e) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.error("Decode Account BN Error:", errorMessage);
         return new BN(0);
@@ -36,13 +41,18 @@ export const decodeTokenAccountAmountBN = (buffer: Buffer): BN => {
 };
 
 export const decodeMintAccountSupplyString = (buffer: Buffer): string => {
-    try { return MintLayout.decode(buffer).supply.toString(); }
-    catch (e) {
+    if (!Buffer.isBuffer(buffer)) {
+        console.error("Decode Mint String Error: Input must be a Buffer");
+        return '0';
+    }
+    try { 
+        return MintLayout.decode(buffer).supply.toString(); 
+    } catch (e) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         console.error("Decode Mint String Error:", errorMessage);
         return '0';
     }
 };
 
-// Re-export oracle functions for backward compatibility
-export { bytesToString, decodeHistoricalTokenData }; 
+// Re-export oracle function for backward compatibility
+export { decodeHistoricalTokenData }; 

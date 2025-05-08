@@ -2,6 +2,7 @@ import { PublicKey, AccountInfo } from "@solana/web3.js"; // Removed Connection
 import { Buffer } from 'buffer'; // Import Buffer
 import { BN } from "@coral-xyz/anchor"; // BN needed for parsing
 import { HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from './types';
+import { bytesToString } from './helpers';
 
 // --- Constants ---
 const DISCRIMINATOR_LENGTH = 8;
@@ -12,14 +13,6 @@ const ADDRESS_PADDED_LENGTH = 64;
 const PRICE_FEED_ID_PADDED_LENGTH = 64;
 // UPDATE size to include timestamp
 const TOKEN_INFO_SERIALIZED_SIZE = SYMBOL_LENGTH + U64_LENGTH + ADDRESS_PADDED_LENGTH + PRICE_FEED_ID_PADDED_LENGTH + I64_LENGTH; // Now 154
-
-// --- Helper Functions ---
-export function bytesToString(bytes: Buffer | number[]): string {
-    const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
-    const firstNull = buffer.indexOf(0);
-    const relevantBytes = firstNull === -1 ? buffer : buffer.subarray(0, firstNull);
-    return relevantBytes.toString('utf8');
-}
 
 // --- Oracle Data Functions ---
 export function parseOracleData(rawDataBuffer: Buffer): AggregatedOracleData {

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { BN } from '@coral-xyz/anchor';
-import { bytesToString } from '@/utils/oracle_state';
+import { bytesToString } from '@/utils/helpers';
 import { AggregatedOracleDataDecoded, ParsedOracleTokenInfo } from '@/utils/types';
 
 interface UseOracleDataProps {

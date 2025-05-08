@@ -63,3 +63,15 @@ export const DEFAULT_ICON = '/tokens/default.png';
 export const BTN_GREEN = "bg-green-600 hover:bg-green-700";
 export const BTN_RED = "bg-red-600 hover:bg-red-700";
 export const BTN_GRAY = "bg-gray-500 hover:bg-gray-600 cursor-not-allowed"; // Neutral/disabled look
+
+// Rate limiting constants
+export const RATE_LIMIT_DELAY = 1000; // Base delay in ms
+export const MAX_RETRIES = 3; // Maximum number of retries
+export const MAX_DELAY = 8000; // Maximum delay in ms
+
+// Transaction constants
+export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance for transaction fees
+
+// Compute budget constants
+export const DEPOSIT_COMPUTE_UNITS = 1200000;
+export const WITHDRAW_COMPUTE_UNITS = 1400000;

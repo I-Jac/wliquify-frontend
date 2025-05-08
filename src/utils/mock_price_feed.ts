@@ -42,13 +42,15 @@ export const MockPriceFeedSchema: Schema = new Map([
 // Helper function to deserialize a MockPriceFeed buffer
 // Assumes the buffer STARTS AFTER the 8-byte discriminator
 export function deserializeMockPriceFeed(buffer: Buffer): MockPriceFeedAccountData {
+    if (!Buffer.isBuffer(buffer)) {
+        throw new Error("Input must be a Buffer");
+    }
     if (buffer.length < 8) {
         throw new Error("Buffer too short to contain discriminator");
     }
     const dataBuffer = buffer.subarray(8);
     
     try {
-        // Use the class name here as well
         const deserialized = deserialize(MockPriceFeedSchema, MockPriceFeedAccountData, dataBuffer);
         
         // Borsh JS needs explicit BN conversion for i64/u64
@@ -63,7 +65,8 @@ export function deserializeMockPriceFeed(buffer: Buffer): MockPriceFeedAccountDa
             lastUpdatedTimestamp: timestampBN,
         });
     } catch (error) {
-        console.error("Borsh deserialization failed:", error);
-        throw new Error(`Failed to deserialize MockPriceFeed buffer: ${error}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Borsh deserialization failed:", errorMessage);
+        throw new Error(`Failed to deserialize MockPriceFeed buffer: ${errorMessage}`);
     }
 } 
