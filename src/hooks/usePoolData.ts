@@ -102,16 +102,18 @@ export function usePoolData({
             setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled);
 
             // --- wLQI Mint Info ---
-            const wlqiSupplyData = await rateLimitedFetch(
-                () => connection.getTokenSupply(fetchedConfig.wliMint),
-                "Failed to fetch wLQI supply"
-            );
-            const fetchedWlqiSupply = wlqiSupplyData.value.amount;
+            const [wlqiSupplyData, wlqiMintData] = await Promise.all([
+                rateLimitedFetch(
+                    () => connection.getTokenSupply(fetchedConfig.wliMint),
+                    "Failed to fetch wLQI supply"
+                ),
+                rateLimitedFetch(
+                    () => getMint(connection, fetchedConfig.wliMint),
+                    "Failed to fetch wLQI mint data"
+                )
+            ]);
 
-            const wlqiMintData = await rateLimitedFetch(
-                () => getMint(connection, fetchedConfig.wliMint),
-                "Failed to fetch wLQI mint data"
-            );
+            const fetchedWlqiSupply = wlqiSupplyData.value.amount;
             const fetchedWlqiDecimals = wlqiMintData.decimals;
 
             setWlqiSupply(fetchedWlqiSupply);
@@ -121,14 +123,21 @@ export function usePoolData({
             const publicAddressesToFetch: PublicKey[] = [];
             const tokenInfoMap = new Map<string, Partial<TokenProcessingInfo>>();
 
-            // Get all decimals first
+            // Get all decimals first - fetch in parallel with retries
             const allConfiguredMints = fetchedConfig.supportedTokens
                 .map((st: SupportedToken) => st.mint)
                 .filter((mint): mint is PublicKey => mint !== null);
-            const mintInfoPromises = allConfiguredMints.map((mint: PublicKey) => getMint(connection, mint).catch(err => {
-                console.warn(`usePoolData Hook: Failed to get mint info for ${mint.toBase58()}: ${err.message}`);
-                return null;
-            }));
+
+            // Fetch all mint info in parallel with retries
+            const mintInfoPromises = allConfiguredMints.map((mint: PublicKey) => 
+                rateLimitedFetch(
+                    () => getMint(connection, mint),
+                    `Failed to get mint info for ${mint.toBase58()}`
+                ).catch(err => {
+                    console.warn(`usePoolData Hook: Failed to get mint info for ${mint.toBase58()}: ${err.message}`);
+                    return null;
+                })
+            );
             const mintInfos = await Promise.all(mintInfoPromises);
             const decimalsMap = new Map<string, number>();
             mintInfos.forEach((mintInfo: import('@solana/spl-token').Mint | null, index: number) => {
@@ -187,9 +196,11 @@ export function usePoolData({
                 });
             });
 
-            // Fetch all accounts
-            // console.log("usePoolData Hook: Fetching multiple public accounts:", publicAddressesToFetch.length);
-            const publicAccountsInfo = await connection.getMultipleAccountsInfo(publicAddressesToFetch);
+            // Fetch all accounts at once with retry
+            const publicAccountsInfo = await rateLimitedFetch(
+                () => connection.getMultipleAccountsInfo(publicAddressesToFetch),
+                "Failed to fetch public accounts"
+            );
 
             // Process fetched accounts
             const initialDynamicData = new Map<string, DynamicTokenData>();
@@ -232,8 +243,6 @@ export function usePoolData({
 
             setDynamicData(initialDynamicData);
             setHistoricalData(initialHistoricalData);
-            // console.log("usePoolData Hook: Set Dynamic Data:", initialDynamicData);
-            // console.log("usePoolData Hook: Set Historical Data:", initialHistoricalData);
 
             if (processingError) {
                 setError("Errors occurred processing some public token data.");

@@ -14,6 +14,77 @@ interface UsePoolSubscriptionsProps {
     refreshUserData: () => void;   // Callback to refresh user data
 }
 
+// Add this helper function at the top of the file
+const cleanupSubscriptions = async (connection: Connection, subscriptionIds: number[]) => {
+    if (!subscriptionIds.length) {
+        console.log('No subscriptions to clean up');
+        return;
+    }
+    
+    console.log(`Cleaning up ${subscriptionIds.length} subscriptions...`);
+    const results = await Promise.allSettled(
+        subscriptionIds.map(async (subId) => {
+            try {
+                await connection.removeAccountChangeListener(subId);
+                console.log(`Successfully removed subscription ${subId}`);
+            } catch (err) {
+                console.error(`Error removing subscription ${subId}:`, err);
+            }
+        })
+    );
+
+    // Log summary of cleanup
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const failureCount = results.filter(r => r.status === 'rejected').length;
+    console.log(`Subscription cleanup complete: ${successCount} successful, ${failureCount} failed`);
+};
+
+// Add these helper functions after cleanupSubscriptions
+const setupSubscription = (
+    connection: Connection,
+    account: PublicKey,
+    callback: () => void,
+    accountName: string
+): number | null => {
+    try {
+        console.log(`Setting up subscription for ${accountName} (${account.toBase58()})...`);
+        const subId = connection.onAccountChange(
+            account,
+            () => {
+                console.log(`[${accountName}] Account changed, triggering refresh...`);
+                callback();
+            },
+            'confirmed'
+        );
+        console.log(`Successfully subscribed to ${accountName} (ID: ${subId})`);
+        return subId;
+    } catch (e) {
+        console.error(`Failed to subscribe to ${accountName} (${account.toBase58()}):`, e);
+        return null;
+    }
+};
+
+const setupUserTokenSubscription = (
+    connection: Connection,
+    mint: PublicKey,
+    publicKey: PublicKey,
+    refreshUserData: () => void
+): number | null => {
+    try {
+        const userAta = getAssociatedTokenAddressSync(mint, publicKey);
+        console.log(`Setting up user token subscription for ${mint.toBase58()} (ATA: ${userAta.toBase58()})...`);
+        return setupSubscription(
+            connection,
+            userAta,
+            refreshUserData,
+            `User ATA for ${mint.toBase58()}`
+        );
+    } catch (error) {
+        console.error(`Failed to get ATA or subscribe for token ${mint.toBase58()}:`, error);
+        return null;
+    }
+};
+
 /**
  * Manages WebSocket subscriptions for pool data changes.
  */
@@ -29,146 +100,85 @@ export function usePoolSubscriptions({
     // --- Public Data Subscriptions (PoolConfig, Oracle, Vaults) ---
     useEffect(() => {
         if (!connection || !poolConfig || !poolConfigPda) {
-            // console.log("usePoolSubscriptions: Skipping public subscriptions (missing connection/config)");
-            return; // Exit if essential data isn't ready
+            return;
         }
         console.log("usePoolSubscriptions: Setting up PoolConfig/Oracle/Vault subscriptions...");
         const subscriptions: number[] = [];
 
         // Subscribe to PoolConfig changes
-        try {
-            const poolConfigSub = connection.onAccountChange(
-                poolConfigPda,
-                () => {
-                    console.log('PoolConfig account changed, triggering public refresh...');
-                    refreshPublicData();
-                },
-                'confirmed'
-            );
-            subscriptions.push(poolConfigSub);
-        } catch (e) {
-             console.error(
-                `Failed to subscribe to PoolConfig ${poolConfigPda.toString()}:`,
-                e
-             );
-        }
+        const poolConfigSub = setupSubscription(
+            connection,
+            poolConfigPda,
+            refreshPublicData,
+            'PoolConfig'
+        );
+        if (poolConfigSub) subscriptions.push(poolConfigSub);
 
         // Subscribe to Oracle Aggregator changes
         if (poolConfig.oracleAggregatorAccount && !poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
-             try {
-                const oracleSub = connection.onAccountChange(
-                    poolConfig.oracleAggregatorAccount,
-                    async () => {
-                        console.log('Oracle account changed, triggering public refresh...');
-                        refreshPublicData();
-                    },
-                    'confirmed'
-                );
-                subscriptions.push(oracleSub);
-             } catch (e) {
-                 console.error(
-                    `Failed to subscribe to Oracle ${poolConfig.oracleAggregatorAccount.toString()}:`,
-                    e
-                 );
-             }
-        } else {
-            // console.log("usePoolSubscriptions: Skipping Oracle WS subscription - address not found or system program.");
+            const oracleSub = setupSubscription(
+                connection,
+                poolConfig.oracleAggregatorAccount,
+                refreshPublicData,
+                'Oracle'
+            );
+            if (oracleSub) subscriptions.push(oracleSub);
         }
 
         // Subscribe to Vault balance changes
         poolConfig.supportedTokens.forEach((token: SupportedToken) => {
             if (token && token.vault && token.mint) {
-                const nonNullVault = token.vault;
-                try {
-                    const vaultSub = connection.onAccountChange(
-                        nonNullVault,
-                        () => {
-                            console.log(
-                                `Vault ${nonNullVault.toString()} (${token.mint?.toBase58()}) changed, triggering public refresh...`
-                            );
-                            refreshPublicData();
-                        },
-                        'confirmed'
-                    );
-                    subscriptions.push(vaultSub);
-                } catch (e) {
-                    console.error(
-                        `Failed to subscribe to vault ${nonNullVault.toString()}:`,
-                        e
-                    );
-                }
-            } 
-            // else {
-            //     console.warn("usePoolSubscriptions: Skipping Vault WS subscription for token with missing mint or vault.");
-            // }
+                const vaultSub = setupSubscription(
+                    connection,
+                    token.vault,
+                    refreshPublicData,
+                    `Vault for ${token.mint.toBase58()}`
+                );
+                if (vaultSub) subscriptions.push(vaultSub);
+            }
         });
 
-        // Return cleanup function
         return () => {
             console.log('usePoolSubscriptions: Cleaning up PoolConfig/Oracle/Vault subscriptions...');
-            subscriptions.forEach((subId) => {
-                connection.removeAccountChangeListener(subId)
-                    .catch(err => console.error(`WS Cleanup Error (Public): Error unsubscribing ID ${subId}:`, err));
-            });
+            cleanupSubscriptions(connection, subscriptions);
         };
-
-    }, [connection, poolConfig, poolConfigPda, refreshPublicData]); // Dependencies for public subscriptions
+    }, [connection, poolConfig, poolConfigPda, refreshPublicData]);
 
     // --- User Account Subscriptions ---
     useEffect(() => {
         if (!connection || !publicKey || !poolConfig || !poolConfig.wliMint) {
-            // console.log("usePoolSubscriptions: Skipping user subscriptions (missing connection/publicKey/config)");
             return;
         }
         console.log("usePoolSubscriptions: Setting up account subscriptions for user:", publicKey.toBase58());
         const subscriptionIds: number[] = [];
 
-        // Generic handler to trigger user data refresh
-        const handleAccountUpdate = (context: { slot: number }, mintAddress: string) => {
-            console.log(`usePoolSubscriptions: Account ${mintAddress} updated, triggering user data refresh.`);
-            refreshUserData();
-        };
-
         // Subscribe to user's wLQI ATA
-        try {
-            const userWlqiAta = getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey);
-            const wLqiSubId = connection.onAccountChange(
-                userWlqiAta,
-                (_accountInfo, context) => handleAccountUpdate(context, poolConfig.wliMint.toBase58()),
-                'confirmed'
-            );
-            subscriptionIds.push(wLqiSubId);
-        } catch (error) {
-            console.error(`usePoolSubscriptions: Failed to get ATA or subscribe for wLQI (${poolConfig.wliMint?.toBase58()}):`, error);
-        }
+        const wLqiSub = setupUserTokenSubscription(
+            connection,
+            poolConfig.wliMint,
+            publicKey,
+            refreshUserData
+        );
+        if (wLqiSub) subscriptionIds.push(wLqiSub);
 
         // Subscribe to user's other supported token ATAs
         poolConfig.supportedTokens.forEach((token: SupportedToken) => {
-            if (token.mint && !token.mint.equals(poolConfig.wliMint)) { // Exclude wLQI
-                try {
-                    const nonNullMintKey = token.mint;
-                    const userAta = getAssociatedTokenAddressSync(nonNullMintKey, publicKey);
-                    const subId = connection.onAccountChange(
-                        userAta,
-                        (_accountInfo, context) => handleAccountUpdate(context, nonNullMintKey.toBase58()),
-                        'confirmed'
-                    );
-                    subscriptionIds.push(subId);
-                } catch (error) {
-                    console.error(`usePoolSubscriptions: Failed to get ATA or subscribe for token ${token.mint?.toBase58()}:`, error);
-                }
+            if (token.mint && !token.mint.equals(poolConfig.wliMint)) {
+                const subId = setupUserTokenSubscription(
+                    connection,
+                    token.mint,
+                    publicKey,
+                    refreshUserData
+                );
+                if (subId) subscriptionIds.push(subId);
             }
         });
 
-        // Return cleanup function
         return () => {
             console.log("usePoolSubscriptions: Cleaning up user account subscriptions...");
-            subscriptionIds.forEach(id => {
-                connection.removeAccountChangeListener(id)
-                    .catch(err => console.error(`WS Cleanup Error (User): Error unsubscribing ID ${id}:`, err));
-            });
+            cleanupSubscriptions(connection, subscriptionIds);
         };
-    }, [connection, publicKey, poolConfig, refreshUserData]); // Dependencies for user subscriptions
+    }, [connection, publicKey, poolConfig, refreshUserData]);
 
     // This hook doesn't return anything, it just sets up listeners
 } 

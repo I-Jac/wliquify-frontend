@@ -13,7 +13,8 @@ import {
     Transaction,
     TransactionInstruction,
     Connection,
-    TransactionError
+    TransactionError,
+    VersionedTransaction
 } from '@solana/web3.js'; 
 import { 
     TOKEN_PROGRAM_ID, 
@@ -29,6 +30,7 @@ import toast from "react-hot-toast";
 import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
 import { handleTransactionError } from '@/utils/transactionErrorHandling';
+import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS } from '@/utils/constants';
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
@@ -93,6 +95,279 @@ const showSuccessToast = (toastId: string, txid: string, action: 'Deposit' | 'Wi
     );
 };
 
+// Update the helper function to use the imported constant
+const checkSolBalance = async (
+    connection: Connection,
+    publicKey: PublicKey,
+    minSolBalanceLamports: number = MIN_SOL_BALANCE_LAMPORTS // Use imported constant
+): Promise<boolean> => {
+    try {
+        const balance = await connection.getBalance(publicKey);
+        if (balance < minSolBalanceLamports) {
+            toast.error(`Insufficient SOL balance for transaction fees. Need ~${minSolBalanceLamports / LAMPORTS_PER_SOL} SOL.`);
+            console.error(`Insufficient SOL balance: ${balance} lamports. Need ${minSolBalanceLamports} lamports.`);
+            return false;
+        }
+        return true;
+    } catch (balanceError) {
+        toast.error("Could not verify SOL balance.");
+        console.error("Failed to fetch SOL balance:", balanceError);
+        return false;
+    }
+};
+
+// Add this helper function after checkSolBalance
+const validatePriceFeed = (
+    tokenInfo: { mint: PublicKey; priceFeed: PublicKey } | undefined,
+    mint: PublicKey,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal'
+): boolean => {
+    if (!tokenInfo || !tokenInfo.priceFeed || tokenInfo.priceFeed.equals(SystemProgram.programId)) {
+        const errorMsg = `Price feed account not found or configured for ${action.toLowerCase()} token ${mint.toBase58()} in PoolConfig`;
+        console.error(errorMsg);
+        toast.error(errorMsg, { id: toastId });
+        return false;
+    }
+    return true;
+};
+
+// Update the helper function to use the single constant
+const buildTransactionWithComputeBudget = (
+    connection: Connection,
+    instructions: TransactionInstruction[],
+    publicKey: PublicKey,
+    priorityFee: number,
+    computeUnits: number = TRANSACTION_COMPUTE_UNITS // Use single constant as default
+): Promise<{ transaction: Transaction; blockhash: string; lastValidBlockHeight: number }> => {
+    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+        units: computeUnits
+    });
+    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFee
+    });
+
+    return new Promise(async (resolve, reject) => {
+        try {
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            const transaction = new Transaction().add(
+                modifyComputeUnits,
+                addPriorityFee,
+                ...instructions
+            );
+            transaction.feePayer = publicKey;
+            transaction.recentBlockhash = blockhash;
+            resolve({ transaction, blockhash, lastValidBlockHeight });
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+// Update the helper function's parameter type
+const signAndSendTransaction = async (
+    connection: Connection,
+    transaction: Transaction,
+    signTransaction: ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal'
+): Promise<{ txid: string; blockhash: string; lastValidBlockHeight: number }> => {
+    if (!signTransaction) {
+        throw new Error('Wallet does not support signing transactions');
+    }
+    console.log(`Signing ${action.toLowerCase()} transaction...`);
+    const signedTransaction = await signTransaction(transaction);
+    console.log(`Sending ${action.toLowerCase()} transaction...`);
+    const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        skipPreflight: true,
+    });
+    console.log(`${action} transaction sent, signature:`, txid);
+    return { txid, blockhash: transaction.recentBlockhash!, lastValidBlockHeight: 0 };
+};
+
+// Update the helper function's return type
+const confirmTransaction = async (
+    connection: Connection,
+    txid: string,
+    blockhash: string,
+    lastValidBlockHeight: number,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal'
+): Promise<{ value: { err: TransactionError | null } }> => {
+    console.log(`Confirming ${action.toLowerCase()} transaction...`);
+    toast.loading(`Confirming ${action.toLowerCase()}... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
+    const confirmation = await connection.confirmTransaction({
+        signature: txid,
+        blockhash: blockhash,
+        lastValidBlockHeight: lastValidBlockHeight
+    }, 'confirmed');
+    return confirmation;
+};
+
+// Add this helper function after confirmTransaction
+const handleTransactionErrorWithToast = async (
+    error: unknown,
+    program: Program<WLiquifyPool> | null,
+    connection: Connection,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal'
+): Promise<void> => {
+    console.error(`${action} failed Raw:`, error);
+    const errorMessage = await handleTransactionError({ 
+        error, 
+        program,
+        connection
+    });
+    toast.error(`${action} failed: ${errorMessage}`, { 
+        id: toastId,
+        style: {
+            maxWidth: '90vw',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap'
+        }
+    });
+};
+
+// Update the helper function to remove signTransaction check
+const validatePreFlightChecks = (
+    program: Program<WLiquifyPool> | null,
+    publicKey: PublicKey | null,
+    poolConfig: PoolConfig | null,
+    poolConfigPda: PublicKey | null,
+    oracleData: { data: { address: string; priceFeedId: string }[] } | null,
+    amountString?: string,
+    isFullDelistedWithdraw: boolean = false
+): { isValid: boolean; poolConfig: PoolConfig | null } => {
+    if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData) {
+        toast.error("Program, wallet, or pool config not available.");
+        console.error("Prerequisites not met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
+        return { isValid: false, poolConfig: null };
+    }
+
+    if (!isFullDelistedWithdraw && (!amountString || parseFloat(amountString) <= 0)) {
+        alert('Please enter a valid amount.');
+        return { isValid: false, poolConfig: null };
+    }
+
+    return { isValid: true, poolConfig };
+};
+
+// Update the helper function's parameter type
+const validateSignTransaction = (signTransaction: ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined): boolean => {
+    if (!signTransaction) {
+        alert('Wallet does not support signing transactions.');
+        console.error("Wallet adapter does not provide signTransaction method.");
+        return false;
+    }
+    return true;
+};
+
+// Add this helper function after signAndSendTransaction
+const createAtaIfNeeded = async (
+    connection: Connection,
+    publicKey: PublicKey,
+    mint: PublicKey,
+    preInstructions: TransactionInstruction[]
+): Promise<void> => {
+    const ata = getAssociatedTokenAddressSync(mint, publicKey);
+    try {
+        await connection.getAccountInfo(ata);
+    } catch {
+        // Assuming error means account not found
+        console.log("ATA not found, creating:", ata.toBase58());
+        preInstructions.push(
+            createAssociatedTokenAccountInstruction(
+                publicKey,           // Payer
+                ata,                 // ATA address
+                publicKey,           // Owner of the ATA
+                mint                 // Mint
+            )
+        );
+    }
+};
+
+// Update the helper function to log each field separately
+const logTransactionDetails = (
+    action: 'Deposit' | 'Withdrawal',
+    details: {
+        user: string;
+        poolConfig: string;
+        poolAuthority: string;
+        tokenMint: string;
+        poolVault: string;
+        userTokenAccount: string;
+        userWliAta: string;
+        wliMint: string;
+        amount: string;
+    }
+) => {
+    console.log(`${action} Transaction Details:`);
+    console.log('User:', details.user);
+    console.log('Pool Config:', details.poolConfig);
+    console.log('Pool Authority:', details.poolAuthority);
+    console.log('Token Mint:', details.tokenMint);
+    console.log('Pool Vault:', details.poolVault);
+    console.log('User Token Account:', details.userTokenAccount);
+    console.log('User wLQI Account:', details.userWliAta);
+    console.log('wLQI Mint:', details.wliMint);
+    console.log('Amount:', details.amount);
+};
+
+// Add this helper function after logTransactionDetails
+const handleTransactionSuccess = async (
+    connection: Connection,
+    txid: string,
+    blockhash: string,
+    lastValidBlockHeight: number,
+    program: Program<WLiquifyPool> | null,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal',
+    mintAddress: string | null,
+    onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>,
+    onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void,
+    setIsLoading: (value: boolean) => void
+): Promise<boolean> => {
+    const confirmation = await confirmTransaction(
+        connection,
+        txid,
+        blockhash,
+        lastValidBlockHeight,
+        toastId,
+        action
+    );
+
+    if (!await handleTransactionConfirmation(confirmation, program, connection, txid, toastId, action)) {
+        setIsLoading(false);
+        return false;
+    }
+
+    console.log(`${action} successful!`);
+    showSuccessToast(toastId, txid, action);
+    
+    if (mintAddress) {
+        await onTransactionSuccess(mintAddress);
+        onClearInput(mintAddress, action.toLowerCase() as 'deposit' | 'withdraw');
+    } else {
+        await onTransactionSuccess();
+    }
+    
+    setIsLoading(false);
+    return true;
+};
+
+// Add this helper function after handleTransactionSuccess
+const handleTransactionErrorAndCleanup = async (
+    error: unknown,
+    program: Program<WLiquifyPool> | null,
+    connection: Connection,
+    toastId: string,
+    action: 'Deposit' | 'Withdrawal',
+    setIsLoading: (value: boolean) => void
+): Promise<void> => {
+    await handleTransactionErrorWithToast(error, program, connection, toastId, action);
+    setIsLoading(false);
+};
+
 export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, onTransactionSuccess, onClearInput }: UsePoolInteractionsProps) {
     const { connection } = useConnection();
     const wallet = useWallet();
@@ -102,35 +377,30 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
     const [isWithdrawing, setIsWithdrawing] = useState(false);
 
     const handleDeposit = useCallback(async (mintAddress: string, amountString: string, decimals: number | null) => {
+        if (!validateSignTransaction(signTransaction as ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined)) {
+            return;
+        }
+
         // --- Pre-flight Checks ---
-        if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData || decimals === null) {
-            toast.error("Program, wallet, or pool config not available.");
-            console.error("Deposit prerequisites not met:", { program, wallet, poolConfig, poolConfigPda });
+        const { isValid, poolConfig: validPoolConfig } = validatePreFlightChecks(
+            program, 
+            publicKey, 
+            poolConfig, 
+            poolConfigPda, 
+            oracleData, 
+            amountString
+        );
+        if (!isValid || !validPoolConfig) {
             return;
         }
-        if (!amountString || parseFloat(amountString) <= 0) {
-            alert('Please enter a valid deposit amount.');
+        if (decimals === null) {
+            toast.error("Token decimals not available.");
             return;
-        }
-        if (!signTransaction) {
-             alert('Wallet does not support signing transactions.');
-             console.error("Wallet adapter does not provide signTransaction method.");
-             return;
         }
 
         // --- Check SOL Balance ---
-        const minSolBalanceLamports = 100000; // 0.0001 SOL - adjust as needed
-        try {
-            const balance = await connection.getBalance(publicKey!); 
-            if (balance < minSolBalanceLamports) {
-                toast.error(`Insufficient SOL balance for transaction fees. Need ~${minSolBalanceLamports / LAMPORTS_PER_SOL} SOL.`);
-                console.error(`Insufficient SOL balance: ${balance} lamports. Need ${minSolBalanceLamports} lamports.`);
-                return;
-            }
-        } catch (balanceError) {
-            toast.error("Could not verify SOL balance.");
-            console.error("Failed to fetch SOL balance:", balanceError);
-            return; // Prevent proceeding if balance check fails
+        if (!await checkSolBalance(connection, publicKey!)) {
+            return;
         }
 
         setIsDepositing(true);
@@ -146,36 +416,33 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             const userSourceAta = getAssociatedTokenAddressSync(depositMint, publicKey!);
             const targetTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, depositMint);
             const poolConfigAddress = poolConfigPda!;
+            const userWliAta = getAssociatedTokenAddressSync(validPoolConfig!.wliMint, publicKey!);
 
-            console.log("Depositing:", {
+            // Create user's wLQI ATA if it doesn't exist
+            const preInstructions: TransactionInstruction[] = [];
+            await createAtaIfNeeded(connection, publicKey!, validPoolConfig!.wliMint, preInstructions);
+
+            logTransactionDetails('Deposit', {
                 user: publicKey!.toBase58(),
                 poolConfig: poolConfigAddress.toBase58(),
                 poolAuthority: poolAuthorityPda.toBase58(),
                 tokenMint: depositMint.toBase58(),
                 poolVault: targetTokenVaultAta.toBase58(),
                 userTokenAccount: userSourceAta.toBase58(),
+                userWliAta: userWliAta.toBase58(),
+                wliMint: validPoolConfig!.wliMint.toBase58(),
                 amount: amountBn.toString(),
             });
 
             // Find the specific price feed for the deposit mint
-            const depositTokenInfo = poolConfig.supportedTokens.find(st => st.mint.equals(depositMint!));
-            if (!depositTokenInfo || !depositTokenInfo.priceFeed || depositTokenInfo.priceFeed.equals(SystemProgram.programId)) {
-                const errorMsg = `Price feed account not found or configured for deposit token ${depositMint.toBase58()} in PoolConfig`;
-                console.error(errorMsg);
-                toast.error(errorMsg, { id: toastId });
+            const depositTokenInfo = validPoolConfig.supportedTokens.find(st => st.mint.equals(depositMint!));
+            if (!validatePriceFeed(depositTokenInfo, depositMint!, toastId, 'Deposit')) {
                 setIsDepositing(false);
-                throw new Error(errorMsg);
+                return;
             }
-            const depositPriceFeedAccount = depositTokenInfo.priceFeed;
+            const depositPriceFeedAccount = depositTokenInfo!.priceFeed;
 
             // --- Build Instructions (Compute Budget + Deposit) ---
-            const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-                units: 1200000 // Ensure ample CUs
-            });
-            const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
-                microLamports: priorityFee // Use fee from settings context
-            });
-
             const depositInstruction = await program!.methods
                 .deposit(amountBn)
                 .accounts({ 
@@ -184,12 +451,12 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                     // @ts-expect-error // Keep suppression for deposit poolConfig if needed
                     poolConfig: poolConfigPda!,
                     poolAuthority: findPoolAuthorityPDA(),
-                    wliMint: poolConfig!.wliMint,
-                    userWliAta: getAssociatedTokenAddressSync(poolConfig!.wliMint, publicKey!),
-                    ownerFeeAccount: getAssociatedTokenAddressSync(poolConfig!.wliMint, poolConfig!.feeRecipient, true),
+                    wliMint: validPoolConfig!.wliMint,
+                    userWliAta: userWliAta,
+                    ownerFeeAccount: getAssociatedTokenAddressSync(validPoolConfig!.wliMint, validPoolConfig!.feeRecipient, true),
                     depositMint: depositMint,
                     targetTokenVaultAta: targetTokenVaultAta,
-                    oracleAggregatorAccount: poolConfig!.oracleAggregatorAccount,
+                    oracleAggregatorAccount: validPoolConfig!.oracleAggregatorAccount,
                     depositPriceFeed: depositPriceFeedAccount,
                     tokenProgram: TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
@@ -199,72 +466,49 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 .instruction();
 
             // --- Create Transaction (Not Versioned) --- 
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            const transaction = new Transaction().add(
-                modifyComputeUnits, // Add CU limit instruction
-                addPriorityFee,     // Add priority fee instruction
-                depositInstruction  // The main deposit instruction
+            const { transaction, blockhash, lastValidBlockHeight } = await buildTransactionWithComputeBudget(
+                connection,
+                [...preInstructions, depositInstruction],
+                publicKey!,
+                priorityFee,
+                TRANSACTION_COMPUTE_UNITS // Use single constant
             );
-            transaction.feePayer = publicKey!;
-            transaction.recentBlockhash = blockhash;
 
-            console.log("Signing transaction...");
+            const { txid } = await signAndSendTransaction(
+                connection,
+                transaction,
+                signTransaction,
+                toastId,
+                'Deposit'
+            );
 
-            // --- Sign and Send --- 
-            const signedTransaction = await signTransaction(transaction);
-            console.log("Sending transaction...");
-            // Use sendRawTransaction for legacy Transaction
-            const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
-                skipPreflight: true, // Keep skipPreflight for potentially complex txns
-            });
-            // --- REMOVED connection.sendTransaction check for deposit --- 
-            console.log("Transaction sent, signature:", txid);
-
-            // --- Confirm Transaction --- 
-            console.log("Confirming transaction...");
-            toast.loading(`Confirming deposit... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
-            const confirmation = await connection.confirmTransaction({
-                signature: txid,
-                blockhash: blockhash,
-                lastValidBlockHeight: lastValidBlockHeight // Use fetched height
-             }, 'confirmed');
-
-            if (!await handleTransactionConfirmation(confirmation, program, connection, txid, toastId, 'Deposit')) {
-                setIsDepositing(false);
+            if (!await handleTransactionSuccess(
+                connection,
+                txid,
+                blockhash,
+                lastValidBlockHeight,
+                program,
+                toastId,
+                'Deposit',
+                depositMint?.toBase58() ?? null,
+                onTransactionSuccess,
+                onClearInput,
+                setIsDepositing
+            )) {
                 return;
             }
 
-            console.log('Deposit successful!');
-            showSuccessToast(toastId, txid, 'Deposit');
-            // --- ADDED: Trigger balance refresh and clear input --- 
-            if (depositMint) {
-                await onTransactionSuccess(depositMint.toBase58());
-                onClearInput(depositMint.toBase58(), 'deposit'); // Clear deposit input
-            } else {
-                 await onTransactionSuccess(); // Refresh wLQI at least (shouldn't happen here)
-            }
-            // --- END ADD --- 
-
         } catch (error: unknown) {
-            console.error("Deposit failed Raw:", error);
-            const errorMessage = await handleTransactionError({ 
-                error, 
+            await handleTransactionErrorAndCleanup(
+                error,
                 program,
-                connection
-            });
-            toast.error(`Deposit failed: ${errorMessage}`, { 
-                id: toastId,
-                style: {
-                    maxWidth: '90vw',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap'
-                }
-            });
-
-        } finally {
-            setIsDepositing(false);
+                connection,
+                toastId,
+                'Deposit',
+                setIsDepositing
+            );
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, wallet, onClearInput]);
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput]);
 
     // --- handleWithdraw ---
     const handleWithdraw = useCallback(async (
@@ -274,39 +518,28 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         isFullDelistedWithdraw: boolean = false, // ADDED: Flag for new mode
         // Removed erroneous oracleData parameter
     ) => {
+        if (!validateSignTransaction(signTransaction as ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined)) {
+            return;
+        }
+
         // --- Pre-flight Checks ---
-        // FIX: Check base prerequisites first
-        if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData) {
-            toast.error("Program, wallet, or pool config not available for withdrawal.");
-            console.error("Withdraw prerequisites met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
-            return;
-        }
-        // REFACTOR: Check wliAmountString ONLY if it's NOT a full delisted withdrawal
-        if (!isFullDelistedWithdraw && (!wliAmountString || parseFloat(wliAmountString) <= 0)) {
-            alert('Please enter a valid wLQI amount to withdraw.');
-            return;
-        }
-        if (!signTransaction) {
-             alert('Wallet does not support signing transactions.');
-             console.error("Wallet adapter does not provide signTransaction method.");
-             return;
-        }
-
-        // --- Check SOL Balance (same as deposit) ---
-        const minSolBalanceLamports = 100000; 
-        try {
-            const balance = await connection.getBalance(publicKey!);
-            if (balance < minSolBalanceLamports) {
-                toast.error(`Insufficient SOL balance for transaction fees. Need ~${minSolBalanceLamports / LAMPORTS_PER_SOL} SOL.`);
-                console.error(`Insufficient SOL balance: ${balance} lamports. Need ${minSolBalanceLamports} lamports.`);
-                return;
-            }
-        } catch (balanceError) {
-            toast.error("Could not verify SOL balance.");
-            console.error("Failed to fetch SOL balance:", balanceError);
+        const { isValid, poolConfig: validPoolConfig } = validatePreFlightChecks(
+            program, 
+            publicKey, 
+            poolConfig, 
+            poolConfigPda, 
+            oracleData, 
+            wliAmountString, 
+            isFullDelistedWithdraw
+        );
+        if (!isValid || !validPoolConfig) {
             return;
         }
 
+        // --- Check SOL Balance ---
+        if (!await checkSolBalance(connection, publicKey!)) {
+            return;
+        }
 
         setIsWithdrawing(true);
         const toastId = toast.loading("Processing withdrawal...");
@@ -315,7 +548,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         try {
             outputMint = new PublicKey(outputMintAddress);
             // FIX: Fetch wLQI decimals using getMint
-            const wliMintInfo = await getMint(connection, poolConfig.wliMint);
+            const wliMintInfo = await getMint(connection, validPoolConfig.wliMint);
             const wliDecimals = wliMintInfo.decimals;
             if (typeof wliDecimals !== 'number') { // Add check after fetching
                 toast.error("Could not determine wLQI decimals.");
@@ -324,77 +557,54 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             const wliAmountBn = isFullDelistedWithdraw ? new BN(0) : new BN(parseUnits(wliAmountString, wliDecimals).toString());
 
             // --- Find the specific token info for the OUTPUT mint ---
-            const outputTokenInfo = poolConfig.supportedTokens.find(st => st.mint.equals(outputMint!));
-            if (!outputTokenInfo || !outputTokenInfo.priceFeed || outputTokenInfo.priceFeed.equals(SystemProgram.programId)) {
-                const errorMsg = `Price feed account not found or configured for output token ${outputMint.toBase58()} in PoolConfig`;
-                console.error(errorMsg);
-                toast.error(errorMsg, { id: toastId });
+            const outputTokenInfo = validPoolConfig.supportedTokens.find(st => st.mint.equals(outputMint!));
+            if (!validatePriceFeed(outputTokenInfo, outputMint!, toastId, 'Withdrawal')) {
                 setIsWithdrawing(false);
-                throw new Error(errorMsg);
+                return;
             }
-            const outputPriceFeedAccount = outputTokenInfo.priceFeed;
+            const outputPriceFeedAccount = outputTokenInfo!.priceFeed;
 
             // --- Derive PDAs and ATAs ---
             const poolAuthorityPda = findPoolAuthorityPDA();
-            const userWliAta = getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey!);
+            const userWliAta = getAssociatedTokenAddressSync(validPoolConfig.wliMint, publicKey!);
             const userDestinationAta = getAssociatedTokenAddressSync(outputMint, publicKey!); // User's ATA for the output token
             const sourceTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, outputMint); // Pool's vault for the output token
-            const ownerFeeAccount = getAssociatedTokenAddressSync(poolConfig.wliMint, poolConfig.feeRecipient, true);
+            const ownerFeeAccount = getAssociatedTokenAddressSync(validPoolConfig.wliMint, validPoolConfig.feeRecipient, true);
             const poolConfigAddress = poolConfigPda!;
 
-            console.log("Withdrawing (wLQI):", {
+            // Create user's destination ATA if it doesn't exist
+            const preInstructions: TransactionInstruction[] = [];
+            await createAtaIfNeeded(connection, publicKey!, outputMint, preInstructions);
+
+            logTransactionDetails('Withdrawal', {
                 user: publicKey!.toBase58(),
                 poolConfig: poolConfigAddress.toBase58(),
                 poolAuthority: poolAuthorityPda.toBase58(),
-                wLqiMint: poolConfig.wliMint.toBase58(),
-                outputTokenMint: outputMint.toBase58(),
+                tokenMint: outputMint.toBase58(),
+                poolVault: sourceTokenVaultAta.toBase58(),
+                userTokenAccount: userDestinationAta.toBase58(),
                 userWliAta: userWliAta.toBase58(),
-                userDestinationAta: userDestinationAta.toBase58(),
-                poolTokenVault: sourceTokenVaultAta.toBase58(),
-                wliAmountToBurn: wliAmountBn.toString(),
+                wliMint: validPoolConfig.wliMint.toBase58(),
+                amount: wliAmountBn.toString(),
             });
-
-            // --- Create User Destination ATA if it doesn't exist ---
-            const preInstructions: TransactionInstruction[] = [];
-            try {
-                await connection.getAccountInfo(userDestinationAta);
-            } catch {
-                // Assuming error means account not found
-                console.log("User destination ATA not found, creating:", userDestinationAta.toBase58());
-                preInstructions.push(
-                    createAssociatedTokenAccountInstruction(
-                        publicKey!,           // Payer
-                        userDestinationAta,   // ATA address
-                        publicKey!,           // Owner of the ATA
-                        outputMint            // Mint
-                    )
-                );
-            }
 
             // --- Build Instructions (Compute Budget + Withdraw) ---
-            const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-                units: 1400000 // Withdraw might need more than deposit
-            });
-            const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-                microLamports: priorityFee
-            });
-
             const withdrawInstruction = await program!.methods
-                .withdraw(wliAmountBn, isFullDelistedWithdraw) // Pass BOTH arguments
+                .withdraw(wliAmountBn, isFullDelistedWithdraw)
                 .accounts({
                     user: publicKey!,
                     userWliAta: userWliAta,
                     // @ts-expect-error // IDL vs generated type mismatch for user_destination_ata key
                     user_destination_ata: userDestinationAta, // Use snake_case from IDL
-                    feeRecipient: poolConfig.feeRecipient,
+                    feeRecipient: validPoolConfig.feeRecipient,
                     // Removed unused @ts-expect-error for pool_config
                     pool_config: poolConfigPda!, 
                     poolAuthority: poolAuthorityPda,
-                    wliMint: poolConfig.wliMint,
+                    wliMint: validPoolConfig.wliMint,
                     ownerFeeAccount: ownerFeeAccount,
                     withdrawMint: outputMint, // Renamed
                     sourceTokenVaultAta: sourceTokenVaultAta,
-                    oracleAggregatorAccount: poolConfig.oracleAggregatorAccount, // Added
+                    oracleAggregatorAccount: validPoolConfig.oracleAggregatorAccount, // Added
                     withdrawPriceFeed: outputPriceFeedAccount, // Use output token's feed
                     tokenProgram: TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
@@ -404,76 +614,48 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 .instruction();
 
             // --- Create Transaction (Standard Transaction) ---
-            // REFACTOR: Use standard Transaction, remove LUT logic
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-            const transaction = new Transaction();
-
-            // Add pre-instructions first if any (e.g., create ATA)
-            if (preInstructions.length > 0) {
-                transaction.add(...preInstructions);
-            }
-
-            transaction.add(
-                modifyComputeUnits,
-                addPriorityFee,
-                withdrawInstruction
+            const { transaction, blockhash, lastValidBlockHeight } = await buildTransactionWithComputeBudget(
+                connection,
+                [...preInstructions, withdrawInstruction],
+                publicKey!,
+                priorityFee,
+                TRANSACTION_COMPUTE_UNITS // Use single constant
             );
-            transaction.feePayer = publicKey!;
-            transaction.recentBlockhash = blockhash;
 
-            console.log("Signing withdrawal transaction...");
-            const signedTransaction = await signTransaction(transaction);
-            console.log("Sending withdrawal transaction...");
-            const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
-                skipPreflight: true,
-            });
-            console.log("Withdrawal transaction sent, signature:", txid);
+            const { txid } = await signAndSendTransaction(
+                connection,
+                transaction,
+                signTransaction,
+                toastId,
+                'Withdrawal'
+            );
 
-            // --- Confirm Transaction ---
-            console.log("Confirming withdrawal transaction...");
-            toast.loading(`Confirming withdrawal... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
-            const confirmation = await connection.confirmTransaction({
-                signature: txid,
-                blockhash: blockhash,
-                lastValidBlockHeight: lastValidBlockHeight
-             }, 'confirmed');
-
-            if (!await handleTransactionConfirmation(confirmation, program, connection, txid, toastId, 'Withdrawal')) {
-                setIsWithdrawing(false);
+            if (!await handleTransactionSuccess(
+                connection,
+                txid,
+                blockhash,
+                lastValidBlockHeight,
+                program,
+                toastId,
+                'Withdrawal',
+                outputMint?.toBase58() ?? null,
+                onTransactionSuccess,
+                onClearInput,
+                setIsWithdrawing
+            )) {
                 return;
             }
 
-            console.log('Withdrawal successful!');
-            showSuccessToast(toastId, txid, 'Withdrawal');
-            // --- ADDED: Trigger balance refresh and clear input --- 
-            if (outputMint) {
-                 await onTransactionSuccess(outputMint.toBase58());
-                 onClearInput(outputMint.toBase58(), 'withdraw'); // Clear withdraw input for this token row
-            } else {
-                await onTransactionSuccess(); // Should always have mint, but refresh wLQI as fallback
-            }
-             // --- END ADD --- 
-
         } catch (error: unknown) {
-            console.error("Withdrawal failed Raw:", error);
-            const errorMessage = await handleTransactionError({ 
-                error, 
+            await handleTransactionErrorAndCleanup(
+                error,
                 program,
-                connection
-            });
-            toast.error(`Withdrawal failed: ${errorMessage}`, { 
-                id: toastId,
-                style: {
-                    maxWidth: '90vw',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap'
-                }
-            });
-
-        } finally {
-            setIsWithdrawing(false);
+                connection,
+                toastId,
+                'Withdrawal',
+                setIsWithdrawing
+            );
         }
-        // REFACTOR: Update dependencies array
     }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput]); // Replaced wallet with publicKey, signTransaction
 
     return {
