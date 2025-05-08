@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import React from 'react';
 import { BN, Program } from '@coral-xyz/anchor';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { 
@@ -193,14 +194,26 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             }
 
             console.log('Deposit successful!');
-            toast.success(`Deposit successful! Tx: ${txid.substring(0, 8)}...`, { 
-                id: toastId,
-                style: {
-                    maxWidth: '90vw',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap'
+            toast.success(
+                React.createElement('div', null, [
+                    React.createElement('div', { key: 'message' }, 'Deposit successful!'),
+                    React.createElement('a', {
+                        key: 'link',
+                        href: `https://solscan.io/tx/${txid}?cluster=devnet`,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                        style: { color: '#4CAF50', textDecoration: 'underline' }
+                    }, 'View on Solscan')
+                ]),
+                { 
+                    id: toastId,
+                    style: {
+                        maxWidth: '90vw',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                    }
                 }
-            });
+            );
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (depositMint) {
                 await onTransactionSuccess(depositMint.toBase58());
@@ -424,14 +437,26 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             }
 
             console.log('Withdrawal successful!');
-            toast.success(`Withdrawal successful! Tx: ${txid.substring(0, 8)}...`, { 
-                id: toastId,
-                style: {
-                    maxWidth: '90vw',
-                    wordBreak: 'break-word',
-                    whiteSpace: 'pre-wrap'
+            toast.success(
+                React.createElement('div', null, [
+                    React.createElement('div', { key: 'message' }, 'Withdrawal successful!'),
+                    React.createElement('a', {
+                        key: 'link',
+                        href: `https://solscan.io/tx/${txid}?cluster=devnet`,
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                        style: { color: '#4CAF50', textDecoration: 'underline' }
+                    }, 'View on Solscan')
+                ]),
+                { 
+                    id: toastId,
+                    style: {
+                        maxWidth: '90vw',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                    }
                 }
-            });
+            );
             // --- ADDED: Trigger balance refresh and clear input --- 
             if (outputMint) {
                  await onTransactionSuccess(outputMint.toBase58());
