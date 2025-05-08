@@ -4,14 +4,10 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import { USD_SCALE } from '@/utils/constants';
 import { Buffer } from 'buffer';
 import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
 import {
     calculateWLqiValue,
-    decodePriceData,
-    formatScaledBnToDollarString,
-    estimateFeeBpsBN,
 } from '@/utils/calculations';
 import {
     DynamicTokenData,
@@ -27,6 +23,7 @@ import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { bytesToString } from '@/utils/helpers';
 import { useOracleData } from './useOracleData';
 import { createRateLimitedFetch } from '@/utils/hookUtils';
+import { processSingleToken } from '@/utils/singleTokenProcessing';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -62,6 +59,18 @@ export function usePoolData({
     const hasFetchedUserData = useRef(false);
     const [wLqiMint, setWLqiMint] = useState<PublicKey | null>(null);
 
+    const processTokenDataWithCache = useCallback((mintAddress: string, data: DynamicTokenData, tokenConfig: SupportedToken, oracleInfo: ParsedOracleTokenInfo | undefined, history: HistoricalTokenDataDecoded | null, currentTvlFromState: BN, calculatedWlqiValue: BN, wLqiDecimals: number, userBalance: BN | null) => {
+        return processSingleToken({
+            mintAddress,
+            data,
+            tokenConfig,
+            oracleInfo,
+            history,
+            currentTvlFromState,
+            userBalance
+        });
+    }, []);
+
     // Create rate limited fetch function
     const rateLimitedFetch = useMemo(() => createRateLimitedFetch(connection), [connection]);
 
@@ -70,6 +79,9 @@ export function usePoolData({
         connection,
         oracleAggregatorAddress: poolConfig?.oracleAggregatorAccount ?? null
     });
+
+    // --- Helper function for processing token data ---
+    // Removed unused processTokenData function since we're using processSingleToken from utils
 
     // --- Fetch Public Pool Data (Moved from Component) ---
     const fetchPublicPoolData = useCallback(async () => {
@@ -434,238 +446,86 @@ export function usePoolData({
         });
     }, [fetchPublicPoolData, fetchUserAccountData]);
 
-    // --- Effect to Calculate Derived Values (Moved from Component) ---
+    // --- Effect to Calculate Derived Values ---
     useEffect(() => {
-        // Update guard clause to ensure poolConfig exists
         if (!poolConfig || !dynamicData || dynamicData.size === 0 || !historicalData || historicalData.size === 0 || !oracleData || wLqiDecimals === null || !wLqiSupply) {
-            // console.log("usePoolData Hook: Skipping derived value calculation - data not ready");
             setWlqiValueScaled(null);
             return;
         }
 
-        // Also wait for user balances if they haven't been fetched yet after public data is ready
-        // This prevents processing with null user balances initially
         if (!hasFetchedUserData.current && wallet.connected) {
-            // console.log("usePoolData Hook: Skipping derived value calculation - user data not fetched yet.");
-             // Keep previous processed data if available, but don't calculate new until user data arrives
-             // setProcessedTokenData(null); // Optionally reset here too
-             return;
+            return;
         }
 
-        // console.log("usePoolData Hook: Calculating derived values...");
         try {
-            // REMOVED: let calculatedTvl = new BN(0);
             const oracleTokenMap = new Map<string, ParsedOracleTokenInfo>(oracleData.data.map(info => [info.address, info]));
-            const DOMINANCE_SCALE_FACTOR_BN = new BN(10).pow(new BN(10));
-            const USD_SCALE_FACTOR_BN = new BN(10).pow(new BN(USD_SCALE));
+            const currentTvlFromState = totalPoolValueScaled;
             
-            // Use TVL from state (which comes from poolConfig)
-            const currentTvlFromState = totalPoolValueScaled; // Use state which holds the config value
             if (currentTvlFromState === null) {
                 throw new Error("TVL from state is null, cannot calculate derived values.");
             }
 
-            // Calculate wLQI value using TVL from state/config
             const calculatedWlqiValue = calculateWLqiValue(currentTvlFromState, wLqiSupply, wLqiDecimals);
             setWlqiValueScaled(calculatedWlqiValue);
-            // console.log("usePoolData Hook: Calculated wLQI Value (using config TVL):", calculatedWlqiValue.toString());
 
-            const intermediateData = Array.from(dynamicData.entries()).map(([mintAddress, data]) => {
-                const tokenConfig = poolConfig.supportedTokens.find((st: SupportedToken) => st.mint?.toBase58() === mintAddress);
-                const oracleInfo = oracleTokenMap.get(mintAddress);
-                const history = historicalData.get(mintAddress);
+            const newProcessedData = Array.from(dynamicData.entries())
+                .map(([mintAddress, data]) => {
+                    const tokenConfig = poolConfig.supportedTokens.find((st: SupportedToken) => st.mint?.toBase58() === mintAddress);
+                    const oracleInfo = oracleTokenMap.get(mintAddress);
+                    const history = historicalData.get(mintAddress);
+                    const userBalance = userTokenBalances.get(mintAddress) ?? null;
 
-                if (!data.vaultBalance || data.decimals === null || !tokenConfig || history === undefined) {
-                    console.warn(`usePoolData Hook: Skipping intermediate processing for ${mintAddress}, base data missing.`);
-                    return null;
-                }
-
-                const priceData = data.priceFeedInfo ? decodePriceData(data.priceFeedInfo) : null;
-                // Price data might be null for delisted tokens, which is okay for TVL calculation (value is 0)
-                // Only warn if an *active* token is missing price data
-                if (!priceData && oracleInfo) {
-                    console.warn(`usePoolData Hook: Skipping value calculation for active token ${mintAddress}, missing price data.`);
-                    // Don't return null here, just calculate value as 0
-                }
-
-                // Calculate individual token value (still needed for display)
-                const tokenValueScaled = priceData ? data.vaultBalance
-                    .mul(priceData.price)
-                    .mul(USD_SCALE_FACTOR_BN)
-                    .div(new BN(10).pow(new BN(data.decimals - priceData.expo))) : new BN(0);
-
-                // REMOVED: calculatedTvl = calculatedTvl.add(tokenValueScaled);
-
-                return {
-                    mintAddress,
-                    data,
-                    tokenConfig,
-                    oracleInfo,
-                    history,
-                    priceData,
-                    tokenValueScaled,
-                };
-            }).filter(item => item !== null);
-
-            // --- Process Tokens --- 
-            const newProcessedData = intermediateData.map((item): ProcessedTokenData | null => {
-                const { mintAddress, data, tokenConfig, oracleInfo, history, priceData, tokenValueScaled } = item!;
-
-                const isDelisted = !oracleInfo;
-
-                // --- Symbol Determination --- 
-                let symbol: string;
-                if (history?.symbol && history.symbol.length > 0 && !history.symbol.includes('\0')) {
-                    symbol = history.symbol;
-                } else if (oracleInfo?.symbol && oracleInfo.symbol.length > 0 && !oracleInfo.symbol.includes('\0')) {
-                    symbol = oracleInfo.symbol;
-                } else {
-                    symbol = mintAddress.substring(0, 4) + '...';
-                }
-
-                // --- Target Dominance --- 
-                const targetDominanceBN = isDelisted ? new BN(0) : new BN(oracleInfo!.dominance); // Use BN from oracle data
-                const targetDominancePercent = isDelisted ? 0 : targetDominanceBN.mul(new BN(100 * 10000)).div(DOMINANCE_SCALE_FACTOR_BN).toNumber() / 10000;
-                const targetDominanceDisplay = isDelisted ? "0%" : `${targetDominancePercent.toFixed(4)}%`;
-
-                // --- Actual Dominance --- 
-                 // Use TVL from state/config for calculation
-                const actualDominancePercent = currentTvlFromState.isZero()
-                    ? 0
-                    : tokenValueScaled.mul(new BN(100 * 10000)).div(currentTvlFromState).toNumber() / 10000;
-
-                // --- Fee/Bonus BPS --- 
-                // Pass TVL from state/config to the estimator
-                const estimatedDepositFeeBpsBN = estimateFeeBpsBN(
-                    isDelisted,
-                    true, // isDeposit
-                    tokenValueScaled, // Use individual token value
-                    currentTvlFromState, // Pass TVL from state/config
-                    targetDominanceBN, // Use BN from oracle
-                    null, 
-                    calculatedWlqiValue, 
-                    wLqiDecimals, 
-                    undefined
-                );
-                const estimatedWithdrawFeeBpsBN = estimateFeeBpsBN(
-                    isDelisted,
-                    false, // isDeposit
-                    tokenValueScaled, // Use individual token value
-                    currentTvlFromState, // Pass TVL from state/config
-                    targetDominanceBN, // Use BN from oracle
-                    null, 
-                    calculatedWlqiValue, 
-                    wLqiDecimals, 
-                    undefined // Withdraw amount string not available here, estimate based on zero amount
-                );
-                
-                // --- Icon --- 
-                let icon = '@/public/tokens/unknown.png'; // Use a default unknown icon
-                if (symbol && !symbol.includes('...')) { 
-                    // Basic sanitization for filename
-                    const sanitizedSymbol = symbol.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    icon = `/tokens/${sanitizedSymbol}.png`;
-                }
-
-                return {
-                    mintAddress,
-                    symbol: symbol,
-                    icon: icon,
-                    poolValueUSD: formatScaledBnToDollarString(tokenValueScaled, USD_SCALE),
-                    actualDominancePercent: actualDominancePercent,
-                    targetDominance: targetDominanceBN,
-                    targetDominancePercent: targetDominancePercent,
-                    targetDominanceDisplay: targetDominanceDisplay,
-                    decimals: history?.decimals ?? data.decimals!,
-                    isDelisted: isDelisted,
-                    depositFeeOrBonusBps: estimatedDepositFeeBpsBN?.toNumber() ?? (isDelisted ? null : 10), // Example assignment
-                    withdrawFeeOrBonusBps: estimatedWithdrawFeeBpsBN?.toNumber() ?? (isDelisted ? -500 : 10), // Example assignment
-                    priceFeedId: tokenConfig!.priceFeed.toBase58(),
-                    vaultBalance: data.vaultBalance!,
-                    priceData: priceData!,
-                    userBalance: userTokenBalances.get(mintAddress) ?? null,
-                    timestamp: oracleInfo?.timestamp ?? '0', // Add timestamp from oracleInfo
-                };
-            }).filter((data): data is ProcessedTokenData => data !== null);
-
-            // --- Use Functional Update for ProcessedTokenData with Comparison --- 
-            setProcessedTokenData(prevProcessedTokenData => {
-                // --- DEFER UPDATE DURING REFRESH --- 
-                // If still loading public or user data, keep showing the previous state
-                // This prevents intermediate renders with inconsistent data during refresh
-                if (isLoadingPublicData || isLoadingUserData) {
-                    // console.log("usePoolData Hook: Deferring processedTokenData update (still refreshing)");
-                    return prevProcessedTokenData; 
-                }
-
-                // --- If not loading, proceed with comparison/update --- 
-                // NOTE: newProcessedData is calculated outside using current hook scope values
-                
-                // --- Compare with Previous State --- 
-                // 1. Handle initial run (this should only happen on first load now)
-                if (!prevProcessedTokenData) {
-                    // console.log(`usePoolData Hook: Updating state (first run - prev data null)`);
-                    return newProcessedData;
-                }
-
-                // 2. Handle length mismatch
-                if (prevProcessedTokenData.length !== newProcessedData.length) {
-                    // console.log(`usePoolData Hook: Updating state (length mismatch - prev: ${prevProcessedTokenData.length}, new: ${newProcessedData.length})`);
-                    return newProcessedData;
-                }
-                
-                // --- 3. Lengths match & prev state exists: Perform detailed comparison --- 
-                let changed = false;
-                let fieldChanged = 'none'; 
-                for (let i = 0; i < newProcessedData.length; i++) {
-                    // NOTE: Now TS knows prevProcessedTokenData is not null here
-                    const prevToken = prevProcessedTokenData[i]; 
-                    const newToken = newProcessedData[i];
-
-                    // Reset fieldChanged for each token comparison
-                    fieldChanged = 'none'; 
-                    // TODO: Refine comparison fields - include relevant ones like balances, values, fees
-                    if (prevToken.mintAddress !== newToken.mintAddress) fieldChanged = 'mintAddress';
-                    else if (!prevToken.vaultBalance?.eq(newToken.vaultBalance)) fieldChanged = 'vaultBalance'; // Compare vault balances
-                    // else if (prevToken.poolValueUSD !== newToken.poolValueUSD) fieldChanged = 'poolValueUSD'; // Compare formatted string (less ideal)
-                    else if (prevToken.actualDominancePercent !== newToken.actualDominancePercent) fieldChanged = 'actualDominancePercent';
-                    else if (!prevToken.targetDominance?.eq(newToken.targetDominance)) fieldChanged = 'targetDominance'; // Compare target BN
-                    else if (prevToken.isDelisted !== newToken.isDelisted) fieldChanged = 'isDelisted';
-                    else if (prevToken.depositFeeOrBonusBps !== newToken.depositFeeOrBonusBps) fieldChanged = 'depositFeeOrBonusBps';
-                    else if (prevToken.withdrawFeeOrBonusBps !== newToken.withdrawFeeOrBonusBps) fieldChanged = 'withdrawFeeOrBonusBps';
-                    else if (!prevToken.userBalance?.eq(newToken.userBalance ?? new BN(0))) fieldChanged = 'userBalance'; // Compare user balances (handle null)
-                    // Add price comparison if needed
-                    // else if (prevToken.priceData?.price?.toString() !== newToken.priceData?.price?.toString()) fieldChanged = 'price'; // Compare price BN as string
-                    
-                    if (fieldChanged !== 'none') 
-                    {
-                        // console.log(`usePoolData Hook: Change detected for ${newToken.symbol} (${newToken.mintAddress.substring(0,4)}) - Field: ${fieldChanged}`);
-                        changed = true;
-                        break; // Exit loop early if change found
+                    if (!tokenConfig || history === undefined) {
+                        return null;
                     }
+
+                    return processTokenDataWithCache(
+                        mintAddress,
+                        data,
+                        tokenConfig,
+                        oracleInfo,
+                        history,
+                        currentTvlFromState,
+                        calculatedWlqiValue,
+                        wLqiDecimals,
+                        userBalance
+                    );
+                })
+                .filter((data): data is ProcessedTokenData => data !== null);
+
+            setProcessedTokenData(prevProcessedTokenData => {
+                if (isLoadingPublicData || isLoadingUserData) {
+                    return prevProcessedTokenData;
                 }
 
-                // --- 4. Return based on comparison result (only if not loading) ---
-                if (changed) {
-                    // console.log("usePoolData Hook: Updating state (data changed - refresh complete)");
+                if (!prevProcessedTokenData || prevProcessedTokenData.length !== newProcessedData.length) {
                     return newProcessedData;
-                } else {
-                    // console.log("usePoolData Hook: Skipping state update (data unchanged - refresh complete)");
-                    return prevProcessedTokenData; // Return the old state reference
                 }
-            }); // End functional update
 
-            // console.log("usePoolData Hook: Processed Token Data:", newProcessedData); // Keep this outside if you want to see the calculated data always
+                const hasChanges = newProcessedData.some((newToken, i) => {
+                    const prevToken = prevProcessedTokenData[i];
+                    return (
+                        prevToken.mintAddress !== newToken.mintAddress ||
+                        !prevToken.vaultBalance?.eq(newToken.vaultBalance) ||
+                        prevToken.actualDominancePercent !== newToken.actualDominancePercent ||
+                        !prevToken.targetDominance?.eq(newToken.targetDominance) ||
+                        prevToken.isDelisted !== newToken.isDelisted ||
+                        prevToken.depositFeeOrBonusBps !== newToken.depositFeeOrBonusBps ||
+                        prevToken.withdrawFeeOrBonusBps !== newToken.withdrawFeeOrBonusBps ||
+                        !prevToken.userBalance?.eq(newToken.userBalance ?? new BN(0))
+                    );
+                });
+
+                return hasChanges ? newProcessedData : prevProcessedTokenData;
+            });
 
         } catch (e) {
             console.error("usePoolData Hook: Error calculating derived values:", e);
             setError("Failed to process pool data.");
             setProcessedTokenData(null);
-            // totalPoolValueScaled is set elsewhere
             setWlqiValueScaled(null);
         }
-        // Update dependencies: Add poolConfig, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData
-    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData]); // Removed hasFetchedUserData.current 
+    }, [poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, userTokenBalances, wallet.connected, totalPoolValueScaled, isLoadingPublicData, isLoadingUserData, processTokenDataWithCache]);
 
     // --- Effect for Initial Public Data Fetch ---
     useEffect(() => {

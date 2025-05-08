@@ -16,7 +16,8 @@ import {
     BN_DEPOSIT_MAX_FEE_BPS,
     BN_WITHDRAW_MAX_FEE_BPS,
     BN_DOMINANCE_SCALE,
-    PRECISION_SCALE_FACTOR
+    PRECISION_SCALE_FACTOR,
+    DELISTED_WITHDRAW_BONUS_BPS
 } from "./constants";
 import { formatUnits, parseUnits } from 'ethers';
 import { PoolConfig, DecodedPriceData, ProcessedTokenData } from '@/utils/types';
@@ -544,7 +545,7 @@ export const estimateFeeBpsBN = (
     // ... (Existing implementation as moved from TokenTable) ...
      // 1. Handle Delisted Tokens
     if (isDelisted) {
-        return isDeposit ? null : new BN(-500); // N/A for deposit, -500 BPS bonus for withdraw
+        return isDeposit ? null : new BN(DELISTED_WITHDRAW_BONUS_BPS); // N/A for deposit, bonus for withdraw
     }
 
     // 2. Check for invalid inputs for active tokens

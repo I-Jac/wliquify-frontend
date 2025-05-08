@@ -7,7 +7,11 @@ import {
     SupportedToken
 } from '@/utils/types';
 import { decodePriceData, formatScaledBnToDollarString } from '@/utils/calculations';
-import { USD_SCALE } from '@/utils/constants';
+import { 
+    USD_SCALE,
+    DELISTED_WITHDRAW_BONUS_BPS,
+    BASE_FEE_BPS
+} from '@/utils/constants';
 
 interface ProcessTokenDataParams {
     dynamicData: Map<string, DynamicTokenData>;
@@ -109,8 +113,8 @@ export function processTokenData({
             targetDominanceDisplay,
             decimals: history?.decimals ?? data.decimals!,
             isDelisted,
-            depositFeeOrBonusBps: isDelisted ? null : 10,
-            withdrawFeeOrBonusBps: isDelisted ? -500 : 10,
+            depositFeeOrBonusBps: isDelisted ? null : BASE_FEE_BPS,
+            withdrawFeeOrBonusBps: isDelisted ? DELISTED_WITHDRAW_BONUS_BPS : BASE_FEE_BPS,
             priceFeedId: tokenConfig!.priceFeed.toBase58(),
             vaultBalance: data.vaultBalance!,
             priceData: priceData!,
