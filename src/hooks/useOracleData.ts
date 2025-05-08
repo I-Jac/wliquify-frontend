@@ -26,8 +26,9 @@ export function useOracleData({ connection, oracleAggregatorAddress }: UseOracle
         try {
             const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
             if (!oracleAccountInfo) {
-                console.error(`useOracleData: Oracle Aggregator account (${oracleAggregatorAddress.toBase58()}) not found.`);
-                setError(prevError => prevError ? `${prevError}, Oracle account not found` : "Oracle account not found");
+                const errorMsg = `Oracle account (${oracleAggregatorAddress.toBase58()}) not found`;
+                console.error(`useOracleData: ${errorMsg}`);
+                setError(errorMsg);
                 setOracleData(null);
                 return;
             }
@@ -55,14 +56,14 @@ export function useOracleData({ connection, oracleAggregatorAddress }: UseOracle
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error("useOracleData: Error in fetchAndSetOracleData:", errorMessage);
-            setError(prevError => prevError ? `${prevError}, Failed to refresh oracle data: ${errorMessage}` : `Failed to refresh oracle data: ${errorMessage}`);
+            setError(errorMessage);
             
-            // Keep previous data on error
+            // Only clear oracle data if we don't have any
             if (!oracleData) {
                 setOracleData(null);
             }
         }
-    }, [connection, oracleAggregatorAddress]);
+    }, [connection, oracleAggregatorAddress, oracleData]);
 
     // Initial fetch and subscription setup
     useEffect(() => {

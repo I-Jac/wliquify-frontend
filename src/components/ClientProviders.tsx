@@ -22,6 +22,7 @@ import { RPC_URL } from '@/utils/constants'; // Import RPC URL
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext'; // Import SettingsProvider and hook
 import { SettingsModal } from '@/components/SettingsModal'; // Import SettingsModal
 import { Toaster } from 'react-hot-toast';
+import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import AnchorProgramProvider
 
 // Re-define WalletSection here as it uses client hooks
 const WalletSection = () => {
@@ -77,9 +78,11 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                     {/* Wrap SettingsProvider with QueryClientProvider */}
                     <QueryClientProvider client={queryClient}> 
                         <SettingsProvider>
-                            <WalletSection />
-                            {children}
-                            <Toaster position="bottom-center" />
+                            <AnchorProgramProvider>
+                                <WalletSection />
+                                {children}
+                                <Toaster position="bottom-center" />
+                            </AnchorProgramProvider>
                         </SettingsProvider>
                     </QueryClientProvider>
                 </WalletModalProvider>

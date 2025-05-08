@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptionUtils';
@@ -25,12 +25,20 @@ export function usePoolSubscriptions({
     refreshPublicData,
     refreshUserData
 }: UsePoolSubscriptionsProps) {
+    // Memoize the cleanup function to prevent unnecessary recreations
+    const cleanup = useCallback((connection: Connection, subscriptions: number[]) => {
+        if (subscriptions.length > 0) {
+            console.log('usePoolSubscriptions: Cleaning up subscriptions...');
+            cleanupSubscriptions(connection, subscriptions);
+        }
+    }, []);
 
     // --- Public Data Subscriptions (PoolConfig, Oracle, Vaults) ---
     useEffect(() => {
         if (!connection || !poolConfig || !poolConfigPda) {
             return;
         }
+
         console.log("usePoolSubscriptions: Setting up PoolConfig/Oracle/Vault subscriptions...");
         const subscriptions: number[] = [];
 
@@ -43,7 +51,7 @@ export function usePoolSubscriptions({
         );
         if (poolConfigSub) subscriptions.push(poolConfigSub);
 
-        // Subscribe to Oracle Aggregator changes
+        // Subscribe to Oracle Aggregator changes if valid
         if (poolConfig.oracleAggregatorAccount && !poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
             const oracleSub = setupSubscription(
                 connection,
@@ -56,7 +64,7 @@ export function usePoolSubscriptions({
 
         // Subscribe to Vault balance changes
         poolConfig.supportedTokens.forEach((token: SupportedToken) => {
-            if (token && token.vault && token.mint) {
+            if (token?.vault && token?.mint) {
                 const vaultSub = setupSubscription(
                     connection,
                     token.vault,
@@ -67,17 +75,15 @@ export function usePoolSubscriptions({
             }
         });
 
-        return () => {
-            console.log('usePoolSubscriptions: Cleaning up PoolConfig/Oracle/Vault subscriptions...');
-            cleanupSubscriptions(connection, subscriptions);
-        };
-    }, [connection, poolConfig, poolConfigPda, refreshPublicData]);
+        return () => cleanup(connection, subscriptions);
+    }, [connection, poolConfig, poolConfigPda, refreshPublicData, cleanup]);
 
     // --- User Account Subscriptions ---
     useEffect(() => {
-        if (!connection || !publicKey || !poolConfig || !poolConfig.wliMint) {
+        if (!connection || !publicKey || !poolConfig?.wliMint) {
             return;
         }
+
         console.log("usePoolSubscriptions: Setting up account subscriptions for user:", publicKey.toBase58());
         const subscriptionIds: number[] = [];
 
@@ -103,11 +109,8 @@ export function usePoolSubscriptions({
             }
         });
 
-        return () => {
-            console.log("usePoolSubscriptions: Cleaning up user account subscriptions...");
-            cleanupSubscriptions(connection, subscriptionIds);
-        };
-    }, [connection, publicKey, poolConfig, refreshUserData]);
+        return () => cleanup(connection, subscriptionIds);
+    }, [connection, publicKey, poolConfig, refreshUserData, cleanup]);
 
     // This hook doesn't return anything, it just sets up listeners
 } 

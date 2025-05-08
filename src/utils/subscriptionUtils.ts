@@ -29,7 +29,22 @@ export const cleanupSubscriptions = async (connection: Connection, subscriptionI
 };
 
 /**
- * Sets up a subscription for an account
+ * Throttles a function to limit execution rate
+ */
+const throttle = <T extends (...args: unknown[]) => void>(fn: T, limit: number) => {
+    let inThrottle = false;
+    
+    return function(this: unknown, ...args: Parameters<T>) {
+        if (!inThrottle) {
+            fn.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+};
+
+/**
+ * Sets up a subscription for an account with throttled callback
  */
 export const setupSubscription = (
     connection: Connection,
@@ -39,12 +54,16 @@ export const setupSubscription = (
 ): number | null => {
     try {
         console.log(`Setting up subscription for ${accountName} (${account.toBase58()})...`);
+        
+        // Throttle the callback to prevent rapid successive calls
+        const throttledCallback = throttle(() => {
+            console.log(`[${accountName}] Account changed, triggering refresh...`);
+            callback();
+        }, 500); // 500ms throttle time
+
         const subId = connection.onAccountChange(
             account,
-            () => {
-                console.log(`[${accountName}] Account changed, triggering refresh...`);
-                callback();
-            },
+            throttledCallback,
             'confirmed'
         );
         console.log(`Successfully subscribed to ${accountName} (ID: ${subId})`);
