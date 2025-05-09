@@ -253,7 +253,7 @@ export const formatFeeString = (estimatedBps: number, isDepositAction: boolean) 
 };
 
 export const formatDelistedWithdrawFeeString = () => {
-    const feeString = "(~5% Bonus)";
+    const feeString = "(5% Bonus)";
     const title = "Fixed bonus applied for delisted token withdrawal (5% bonus)";
     return { feeString, title };
 }; 

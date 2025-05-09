@@ -62,9 +62,10 @@ export const BN_DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR.toString()); // 
 export const DEFAULT_ICON = '/tokens/default.png';
 
 // Button Colors (Moved from TokenTable.tsx)
-export const BTN_GREEN = "bg-green-600 hover:bg-green-700";
-export const BTN_RED = "bg-red-600 hover:bg-red-700";
-export const BTN_GRAY = "bg-gray-500 hover:bg-gray-600 cursor-not-allowed"; // Neutral/disabled look
+export const BTN_GREEN = 'bg-green-600 hover:bg-green-700';
+export const BTN_RED = 'bg-red-600 hover:bg-red-700';
+export const BTN_GRAY = 'bg-gray-500 hover:bg-gray-600';
+export const BTN_DELISTED_WITHDRAW = 'bg-green-700 hover:bg-green-800'; // Darker green for delisted full withdraw
 
 // Rate limiting constants
 export const RATE_LIMIT_DELAY = 40; // Base delay in ms

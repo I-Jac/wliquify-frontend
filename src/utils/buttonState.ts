@@ -82,9 +82,15 @@ export const calculateButtonStates = ({
         depositLabel = `Deposit ${depositFeeString}`;
         depositTitle = depositTitleBase;
 
-        const { feeString: withdrawFeeString, title: withdrawTitleBase } = isDelisted ? formatDelistedWithdrawFeeString() : formatFeeString(estimatedWithdrawFeeBps, false);
-        withdrawLabel = `Withdraw ${withdrawFeeString}`;
-        withdrawTitle = withdrawTitleBase;
+        if (isDelisted) {
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString();
+            withdrawLabel = `Withdraw Amount ${withdrawFeeString}`;
+            withdrawTitle = withdrawTitleBase;
+        } else {
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false);
+            withdrawLabel = `Withdraw ${withdrawFeeString}`;
+            withdrawTitle = withdrawTitleBase;
+        }
     }
 
     // Apply overrides for insufficient balance/liquidity AFTER fee strings are calculated
