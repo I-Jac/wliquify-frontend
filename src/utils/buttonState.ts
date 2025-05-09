@@ -78,7 +78,7 @@ export const calculateButtonStates = ({
             }
         }
 
-        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true);
+        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true, isDepositInputFilled);
         depositLabel = `Deposit ${depositFeeString}`;
         depositTitle = depositTitleBase;
 
@@ -87,7 +87,7 @@ export const calculateButtonStates = ({
             withdrawLabel = `Withdraw Amount ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         } else {
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false);
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false, isWithdrawInputFilled);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         }
