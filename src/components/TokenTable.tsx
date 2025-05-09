@@ -14,6 +14,7 @@ import {
 import { SkeletonTokenTable } from './SkeletonTokenTable';
 import {
     PRECISION_SCALE_FACTOR,
+    BPS_SCALE,
 } from '@/utils/constants';
 import toast from 'react-hot-toast';
 
@@ -87,10 +88,14 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 ? calculateTokenValueUsdScaled(tokenItem.vaultBalance, tokenItem.decimals, tokenItem.priceData)
                 : null;
             const targetScaled = calculateTargetPercentageScaled(tokenItem.targetDominance, totalTargetDominance);
+            const actualPercent = tokenItem.actualDominancePercent !== null && tokenItem.actualDominancePercent !== undefined
+                ? new BN(Math.round(tokenItem.actualDominancePercent * BPS_SCALE))
+                : new BN(-1);
             return {
                 symbol: tokenItem.symbol,
                 value: tokenValueUsd ?? new BN(-1),
                 targetPercent: targetScaled,
+                actualPercent: actualPercent,
             };
         };
         dataToSort.sort((a, b) => {
@@ -101,6 +106,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 case 'symbol': compareResult = valuesA.symbol.localeCompare(valuesB.symbol); break;
                 case 'value': compareResult = valuesA.value.cmp(valuesB.value); break;
                 case 'targetPercent': compareResult = valuesA.targetPercent.cmp(valuesB.targetPercent); break;
+                case 'actualPercent': compareResult = valuesA.actualPercent.cmp(valuesB.actualPercent); break;
             }
             return sortDirection === 'asc' ? compareResult : -compareResult;
         });
@@ -258,7 +264,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         <tr><th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}
                         >Symbol{getSortIndicator('symbol')}</th><th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}
                         >Pool Balance{getSortIndicator('value')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}
-                        >Actual %{/*getSortIndicator('actualPercent')*/}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}
+                        >Actual %{getSortIndicator('actualPercent')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}
                         >Target %{getSortIndicator('targetPercent')}</th>
                             {!hideDepositColumn && (
                                 <th className="p-2 w-40 text-center">Deposit</th>
