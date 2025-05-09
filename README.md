@@ -9,7 +9,7 @@ npm install
 
 ```
 
-Then rundevelopment server:
+Then run development server:
 
 ```bash
 npm run dev

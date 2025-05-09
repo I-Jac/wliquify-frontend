@@ -91,7 +91,7 @@ export const calculateButtonStates = ({
         depositTitle = depositTitleBase;
 
         if (isDelisted) {
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString();
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString(isWithdrawInputFilled, withdrawInputValueUsd);
             withdrawLabel = `Withdraw Amount ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         } else {

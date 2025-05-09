@@ -17,6 +17,7 @@ import {
     BN_DOMINANCE_SCALE,
     PRECISION_SCALE_FACTOR,
     BPS_SCALE,
+    DELISTED_WITHDRAW_BONUS_BPS,
 } from '@/utils/constants';
 import { FeeCalculationProps } from '@/utils/types';
 
@@ -257,8 +258,21 @@ export const formatFeeString = (estimatedBps: number, isDepositAction: boolean, 
     return { feeString, title };
 };
 
-export const formatDelistedWithdrawFeeString = () => {
-    const feeString = "(5% Bonus)";
-    const title = "Fixed bonus applied for delisted token withdrawal (5% bonus)";
+export const formatDelistedWithdrawFeeString = (isInputFilled: boolean = false, inputValueUsd?: number) => {
+    const bonusBps = Math.abs(DELISTED_WITHDRAW_BONUS_BPS); // 500
+    const bonusPercentDisplay = (bonusBps / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    let feeStringDetails = `${bonusPercentDisplay}% Bonus`;
+    const titleMain = `Fixed ${bonusPercentDisplay}% bonus applied for delisted token withdrawal`;
+    let titleBonusDetails = '';
+
+    if (isInputFilled && inputValueUsd && inputValueUsd > 0) {
+        const bonusAmount = (inputValueUsd * bonusBps / BPS_SCALE).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        feeStringDetails += ` = +$${bonusAmount}`;
+        titleBonusDetails = ` (Est. Bonus: +$${bonusAmount})`;
+    }
+
+    const feeString = `(${feeStringDetails})`;
+    const title = `${titleMain}${titleBonusDetails}`;
     return { feeString, title };
 }; 

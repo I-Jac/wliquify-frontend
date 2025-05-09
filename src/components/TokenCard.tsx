@@ -17,7 +17,8 @@ import {
     USD_SCALE,
     BTN_GRAY,
     BPS_SCALE,
-    BTN_DELISTED_WITHDRAW
+    BTN_DELISTED_WITHDRAW,
+    DELISTED_WITHDRAW_BONUS_BPS,
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
 import { TokenRowProps } from './TokenRow'; // Import TokenRowProps to base TokenCardProps on it
@@ -143,10 +144,16 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     let requiredWlqiForDelistedBn: BN | null = null;
     let requiredWlqiForDelistedFormatted: string | null = null;
     let userHasEnoughForDelisted = false;
+    let delistedFullWithdrawBonusAmountString: string | null = null;
+
     if (isDelisted && vaultBalance && !vaultBalance.isZero() && decimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
         try {
             const T_usd_scaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
             if (T_usd_scaled && T_usd_scaled.gtn(0)) {
+                const vaultBalanceUsd = T_usd_scaled.toNumber() / Math.pow(10, USD_SCALE);
+                const bonusAmount = vaultBalanceUsd * (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE);
+                delistedFullWithdrawBonusAmountString = bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
                 const bonusNumerator = new BN(100);
                 const bonusDenominator = new BN(105);
                 const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
@@ -162,6 +169,7 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
             requiredWlqiForDelistedBn = null;
             requiredWlqiForDelistedFormatted = null;
             userHasEnoughForDelisted = false;
+            delistedFullWithdrawBonusAmountString = null;
         }
     }
 
@@ -252,7 +260,18 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
                 <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
                 {isDelisted && (
                     <div className="mt-2">
-                        <button onClick={handleFullDelistedWithdraw} disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${!userHasEnoughForDelisted ? BTN_GRAY : BTN_DELISTED_WITHDRAW} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`} title={actionDisabled ? "..." : (!vaultBalance || vaultBalance.isZero()) ? `Pool vault empty.` : !requiredWlqiForDelistedFormatted ? "Calc error." : !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted}` : `Withdraw entire ${symbol} balance with 5% bonus. Requires ~${requiredWlqiForDelistedFormatted} wLQI.`}>{actionDisabled ? (isWithdrawing ? 'Withdrawing...' : '...') : (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" : !userHasEnoughForDelisted ? "Insufficient wLQI" : `Withdraw Full Balance (5% Bonus)`}</button>
+                        <button onClick={handleFullDelistedWithdraw} disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${!userHasEnoughForDelisted ? BTN_GRAY : BTN_DELISTED_WITHDRAW} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`} 
+                            title={actionDisabled ? "..." : 
+                                   (!vaultBalance || vaultBalance.isZero()) ? `Pool vault empty.` : 
+                                   !requiredWlqiForDelistedFormatted ? "Calc error." : 
+                                   !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted}` : 
+                                   `Withdraw entire ${symbol} balance with 5% bonus${delistedFullWithdrawBonusAmountString ? ` (Est. Bonus: +$${delistedFullWithdrawBonusAmountString})` : ''}. Requires ~${requiredWlqiForDelistedFormatted} wLQI.`}
+                        >
+                            {actionDisabled ? (isWithdrawing ? 'Withdrawing...' : '...') : 
+                             (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" : 
+                             !userHasEnoughForDelisted ? "Insufficient wLQI" : 
+                             `Withdraw Full Balance (5% Bonus${delistedFullWithdrawBonusAmountString ? ` = +$${delistedFullWithdrawBonusAmountString}` : ''})`}
+                        </button>
                     </div>
                 )}
             </div>
