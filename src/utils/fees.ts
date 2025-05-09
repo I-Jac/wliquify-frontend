@@ -220,33 +220,38 @@ export const calculateFees = ({
 };
 
 // --- Fee Formatting Functions ---
-export const formatFeeString = (estimatedBps: number, isDepositAction: boolean, isInputFilled: boolean = false) => {
+export const formatFeeString = (estimatedBps: number, isDepositAction: boolean, isInputFilled: boolean = false, inputValueUsd?: number) => {
     let feeString: string;
     let title: string;
     if (isDepositAction) {
         if (estimatedBps < 0) {
             const bonusPercent = (Math.abs(estimatedBps) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            feeString = `(${isInputFilled ? '~' : 'max '}${bonusPercent}% Bonus)`;
-            title = isInputFilled ? `Est. Bonus: ~${bonusPercent}%` : `Up to ${bonusPercent}% bonus`;
+            const bonusAmount = inputValueUsd ? (inputValueUsd * Math.abs(estimatedBps) / BPS_SCALE).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+            feeString = `(${isInputFilled ? `~${bonusPercent}% Bonus${bonusAmount ? ` = +$${bonusAmount}` : ''}` : `max ${bonusPercent}% Bonus`})`;
+            title = isInputFilled ? `Est. Bonus: ~${bonusPercent}%${bonusAmount ? ` (+$${bonusAmount})` : ''}` : `Up to ${bonusPercent}% bonus`;
         } else if (estimatedBps === 0) {
             feeString = `(0.00%)`;
             title = "Est. Total Fee: 0.00%";
         } else {
             const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            feeString = `(${isInputFilled ? '~' : 'min '}${displayPercent}% Fee)`;
-            title = isInputFilled ? `Est. Total Fee: ~${displayPercent}%` : `Minimum ${displayPercent}% fee`;
+            const feeAmount = inputValueUsd ? (inputValueUsd * estimatedBps / BPS_SCALE).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+            feeString = `(${isInputFilled ? `~${displayPercent}% Fee${feeAmount ? ` = -$${feeAmount}` : ''}` : `min ${displayPercent}% Fee`})`;
+            title = isInputFilled ? `Est. Total Fee: ~${displayPercent}%${feeAmount ? ` (-$${feeAmount})` : ''}` : `Minimum ${displayPercent}% fee`;
         }
     } else {
-        if (estimatedBps === 0) {
+        if (estimatedBps < 0) {
+            const bonusPercent = (Math.abs(estimatedBps) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const bonusAmount = inputValueUsd ? (inputValueUsd * Math.abs(estimatedBps) / BPS_SCALE).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+            feeString = `(${isInputFilled ? `~${bonusPercent}% Bonus${bonusAmount ? ` = +$${bonusAmount}` : ''}` : `max ${bonusPercent}% Bonus`})`;
+            title = isInputFilled ? `Est. Bonus: ~${bonusPercent}%${bonusAmount ? ` (+$${bonusAmount})` : ''}` : `Up to ${bonusPercent}% bonus`;
+        } else if (estimatedBps === 0) {
             feeString = "(0.00%)";
             title = "Minimum fee applied (0.00%)";
-        } else if (estimatedBps > 0) {
-            const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            feeString = `(${isInputFilled ? '~' : 'min '}${displayPercent}% Fee)`;
-            title = isInputFilled ? `Est. Total Fee: ~${displayPercent}%` : `Minimum ${displayPercent}% fee`;
         } else {
-            feeString = "(Fee Error)";
-            title = "Error estimating fee";
+            const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const feeAmount = inputValueUsd ? (inputValueUsd * estimatedBps / BPS_SCALE).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+            feeString = `(${isInputFilled ? `~${displayPercent}% Fee${feeAmount ? ` = -$${feeAmount}` : ''}` : `min ${displayPercent}% Fee`})`;
+            title = isInputFilled ? `Est. Total Fee: ~${displayPercent}%${feeAmount ? ` (-$${feeAmount})` : ''}` : `Minimum ${displayPercent}% fee`;
         }
     }
     return { feeString, title };

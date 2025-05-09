@@ -60,13 +60,13 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                 displayInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
             } else if (!isDeposit && wLqiDecimals !== null && wLqiValueScaled) {
                 const inputWlqiAmountBn = new BN(parseUnits(currentAmount, wLqiDecimals).toString());
-                const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
-                if (!scaleFactorWlqi.isZero()) {
-                    const inputUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
-                    displayInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
-                }
+                const inputUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)));
+                displayInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
             }
-        } catch { displayInputUsdValue = '$ Invalid'; }
+        } catch (e) {
+            console.warn("Error calculating input USD value:", e);
+            displayInputUsdValue = '$ Invalid';
+        }
     } else if (currentAmount === '' || currentAmount === '0') {
         displayInputUsdValue = '$ 0.00';
     }

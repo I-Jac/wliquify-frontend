@@ -16,6 +16,8 @@ interface ButtonStateProps {
     symbol: string;
     estimatedDepositFeeBps: number;
     estimatedWithdrawFeeBps: number;
+    depositInputValueUsd?: number;
+    withdrawInputValueUsd?: number;
 }
 
 interface ButtonState {
@@ -43,6 +45,8 @@ export const calculateButtonStates = ({
     symbol,
     estimatedDepositFeeBps,
     estimatedWithdrawFeeBps,
+    depositInputValueUsd,
+    withdrawInputValueUsd,
 }: ButtonStateProps): ButtonState => {
     // Initialize default states
     let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted || depositInsufficientBalance;
@@ -73,12 +77,16 @@ export const calculateButtonStates = ({
                 withdrawBtnClass = BTN_GREEN; // Delisted withdraw always shows green if possible
             } else if (estimatedWithdrawFeeBps === 0) {
                 withdrawBtnClass = BTN_GREEN;
-            } else if (estimatedWithdrawFeeBps > 0) {
+            } else if (estimatedWithdrawFeeBps > 0) { // Note: This could be < 0 for a bonus
                 withdrawBtnClass = BTN_RED;
+            }
+            // If estimatedWithdrawFeeBps < 0 (bonus), it should be green
+            else if (estimatedWithdrawFeeBps < 0) { 
+                withdrawBtnClass = BTN_GREEN;
             }
         }
 
-        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true, isDepositInputFilled);
+        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true, isDepositInputFilled, depositInputValueUsd);
         depositLabel = `Deposit ${depositFeeString}`;
         depositTitle = depositTitleBase;
 
@@ -87,7 +95,7 @@ export const calculateButtonStates = ({
             withdrawLabel = `Withdraw Amount ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         } else {
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false, isWithdrawInputFilled);
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false, isWithdrawInputFilled, withdrawInputValueUsd);
             withdrawLabel = `Withdraw ${withdrawFeeString}`;
             withdrawTitle = withdrawTitleBase;
         }

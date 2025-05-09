@@ -146,6 +146,10 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
         symbol,
         estimatedDepositFeeBps,
         estimatedWithdrawFeeBps,
+        depositInputValueUsd: isDepositInputFilled && decimals !== null && priceData ?
+            calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData).toNumber() / Math.pow(10, USD_SCALE) : undefined,
+        withdrawInputValueUsd: isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled ?
+            new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals))).toNumber() / Math.pow(10, USD_SCALE) : undefined,
     });
 
     const {
