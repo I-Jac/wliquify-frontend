@@ -194,13 +194,46 @@ export function usePoolData({
                 });
             });
 
-            // Fetch all accounts at once with retry
-            const publicAccountsInfo = await rateLimitedFetch(
-                () => connection.getMultipleAccountsInfo(publicAddressesToFetch),
-                "Failed to fetch public accounts"
-            );
+            // --- Batch fetch all public accounts --- 
+            const ACCOUNTS_BATCH_SIZE = 99; // Max accounts per getMultipleAccountsInfo call, under the typical limit of 100
+            let allFetchedAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
+            const batchPromises = [];
 
-            // Process fetched accounts
+            for (let i = 0; i < publicAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
+                const batch = publicAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
+                if (batch.length > 0) {
+                    batchPromises.push(
+                        rateLimitedFetch(
+                            () => connection.getMultipleAccountsInfo(batch),
+                            `Failed to fetch batch of public accounts (offset ${i})`
+                        )
+                    );
+                }
+            }
+
+            try {
+                const resultsFromBatches = await Promise.all(batchPromises);
+                resultsFromBatches.forEach(batchResult => {
+                    if (batchResult) { // batchResult itself could be null if rateLimitedFetch can return null for a whole batch
+                        allFetchedAccountsInfo = allFetchedAccountsInfo.concat(batchResult);
+                    }
+                });
+            } catch (batchError) {
+                console.error("usePoolData Hook: Error fetching one or more account batches:", batchError);
+                const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
+                setError(`Failed to fetch all public account details due to batching error: ${errorMessage}`);
+                setIsLoadingPublicData(false);
+                // Potentially set other states to null/empty if data is unusable
+                setPoolConfig(null);
+                setWlqiSupply(null);
+                setDynamicData(new Map());
+                setHistoricalData(new Map());
+                setPoolConfigPda(null);
+                return; // Exit if critical batch fetching fails
+            }
+            // END Batch fetch --- 
+
+            // Process fetched accounts (now using allFetchedAccountsInfo)
             const initialDynamicData = new Map<string, DynamicTokenData>();
             const initialHistoricalData = new Map<string, HistoricalTokenDataDecoded | null>();
             let processingError = false;
@@ -217,9 +250,9 @@ export function usePoolData({
                     return;
                 }
 
-                const vaultInfo = publicAccountsInfo[info.vaultIndex];
-                const priceFeedInfo = info.priceFeedIndex !== undefined ? publicAccountsInfo[info.priceFeedIndex] : null;
-                const historyInfo = publicAccountsInfo[info.historyPdaIndex];
+                const vaultInfo = allFetchedAccountsInfo[info.vaultIndex];
+                const priceFeedInfo = info.priceFeedIndex !== undefined ? allFetchedAccountsInfo[info.priceFeedIndex] : null;
+                const historyInfo = allFetchedAccountsInfo[info.historyPdaIndex];
 
                 // Store Dynamic Data
                 initialDynamicData.set(mintAddress, {
@@ -307,19 +340,53 @@ export function usePoolData({
                 }
             });
 
-            // console.log("usePoolData Hook: Fetching multiple user accounts:", userAddressesToFetch.length);
-            const userAccountsInfo = await connection.getMultipleAccountsInfo(userAddressesToFetch);
+            // --- Batch fetch all user accounts ---
+            const ACCOUNTS_BATCH_SIZE = 99;
+            let allUserAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
+            const userAccountBatchPromises = [];
 
-            // Process wLQI balance
-            const userWlqiInfo = userAccountsInfo[0];
+            if (userAddressesToFetch.length > 0) { // Only proceed if there are addresses to fetch
+                for (let i = 0; i < userAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
+                    const batch = userAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
+                    if (batch.length > 0) {
+                        userAccountBatchPromises.push(
+                            rateLimitedFetch(
+                                () => connection.getMultipleAccountsInfo(batch),
+                                `Failed to fetch batch of user accounts (offset ${i})`
+                            )
+                        );
+                    }
+                }
+
+                try {
+                    const resultsFromUserBatches = await Promise.all(userAccountBatchPromises);
+                    resultsFromUserBatches.forEach(batchResult => {
+                        if (batchResult) {
+                            allUserAccountsInfo = allUserAccountsInfo.concat(batchResult);
+                        }
+                    });
+                } catch (batchError) {
+                    console.error("usePoolData Hook: Error fetching one or more user account batches:", batchError);
+                    const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
+                    setError(`Failed to load user account data due to batching error: ${errorMessage}`);
+                    setUserWlqiBalance(null);
+                    setUserTokenBalances(new Map());
+                    setIsLoadingUserData(false);
+                    return; // Exit if critical batch fetching fails
+                }
+            } else {
+                allUserAccountsInfo = [];
+            }
+            // END Batch fetch ---
+
+            const userWlqiInfo = allUserAccountsInfo[0];
             const newWlqiBalance = userWlqiInfo ? decodeTokenAccountAmountBN(userWlqiInfo.data) : new BN(0);
             setUserWlqiBalance(newWlqiBalance);
-            // console.log("usePoolData Hook: User wLQI Balance set:", newWlqiBalance.toString());
 
-            // Process other token balances
             const newUserTokenBalancesMap = new Map<string, BN | null>();
-            userAccountsInfo.slice(1).forEach((accInfo, index) => {
-                const mapKey = (index + 1).toString();
+            const otherTokenAccountsInfo = allUserAccountsInfo.length > 1 ? allUserAccountsInfo.slice(1) : [];
+            otherTokenAccountsInfo.forEach((accInfo, index) => {
+                const mapKey = (index + 1).toString(); 
                 const mint = tokenMintMapForUserFetch.get(mapKey);
                 if (mint) {
                     const mintAddressStr = mint.toBase58();
@@ -330,21 +397,17 @@ export function usePoolData({
                 }
             });
             setUserTokenBalances(newUserTokenBalancesMap);
-            // console.log("usePoolData Hook: User Token Balances set:", newUserTokenBalancesMap);
-
             hasFetchedUserData.current = true;
-            // console.log("usePoolData Hook: [fetchUserAccountData] Set hasFetchedUserData flag to true.");
-
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error("usePoolData Hook: Error fetching user account data:", errorMessage);
-            setError(`Failed to load user account data: ${errorMessage}`); // Set specific error
+            setError(`Failed to load user account data: ${errorMessage}`);
             setUserWlqiBalance(null);
             setUserTokenBalances(new Map());
         } finally {
             setIsLoadingUserData(false);
         }
-    }, [wallet.connected, wallet.publicKey, connection, poolConfig]); // Dependencies for user data fetch
+    }, [wallet.connected, wallet.publicKey, connection, poolConfig, rateLimitedFetch]); // Explicitly including rateLimitedFetch
 
     // --- NEW: Targeted function to fetch only oracle data ---
     const fetchAndSetOracleData = useCallback(async () => {

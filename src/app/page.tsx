@@ -2,28 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
-// import { TokenTable } from "../components/TokenTable"; // Removed
 import { usePoolData } from '@/hooks/usePoolData';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
-// import { usePoolInteractions } from '../hooks/usePoolInteractions'; // Removed
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-// import { useSearchParams } from 'next/navigation'
 
 export default function Home() {
-  // const searchParams = useSearchParams()
-  // const ref = searchParams.get('ref'); // Removed
 
   const { program, provider, readOnlyProvider } = useAnchorProgram();
   const wallet = useWallet();
   const { connection } = useConnection();
-
-  // const [depositAmounts, setDepositAmounts] = useState<Record<string, string>>({}); // Removed
-  // const [withdrawAmounts, setWithdrawAmounts] = useState<Record<string, string>>({}); // Removed
-
-  // const handleAmountChange = (mintAddress: string, action: 'deposit' | 'withdraw', amount: string) => { // Removed
-  //   const setter = action === 'deposit' ? setDepositAmounts : setWithdrawAmounts;
-  //   setter(prev => ({ ...prev, [mintAddress]: amount }));
-  // };
 
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
   const devToolsRef = useRef<HTMLDivElement>(null);
@@ -57,31 +44,6 @@ export default function Home() {
     error: poolDataError,
     refreshAllData,
   } = usePoolData({ program, provider, readOnlyProvider, connection, wallet });
-
-  // const onTransactionSuccess = useCallback(async (affectedMintAddress?: string) => { // Removed
-  //   console.log("Transaction success, refreshing data. Affected mint:", affectedMintAddress);
-  //   toast.success('Transaction confirmed!');
-  //   refreshAllData();
-  // }, [refreshAllData]);
-
-  // const onClearInput = useCallback((mintAddress: string) => { // Removed
-  //   setDepositAmounts(prev => ({ ...prev, [mintAddress]: '' }));
-  //   setWithdrawAmounts(prev => ({ ...prev, [mintAddress]: '' }));
-  // }, []);
-
-  // const { // Removed
-  //   handleDeposit,
-  //   handleWithdraw,
-  //   isDepositing,
-  //   isWithdrawing,
-  // } = usePoolInteractions({ 
-  //   program,
-  //   poolConfig,
-  //   poolConfigPda,
-  //   oracleData,
-  //   onTransactionSuccess,
-  //   // onClearInput, // This would also be removed if onClearInput is removed
-  // });
 
   const openTokenFaucet = () => {
     window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
@@ -157,22 +119,7 @@ export default function Home() {
           error={poolDataError}
           refreshAllData={refreshAllData}
         />
-        {/* <TokenTable 
-          tokenData={processedTokenData} 
-          totalPoolValueScaled={totalPoolValueScaled}
-          wLqiValueScaled={wLqiValueScaled}
-          wLqiDecimals={wLqiDecimals}
-          userWlqiBalance={userWlqiBalance}
-          depositAmounts={depositAmounts}
-          withdrawAmounts={withdrawAmounts}
-          handleAmountChange={handleAmountChange}
-          onDeposit={handleDeposit}
-          onWithdraw={handleWithdraw}
-          isDepositing={isDepositing}
-          isWithdrawing={isWithdrawing}
-          isLoadingPublicData={isLoadingPublicData}
-          isLoadingUserData={isLoadingUserData}
-        /> */}
+        {/* Commented out TokenTable removed */}
       </main>
     </div>
   );
