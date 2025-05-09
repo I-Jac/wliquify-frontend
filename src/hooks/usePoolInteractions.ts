@@ -20,7 +20,6 @@ import {
     TOKEN_PROGRAM_ID, 
     ASSOCIATED_TOKEN_PROGRAM_ID, 
     getAssociatedTokenAddressSync, 
-    getMint, 
     createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 import { parseUnits } from 'ethers'; // Or your preferred BN library
@@ -37,6 +36,7 @@ interface UsePoolInteractionsProps {
     poolConfig: PoolConfig | null;
     poolConfigPda: PublicKey | null; // Address of the PoolConfig account
     oracleData: { data: { address: string; priceFeedId: string }[] } | null;
+    wLqiDecimals: number | null; // ADDED: To pass wLQI decimals
     onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>;
     onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
 }
@@ -368,7 +368,7 @@ const handleTransactionErrorAndCleanup = async (
     setIsLoading(false);
 };
 
-export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, onTransactionSuccess, onClearInput }: UsePoolInteractionsProps) {
+export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracleData, wLqiDecimals, onTransactionSuccess, onClearInput }: UsePoolInteractionsProps) {
     const { connection } = useConnection();
     const wallet = useWallet();
     const { publicKey, signTransaction } = wallet;
@@ -514,9 +514,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
     const handleWithdraw = useCallback(async (
         outputMintAddress: string, // Mint address of the token the user WANTS to receive
         wliAmountString: string,   // Amount of wLQI the user wants to BURN (or "0" for full delisted)
-        // decimals: number | null // REMOVED - wLQI decimals are fetched from poolConfig
         isFullDelistedWithdraw: boolean = false, // ADDED: Flag for new mode
-        // Removed erroneous oracleData parameter
     ) => {
         if (!validateSignTransaction(signTransaction as ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined)) {
             return;
@@ -547,14 +545,14 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
 
         try {
             outputMint = new PublicKey(outputMintAddress);
-            // FIX: Fetch wLQI decimals using getMint
-            const wliMintInfo = await getMint(connection, validPoolConfig.wliMint);
-            const wliDecimals = wliMintInfo.decimals;
-            if (typeof wliDecimals !== 'number') { // Add check after fetching
-                toast.error("Could not determine wLQI decimals.");
-                throw new Error('wLQI decimals not found');
+
+            // Use wLqiDecimals from props
+            if (wLqiDecimals === null) {
+                toast.error("wLQI decimals not available for withdrawal processing.");
+                setIsWithdrawing(false); // Ensure loading state is reset
+                return;
             }
-            const wliAmountBn = isFullDelistedWithdraw ? new BN(0) : new BN(parseUnits(wliAmountString, wliDecimals).toString());
+            const wliAmountBn = isFullDelistedWithdraw ? new BN(0) : new BN(parseUnits(wliAmountString, wLqiDecimals).toString());
 
             // --- Find the specific token info for the OUTPUT mint ---
             const outputTokenInfo = validPoolConfig.supportedTokens.find(st => st.mint.equals(outputMint!));
@@ -656,7 +654,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsWithdrawing
             );
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput]); // Replaced wallet with publicKey, signTransaction
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, wLqiDecimals]); // Replaced wallet with publicKey, signTransaction, ADDED wLqiDecimals
 
     return {
         handleDeposit,

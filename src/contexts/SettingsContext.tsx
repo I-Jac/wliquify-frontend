@@ -2,23 +2,14 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Connection } from '@solana/web3.js';
-
-// Fee Level Definitions
-export type FeeLevel = 'Normal' | 'Fast' | 'Turbo' | 'Custom';
-
-// Default values
-const DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
-const DEFAULT_CUSTOM_PRIORITY_FEE = 10000; // Default custom microLamports if custom is selected but no value set
-const DEFAULT_FEE_LEVEL: FeeLevel = 'Normal';
-//const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
-const DEFAULT_RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
-
-// Placeholder dynamic fees - will be updated by fetchDynamicFees
-const DEFAULT_DYNAMIC_FEES = {
-    Normal: 1000,    // Example low fee
-    Fast: 10000,   // Example medium fee
-    Turbo: 50000   // Example high fee
-};
+import { FeeLevel } from '@/utils/types'; // Import FeeLevel type
+import {
+    RPC_URL, // Import RPC_URL
+    SETTINGS_DEFAULT_SLIPPAGE_BPS,
+    SETTINGS_DEFAULT_CUSTOM_PRIORITY_FEE,
+    SETTINGS_DEFAULT_FEE_LEVEL,
+    SETTINGS_DEFAULT_DYNAMIC_FEES
+} from '@/utils/constants'; // Import new constants
 
 interface DynamicFeeLevels {
     Normal: number;
@@ -47,11 +38,11 @@ const SettingsContext = createContext<SettingsContextProps | undefined>(undefine
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    const [feeLevel, setFeeLevelState] = useState<FeeLevel>(DEFAULT_FEE_LEVEL);
-    const [customPriorityFee, setCustomPriorityFeeState] = useState<number>(DEFAULT_CUSTOM_PRIORITY_FEE);
-    const [dynamicFees, setDynamicFees] = useState<DynamicFeeLevels>(DEFAULT_DYNAMIC_FEES);
-    const [slippageBps, setSlippageBpsState] = useState<number>(DEFAULT_SLIPPAGE_BPS);
-    const [rpcEndpoint, setRpcEndpointState] = useState<string>(DEFAULT_RPC_ENDPOINT);
+    const [feeLevel, setFeeLevelState] = useState<FeeLevel>(SETTINGS_DEFAULT_FEE_LEVEL);
+    const [customPriorityFee, setCustomPriorityFeeState] = useState<number>(SETTINGS_DEFAULT_CUSTOM_PRIORITY_FEE);
+    const [dynamicFees, setDynamicFees] = useState<DynamicFeeLevels>(SETTINGS_DEFAULT_DYNAMIC_FEES);
+    const [slippageBps, setSlippageBpsState] = useState<number>(SETTINGS_DEFAULT_SLIPPAGE_BPS);
+    const [rpcEndpoint, setRpcEndpointState] = useState<string>(RPC_URL); // Use RPC_URL from constants
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Load settings from localStorage on mount
@@ -84,7 +75,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             
             if (fees.length === 0) {
                 console.warn("No recent prioritization fees found. Using default dynamic fees.");
-                setDynamicFees(DEFAULT_DYNAMIC_FEES);
+                setDynamicFees(SETTINGS_DEFAULT_DYNAMIC_FEES); // Use imported constant
                 return; 
             }
 
@@ -97,9 +88,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             const p95Index = Math.min(Math.floor(fees.length * 0.95), fees.length - 1); // Ensure index is valid
 
             const newDynamicFees = {
-                Normal: fees[p50Index]?.prioritizationFee || DEFAULT_DYNAMIC_FEES.Normal,
-                Fast: fees[p75Index]?.prioritizationFee || DEFAULT_DYNAMIC_FEES.Fast,
-                Turbo: fees[p95Index]?.prioritizationFee || DEFAULT_DYNAMIC_FEES.Turbo,
+                Normal: fees[p50Index]?.prioritizationFee || SETTINGS_DEFAULT_DYNAMIC_FEES.Normal, // Use imported constant
+                Fast: fees[p75Index]?.prioritizationFee || SETTINGS_DEFAULT_DYNAMIC_FEES.Fast, // Use imported constant
+                Turbo: fees[p95Index]?.prioritizationFee || SETTINGS_DEFAULT_DYNAMIC_FEES.Turbo, // Use imported constant
             };
 
             console.log("Calculated Dynamic Fees:", newDynamicFees);
@@ -108,7 +99,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (error) {
             console.error("Failed to fetch or process dynamic priority fees:", error);
             // Fallback to defaults on error
-            setDynamicFees(DEFAULT_DYNAMIC_FEES);
+            setDynamicFees(SETTINGS_DEFAULT_DYNAMIC_FEES); // Use imported constant
         }
     }, []);
 
@@ -166,7 +157,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (feeLevel === 'Custom') {
             return customPriorityFee;
         }
-        return dynamicFees[feeLevel] || DEFAULT_DYNAMIC_FEES[feeLevel];
+        return dynamicFees[feeLevel] || SETTINGS_DEFAULT_DYNAMIC_FEES[feeLevel]; // Use imported constant
     }, [feeLevel, customPriorityFee, dynamicFees]);
 
     const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);

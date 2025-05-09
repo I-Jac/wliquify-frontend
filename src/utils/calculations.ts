@@ -385,14 +385,8 @@ export const calculatePoolMetrics = (
         }
 
         try {
-            const scaleFactor = new BN(10).pow(new BN(USD_SCALE));
-            // Use priceInfo.expo, not priceInfo.price.expo
-            const denominatorPower = decimals - priceInfo!.expo; // Add assertion for priceInfo
-            if (denominatorPower < 0) throw new Error("Negative denominator power");
-            const denominator = new BN(10).pow(new BN(denominatorPower));
-            if (denominator.isZero()) throw new Error("Denominator is zero");
-
-            const valueScaled = vaultBalance!.mul(priceInfo!.price).mul(scaleFactor).div(denominator);
+            // Use calculateTokenValueUsdScaled for consistency
+            const valueScaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceInfo);
             calculatedTotalValueUsdScaled = calculatedTotalValueUsdScaled.add(valueScaled);
 
             tokenMetrics.push({
@@ -434,14 +428,8 @@ export const calculatePoolMetrics = (
 
         if (tokenData && decimals !== null && vaultBalance !== null && priceInfo !== null) {
              try {
-                const scaleFactor = new BN(10).pow(new BN(USD_SCALE));
-                // Use priceInfo.expo and add assertion for decimals
-                const denominatorPower = decimals! - priceInfo!.expo; 
-                if (denominatorPower < 0) throw new Error("Negative denominator power");
-                const denominator = new BN(10).pow(new BN(denominatorPower));
-                if (denominator.isZero()) throw new Error("Denominator is zero");
-
-                const valueScaled = vaultBalance!.mul(priceInfo!.price).mul(scaleFactor).div(denominator);
+                // Use calculateTokenValueUsdScaled for consistency, asserting decimals and priceInfo are not null/undefined
+                const valueScaled = calculateTokenValueUsdScaled(vaultBalance!, decimals!, priceInfo!); // also assert vaultBalance as it's tokenData?.vaultBalance
                 const percentageScaled = valueScaled.mul(new BN(10000)).div(calculatedTotalValueUsdScaled);
                 metric.actualPercentage = percentageScaled.toNumber() / 100; 
             } catch (e) {
@@ -461,9 +449,8 @@ export const calculatePoolMetrics = (
     };
 };
 
-// --- MOVED: Calculation Helper: Convert USD to Token Amount --- 
+// Calculation Helper: Convert USD to Token Amount
 export const usdToTokenAmount = (usdValueScaled: BN, decimals: number, priceData: ProcessedTokenData['priceData']): BN => {
-    // ... (Existing implementation as moved from TokenTable) ...
     if (!priceData || priceData.price.isZero() || priceData.price.isNeg() || usdValueScaled.isNeg()) return new BN(0);
     if (usdValueScaled.isZero()) return new BN(0); // Handle zero USD input
 
@@ -494,11 +481,10 @@ export const usdToTokenAmount = (usdValueScaled: BN, decimals: number, priceData
         console.error("Error converting USD to token amount:", e);
         return new BN(0);
     }
-}
+};
 
-// --- MOVED: Calculation Helper: Convert USD to wLQI Amount --- 
+// Calculation Helper: Convert USD to wLQI Amount
 export const usdToWlqiAmount = (usdValueScaled: BN, wLqiValueScaled: BN | null, wLqiDecimals: number | null): BN => {
-    // ... (Existing implementation as moved from TokenTable) ...
     if (!wLqiValueScaled || wLqiValueScaled.isZero() || wLqiValueScaled.isNeg() || wLqiDecimals === null) return new BN(0);
     try {
         const wLqiMultiplier = new BN(10).pow(new BN(wLqiDecimals));
@@ -507,16 +493,15 @@ export const usdToWlqiAmount = (usdValueScaled: BN, wLqiValueScaled: BN | null, 
         console.error("Error converting USD to wLQI amount:", e);
         return new BN(0);
     }
-}
+};
 
-// --- MOVED: Relative Deviation Calculation --- 
+// Relative Deviation Calculation
 /**
  * Calculates relative deviation scaled by BPS_SCALE (1e4).
  * Inputs are scaled by DOMINANCE_SCALE (1e10).
  * Returns BN representing BPS (scaled by 1).
  */
 export const calculateRelativeDeviationBpsBN = (actualDominanceScaled: BN, targetDominanceScaled: BN): BN => {
-    // ... (Existing implementation as moved from TokenTable) ...
     if (targetDominanceScaled.isZero() || targetDominanceScaled.isNeg()) {
         return actualDominanceScaled.gtn(0) ? BN_BPS_SCALE.mul(new BN(100)) : new BN(0);
     }

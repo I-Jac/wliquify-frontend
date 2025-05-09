@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSettings, FeeLevel } from '@/contexts/SettingsContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import type { FeeLevel } from '@/utils/types';
 
 // Helper to format microLamports
 const formatMicroLamports = (fee: number) => {

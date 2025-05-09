@@ -142,4 +142,9 @@ export interface FeeCalculationProps {
     wLqiValueScaled: BN | null;
     priceData: DecodedPriceData | null;
     vaultBalance: BN | null;
-} 
+}
+
+// Settings Related Types
+export type FeeLevel = 'Normal' | 'Fast' | 'Turbo' | 'Custom';
+
+// --- Price Data Types --- 

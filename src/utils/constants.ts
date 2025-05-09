@@ -77,3 +77,13 @@ export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance 
 
 // Compute budget constants
 export const TRANSACTION_COMPUTE_UNITS = 1200000;
+
+// Settings Defaults
+export const SETTINGS_DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
+export const SETTINGS_DEFAULT_CUSTOM_PRIORITY_FEE = 10000; // Default custom microLamports
+export const SETTINGS_DEFAULT_FEE_LEVEL = 'Normal'; // Matches FeeLevel type
+export const SETTINGS_DEFAULT_DYNAMIC_FEES = {
+    Normal: 1000,    // Example low fee
+    Fast: 10000,   // Example medium fee
+    Turbo: 50000   // Example high fee
+};
