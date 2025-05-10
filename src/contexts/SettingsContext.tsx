@@ -32,6 +32,14 @@ interface SettingsContextProps {
     isSettingsModalOpen: boolean;
     openSettingsModal: () => void;
     closeSettingsModal: () => void;
+    isSettingsDirty: boolean; // Added for tracking unsaved changes
+    setIsSettingsDirty: (isDirty: boolean) => void; // Added for tracking unsaved changes
+
+    // New properties for the custom alert modal
+    isAlertModalOpen: boolean;
+    alertModalMessage: string;
+    openAlertModal: (message: string) => void;
+    closeAlertModal: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextProps | undefined>(undefined);
@@ -44,6 +52,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [slippageBps, setSlippageBpsState] = useState<number>(SETTINGS_DEFAULT_SLIPPAGE_BPS);
     const [rpcEndpoint, setRpcEndpointState] = useState<string>(RPC_URL); // Use RPC_URL from constants
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isSettingsDirty, setIsSettingsDirty] = useState(false); // Added for tracking unsaved changes
+
+    // New state for the custom alert modal
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+    const [alertModalMessage, setAlertModalMessage] = useState('');
 
     // Load settings from localStorage on mount
     useEffect(() => {
@@ -163,6 +176,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
     const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
+    // New functions for custom alert modal
+    const openAlertModal = useCallback((message: string) => {
+        setAlertModalMessage(message);
+        setIsAlertModalOpen(true);
+    }, []);
+
+    const closeAlertModal = useCallback(() => {
+        setIsAlertModalOpen(false);
+        // Optional: Reset message after a short delay if desired, or leave it
+        // setTimeout(() => setAlertModalMessage(''), 300);
+    }, []);
+
     const value = {
         feeLevel,
         setFeeLevel,
@@ -177,7 +202,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setRpcEndpoint,
         isSettingsModalOpen,
         openSettingsModal,
-        closeSettingsModal
+        closeSettingsModal,
+        isSettingsDirty, // Added for tracking unsaved changes
+        setIsSettingsDirty, // Added for tracking unsaved changes
+
+        // New context values for alert modal
+        isAlertModalOpen,
+        alertModalMessage,
+        openAlertModal,
+        closeAlertModal
     };
 
     return (

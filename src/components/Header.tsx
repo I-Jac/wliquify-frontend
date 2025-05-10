@@ -14,6 +14,8 @@ interface PopoverStateSyncProps {
     isSettingsModalOpen: boolean;
     openSettingsModal: () => void;
     closeSettingsModal: () => void;
+    isSettingsDirty?: boolean;
+    openAlertModal: (message: string) => void;
 }
 
 const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
@@ -21,22 +23,52 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
+    isSettingsDirty,
+    openAlertModal,
 }) => {
-    React.useEffect(() => {
-        if (internalPopoverOpenState && !isSettingsModalOpen) {
-            openSettingsModal();
-        } else if (!internalPopoverOpenState && isSettingsModalOpen) {
-            closeSettingsModal();
-        }
-    }, [internalPopoverOpenState, isSettingsModalOpen, openSettingsModal, closeSettingsModal]);
+    const prevInternalPopoverOpenStateRef = useRef<boolean>(internalPopoverOpenState);
 
-    return null; // This component doesn't render anything itself
+    React.useEffect(() => {
+        const prevHuiOpen = prevInternalPopoverOpenStateRef.current;
+        const huiOpen = internalPopoverOpenState;
+
+        console.log('[PopoverStateSync]', { huiOpen, prevHuiOpen, isSettingsModalOpen, isSettingsDirty });
+
+        if (huiOpen && !isSettingsModalOpen) {
+            console.log('[PopoverStateSync] Scenario 1: HUI attempting to open, context closed. Opening context.');
+            openSettingsModal();
+        } else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
+            console.log('[PopoverStateSync] Scenario 2: HUI newly closed, context open.');
+            if (isSettingsDirty) {
+                console.log('[PopoverStateSync] Scenario 2a: DIRTY. Opening alert and forcing context open.');
+                openAlertModal("You have unsaved changes. Please save or revert them first.");
+                openSettingsModal(); 
+            } else {
+                console.log('[PopoverStateSync] Scenario 2b: NOT DIRTY. Closing context.');
+                closeSettingsModal();
+            }
+        } else if (huiOpen && isSettingsModalOpen && isSettingsDirty && prevHuiOpen === false) {
+            console.log('[PopoverStateSync] Scenario 3: Context open (forced due to dirtiness), HUI was trying to be closed.');
+        }
+
+        prevInternalPopoverOpenStateRef.current = huiOpen;
+    }, [internalPopoverOpenState, isSettingsModalOpen, openSettingsModal, closeSettingsModal, isSettingsDirty, openAlertModal]);
+
+    return null;
 };
+
 
 export const Header: React.FC = () => {
     const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
     const devToolsRef = useRef<HTMLDivElement>(null);
-    const { openSettingsModal, closeSettingsModal, isSettingsModalOpen, feeLevel } = useSettings();
+    const { 
+        openSettingsModal, 
+        closeSettingsModal, 
+        isSettingsModalOpen, 
+        feeLevel, 
+        isSettingsDirty,
+        openAlertModal
+    } = useSettings();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isMobileDevToolsOpen, setIsMobileDevToolsOpen] = useState(false);
@@ -136,13 +168,16 @@ export const Header: React.FC = () => {
                                 )}
 
                                 <Popover className="relative">
-                                    {({ open: internalPopoverOpenState }) => (
+                                    {/* Reverted to HUI controlling its open state, PopoverStateSync bridges it */}
+                                    {({ open: internalPopoverOpenState, close: internalPopoverCloseFunction }) => (
                                         <>
                                             <PopoverStateSync 
                                                 internalPopoverOpenState={internalPopoverOpenState}
                                                 isSettingsModalOpen={isSettingsModalOpen}
                                                 openSettingsModal={openSettingsModal}
                                                 closeSettingsModal={closeSettingsModal}
+                                                isSettingsDirty={isSettingsDirty}
+                                                openAlertModal={openAlertModal}
                                             />
                                             <Popover.Button // No onClick here; Headless UI manages this button's role
                                                 className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8"
@@ -151,7 +186,7 @@ export const Header: React.FC = () => {
                                                 <Cog6ToothIcon className="h-5 w-5" />
                                             </Popover.Button>
 
-                                            {/* Overlay: shown when our context modal is open. Click on it closes HUI state, then effect syncs. */}
+                                            {/* Overlay: shown when our context modal is open. */}
                                             <Transition
                                                 as={Fragment}
                                                 show={isSettingsModalOpen} // Show overlay when our modal is open
@@ -162,7 +197,26 @@ export const Header: React.FC = () => {
                                                 leaveFrom="opacity-100"
                                                 leaveTo="opacity-0"
                                             >
-                                                <Popover.Overlay className="fixed inset-0 z-40 bg-black/30" />
+                                                <Popover.Overlay 
+                                                    className="fixed inset-0 z-40 bg-black/30" 
+                                                    onClick={() => {
+                                                        console.log("[Overlay Click] Clicked. isSettingsDirty:", isSettingsDirty);
+                                                        if (!isSettingsDirty) {
+                                                            // HUI's internalPopoverCloseFunction() will also be called by HUI itself,
+                                                            // so internalPopoverOpenState will become false.
+                                                            // We also directly close our context.
+                                                            closeSettingsModal();
+                                                        } else {
+                                                            // If dirty, do nothing here. PopoverStateSync will handle
+                                                            // re-opening the context if HUI tries to close.
+                                                            // We could also call internalPopoverCloseFunction() to ensure HUI tries to close,
+                                                            // and let PopoverStateSync catch it, but this might be cleaner.
+                                                            console.log("[Overlay Click] Dirty, overlay click ignored by direct close.");
+                                                            // Optionally, explicitly call HUI's close if PopoverStateSync needs that signal
+                                                            // internalPopoverCloseFunction(); 
+                                                        }
+                                                    }}
+                                                />
                                             </Transition>
 
                                             {/* Panel: shown when our context modal is open. */}
@@ -181,7 +235,7 @@ export const Header: React.FC = () => {
                                                     className="absolute right-0 z-50 mt-2 w-screen max-w-lg origin-top-right rounded-md shadow-lg focus:outline-none"
                                                 >
                                                     <div className="overflow-hidden rounded-lg bg-gray-800 p-6 text-white shadow-xl ring-1 ring-black ring-opacity-5 font-[family-name:var(--font-geist-mono)]">
-                                                        <SettingsModal />
+                                                        <SettingsModal closePanel={internalPopoverCloseFunction} />
                                                     </div>
                                                 </Popover.Panel>
                                             </Transition>
