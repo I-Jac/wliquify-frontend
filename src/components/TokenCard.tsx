@@ -22,6 +22,7 @@ import {
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
 import { TokenRowProps } from './TokenRow'; // Import TokenRowProps to base TokenCardProps on it
+import { safeConvertBnToNumber } from '@/utils/helpers'; // Import the new utility
 
 // --- TokenCard Props (Omit 'index' from TokenRowProps) ---
 export type TokenCardProps = Omit<TokenRowProps, 'index'>;
@@ -62,6 +63,15 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     const currentWithdrawAmount = withdrawAmounts[mintAddress] || '';
     const isDepositInputFilled = currentDepositAmount !== '' && parseFloat(currentDepositAmount) > 0;
     const isWithdrawInputFilled = currentWithdrawAmount !== '' && parseFloat(currentWithdrawAmount) > 0;
+
+    // Calculate USD value BNs first
+    const depositValueUsdBN = isDepositInputFilled && decimals !== null && priceData ?
+        calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData)
+        : undefined;
+
+    const withdrawValueUsdBN = isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null && new BN(10).pow(new BN(wLqiDecimals)).gtn(0) ?
+        new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)))
+        : undefined;
 
     // Insufficient balance checks
     let depositInsufficientBalance = false;
@@ -111,10 +121,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         symbol,
         estimatedDepositFeeBps,
         estimatedWithdrawFeeBps,
-        depositInputValueUsd: isDepositInputFilled && decimals !== null && priceData ?
-            calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData).toNumber() / Math.pow(10, USD_SCALE) : undefined,
-        withdrawInputValueUsd: isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled ?
-            new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals))).toNumber() / Math.pow(10, USD_SCALE) : undefined,
+        depositInputValueUsd: depositValueUsdBN ? safeConvertBnToNumber(depositValueUsdBN, USD_SCALE) : undefined,
+        withdrawInputValueUsd: withdrawValueUsdBN ? safeConvertBnToNumber(withdrawValueUsdBN, USD_SCALE) : undefined,
     });
 
     const {

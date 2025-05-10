@@ -108,8 +108,9 @@ export const PoolInfoDisplay = ({
     // --- State Synchronization Logic --- END
 
     // --- Pass refreshAllData prop down to usePoolInteractions ---
-    const refreshUserBalances = useCallback(async (affectedMintAddress?: string) => {
-        console.log(`PoolInfoDisplay: Triggering FULL data refresh via prop. Affected: ${affectedMintAddress ?? 'None'}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const refreshUserBalances = useCallback(async (_affectedMintAddress?: string) => {
+        // console.log(`PoolInfoDisplay: Triggering FULL data refresh via prop. Affected: ${_affectedMintAddress ?? 'None'}`);
         await refreshAllData(); // Use the prop
     }, [refreshAllData]);
 

@@ -47,19 +47,19 @@ const handleTransactionConfirmation = async (
     program: Program<WLiquifyPool> | null,
     connection: Connection,
     txid: string,
-    toastId: string,
-    action: 'Deposit' | 'Withdrawal'
+    _toastId: string, 
+    _action: 'Deposit' | 'Withdrawal'
 ) => {
     if (confirmation.value.err) {
-        console.error(`${action} Confirmation Error:`, confirmation.value.err);
+        console.error(`${_action} Confirmation Error:`, confirmation.value.err);
         const errorMessage = await handleTransactionError({ 
-            error: new Error(`${action} transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
+            error: new Error(`${_action} transaction failed confirmation: ${JSON.stringify(confirmation.value.err)}`),
             program,
             connection,
             txid
         });
-        toast.error(`${action} failed: ${errorMessage}`, { 
-            id: toastId,
+        toast.error(`${_action} failed: ${errorMessage}`, { 
+            id: _toastId,
             style: {
                 maxWidth: '90vw',
                 wordBreak: 'break-word',
@@ -169,19 +169,18 @@ const signAndSendTransaction = async (
     connection: Connection,
     transaction: Transaction,
     signTransaction: ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined,
-    toastId: string,
-    action: 'Deposit' | 'Withdrawal'
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _toastId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _action: 'Deposit' | 'Withdrawal'
 ): Promise<{ txid: string; blockhash: string; lastValidBlockHeight: number }> => {
     if (!signTransaction) {
         throw new Error('Wallet does not support signing transactions');
     }
-    console.log(`Signing ${action.toLowerCase()} transaction...`);
     const signedTransaction = await signTransaction(transaction);
-    console.log(`Sending ${action.toLowerCase()} transaction...`);
     const txid = await connection.sendRawTransaction(signedTransaction.serialize(), {
         skipPreflight: true,
     });
-    console.log(`${action} transaction sent, signature:`, txid);
     return { txid, blockhash: transaction.recentBlockhash!, lastValidBlockHeight: 0 };
 };
 
@@ -194,7 +193,6 @@ const confirmTransaction = async (
     toastId: string,
     action: 'Deposit' | 'Withdrawal'
 ): Promise<{ value: { err: TransactionError | null } }> => {
-    console.log(`Confirming ${action.toLowerCase()} transaction...`);
     toast.loading(`Confirming ${action.toLowerCase()}... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
     const confirmation = await connection.confirmTransaction({
         signature: txid,
@@ -286,33 +284,6 @@ const createAtaIfNeeded = async (
     }
 };
 
-// Update the helper function to log each field separately
-const logTransactionDetails = (
-    action: 'Deposit' | 'Withdrawal',
-    details: {
-        user: string;
-        poolConfig: string;
-        poolAuthority: string;
-        tokenMint: string;
-        poolVault: string;
-        userTokenAccount: string;
-        userWliAta: string;
-        wliMint: string;
-        amount: string;
-    }
-) => {
-    console.log(`${action} Transaction Details:`);
-    console.log('User:', details.user);
-    console.log('Pool Config:', details.poolConfig);
-    console.log('Pool Authority:', details.poolAuthority);
-    console.log('Token Mint:', details.tokenMint);
-    console.log('Pool Vault:', details.poolVault);
-    console.log('User Token Account:', details.userTokenAccount);
-    console.log('User wLQI Account:', details.userWliAta);
-    console.log('wLQI Mint:', details.wliMint);
-    console.log('Amount:', details.amount);
-};
-
 // Add this helper function after logTransactionDetails
 const handleTransactionSuccess = async (
     connection: Connection,
@@ -341,7 +312,6 @@ const handleTransactionSuccess = async (
         return false;
     }
 
-    console.log(`${action} successful!`);
     showSuccessToast(toastId, txid, action);
     
     if (mintAddress) {
@@ -415,24 +385,11 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             const poolAuthorityPda = findPoolAuthorityPDA();
             const userSourceAta = getAssociatedTokenAddressSync(depositMint, publicKey!);
             const targetTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, depositMint);
-            const poolConfigAddress = poolConfigPda!;
             const userWliAta = getAssociatedTokenAddressSync(validPoolConfig!.wliMint, publicKey!);
 
             // Create user's wLQI ATA if it doesn't exist
             const preInstructions: TransactionInstruction[] = [];
             await createAtaIfNeeded(connection, publicKey!, validPoolConfig!.wliMint, preInstructions);
-
-            logTransactionDetails('Deposit', {
-                user: publicKey!.toBase58(),
-                poolConfig: poolConfigAddress.toBase58(),
-                poolAuthority: poolAuthorityPda.toBase58(),
-                tokenMint: depositMint.toBase58(),
-                poolVault: targetTokenVaultAta.toBase58(),
-                userTokenAccount: userSourceAta.toBase58(),
-                userWliAta: userWliAta.toBase58(),
-                wliMint: validPoolConfig!.wliMint.toBase58(),
-                amount: amountBn.toString(),
-            });
 
             // Find the specific price feed for the deposit mint
             const depositTokenInfo = validPoolConfig.supportedTokens.find(st => st.mint.equals(depositMint!));
@@ -568,23 +525,10 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             const userDestinationAta = getAssociatedTokenAddressSync(outputMint, publicKey!); // User's ATA for the output token
             const sourceTokenVaultAta = findPoolVaultPDA(poolAuthorityPda, outputMint); // Pool's vault for the output token
             const ownerFeeAccount = getAssociatedTokenAddressSync(validPoolConfig.wliMint, validPoolConfig.feeRecipient, true);
-            const poolConfigAddress = poolConfigPda!;
 
             // Create user's destination ATA if it doesn't exist
             const preInstructions: TransactionInstruction[] = [];
             await createAtaIfNeeded(connection, publicKey!, outputMint, preInstructions);
-
-            logTransactionDetails('Withdrawal', {
-                user: publicKey!.toBase58(),
-                poolConfig: poolConfigAddress.toBase58(),
-                poolAuthority: poolAuthorityPda.toBase58(),
-                tokenMint: outputMint.toBase58(),
-                poolVault: sourceTokenVaultAta.toBase58(),
-                userTokenAccount: userDestinationAta.toBase58(),
-                userWliAta: userWliAta.toBase58(),
-                wliMint: validPoolConfig.wliMint.toBase58(),
-                amount: wliAmountBn.toString(),
-            });
 
             // --- Build Instructions (Compute Budget + Withdraw) ---
             const withdrawInstruction = await program!.methods

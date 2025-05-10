@@ -2,21 +2,40 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { FeeLevel } from '@/utils/types'; // Import FeeLevel type
 import {
     RPC_URL, // Import RPC_URL
     SETTINGS_DEFAULT_SLIPPAGE_BPS,
     SETTINGS_DEFAULT_FEE_LEVEL,
     SETTINGS_DEFAULT_DYNAMIC_FEES,
     SETTINGS_DEFAULT_MAX_PRIORITY_FEE_CAP_SOL, // This will be moved to constants.ts later
-    TRANSACTION_COMPUTE_UNITS // Added TRANSACTION_COMPUTE_UNITS
+    TRANSACTION_COMPUTE_UNITS, // Added TRANSACTION_COMPUTE_UNITS
+    HELIUS_API_KEY, // Import Helius API Key
+    LOCAL_STORAGE_KEY_FEE_LEVEL, // Added
+    LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL, // Added
+    LOCAL_STORAGE_KEY_SLIPPAGE_BPS, // Added
+    LOCAL_STORAGE_KEY_RPC_ENDPOINT // Added
 } from '@/utils/constants'; // Import new constants
+
+// Re-add FeeLevel type definition here, or ensure it's correctly imported if moved to types.ts
+// For now, assuming it was defined in this file and should be exported.
+export type FeeLevel = 'Normal' | 'Fast' | 'Turbo' | 'Custom'; // Ensure 'Custom' is included if used by initial state or localStorage
 
 interface DynamicFeeLevels {
     Normal: number;
     Fast: number;
     Turbo: number;
 }
+
+// Moved calculateSolFromFeeMicroLamportsPerCu to top level and exported
+export const calculateSolFromFeeMicroLamportsPerCu = (rpcFeePerCu: number | undefined, defaultFeeMicroLamportsPerCu: number): number => {
+    const feeToUse = (rpcFeePerCu === undefined || rpcFeePerCu < 0) ? defaultFeeMicroLamportsPerCu : rpcFeePerCu;
+    if (feeToUse < 0) {
+        console.warn(`[SettingsContext] feeToUse is negative (${feeToUse}), returning 0 SOL.`);
+        return 0;
+    }
+    const solAmount = (feeToUse * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
+    return solAmount;
+};
 
 interface SettingsContextProps {
     feeLevel: FeeLevel;
@@ -25,7 +44,7 @@ interface SettingsContextProps {
     setMaxPriorityFeeCapSol: (cap: number) => void; // Added
     priorityFee: number; // This will now be calculated based on level and dynamic fees
     dynamicFees: DynamicFeeLevels;
-    fetchDynamicFees: (connection: Connection) => Promise<void>; // Function to fetch and update fees
+    fetchDynamicFees: (connection?: Connection) => Promise<void>; // Make connection optional
     slippageBps: number;
     setSlippageBps: (bps: number) => void;
     rpcEndpoint: string;
@@ -62,10 +81,10 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Load settings from localStorage on mount
     useEffect(() => {
         try {
-            const storedFeeLevel = localStorage.getItem('feeLevel') as FeeLevel | null;
-            const storedMaxPriorityFeeCapSol = localStorage.getItem('maxPriorityFeeCapSol'); // Added
-            const storedSlippageBps = localStorage.getItem('slippageBps');
-            const storedRpcEndpoint = localStorage.getItem('rpcEndpoint');
+            const storedFeeLevel = localStorage.getItem(LOCAL_STORAGE_KEY_FEE_LEVEL) as FeeLevel | null;
+            const storedMaxPriorityFeeCapSol = localStorage.getItem(LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL);
+            const storedSlippageBps = localStorage.getItem(LOCAL_STORAGE_KEY_SLIPPAGE_BPS);
+            const storedRpcEndpoint = localStorage.getItem(LOCAL_STORAGE_KEY_RPC_ENDPOINT);
 
             if (storedFeeLevel && ['Normal', 'Fast', 'Turbo'].includes(storedFeeLevel)) { // Removed 'Custom'
                 setFeeLevelState(storedFeeLevel);
@@ -79,55 +98,79 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setIsLoaded(true);
     }, []);
 
-    // Function to fetch and calculate dynamic fees
-    const fetchDynamicFees = useCallback(async (connection: Connection) => {
-        console.log("Attempting to fetch dynamic priority fees...");
+    // Function to fetch and calculate dynamic fees using Helius API
+    const fetchDynamicFees = useCallback(async () => { // _connection param is no longer used
+        // console.log("Attempting to fetch dynamic priority fees using Helius API..."); // REMOVED
+        const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+        
         try {
-            const fees = await connection.getRecentPrioritizationFees({ lockedWritableAccounts: [] });
-            
-            if (fees.length === 0) {
-                console.warn("No recent prioritization fees found. Using default dynamic fees.");
+            const response = await fetch(HELIUS_RPC_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "1",
+                    method: "getPriorityFeeEstimate",
+                    params: [{"options": {"includeAllPriorityFeeLevels": true}}]
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Helius API request failed with status ${response.status}: ${errorText}`);
                 setDynamicFees(SETTINGS_DEFAULT_DYNAMIC_FEES);
-                return; 
+                return;
             }
 
-            fees.sort((a, b) => a.prioritizationFee - b.prioritizationFee);
+            const data = await response.json();
 
-            const p50Index = Math.floor(fees.length * 0.50);
-            const p75Index = Math.floor(fees.length * 0.75);
-            const p95Index = Math.min(Math.floor(fees.length * 0.95), fees.length - 1);
+            if (data.error) {
+                console.error("Helius API returned an error:", data.error);
+                setDynamicFees(SETTINGS_DEFAULT_DYNAMIC_FEES);
+                return;
+            }
+            
+            if (data.result && data.result.priorityFeeLevels) {
+                const levels = data.result.priorityFeeLevels;
+                // console.log("[SettingsContext] Helius priorityFeeLevels (micro-lamports/CU):", levels); // REMOVED
 
-            const calculateScaledDisplayValue = (rpcFeePerCu: number | undefined, defaultScaledValue: number): number => {
-                // Assuming TRANSACTION_COMPUTE_UNITS and LAMPORTS_PER_SOL are always non-zero positive constants
-                if (rpcFeePerCu === undefined || rpcFeePerCu < 0) {
-                    return defaultScaledValue;
-                }
-                // This calculation transforms per-CU fee from RPC into a scaled total fee for UI consistency.
-                // The result should be comparable to SETTINGS_DEFAULT_DYNAMIC_FEES values (e.g., 1000, 10000).
-                return Math.round((rpcFeePerCu * TRANSACTION_COMPUTE_UNITS) / LAMPORTS_PER_SOL);
-            };
+                // Default values from SETTINGS_DEFAULT_DYNAMIC_FEES are treated as micro-lamports/CU
+                const newDynamicFeesInSol = {
+                    Normal: calculateSolFromFeeMicroLamportsPerCu(levels.medium, SETTINGS_DEFAULT_DYNAMIC_FEES.Normal),
+                    Fast: calculateSolFromFeeMicroLamportsPerCu(levels.high, SETTINGS_DEFAULT_DYNAMIC_FEES.Fast),
+                    Turbo: calculateSolFromFeeMicroLamportsPerCu(levels.veryHigh, SETTINGS_DEFAULT_DYNAMIC_FEES.Turbo),
+                };
+                // console.log("Calculated Dynamic Fees (in SOL, from Helius):", newDynamicFeesInSol); // REMOVED
+                setDynamicFees(newDynamicFeesInSol);
 
-            const newDynamicFees = {
-                Normal: calculateScaledDisplayValue(fees[p50Index]?.prioritizationFee, SETTINGS_DEFAULT_DYNAMIC_FEES.Normal),
-                Fast: calculateScaledDisplayValue(fees[p75Index]?.prioritizationFee, SETTINGS_DEFAULT_DYNAMIC_FEES.Fast),
-                Turbo: calculateScaledDisplayValue(fees[p95Index]?.prioritizationFee, SETTINGS_DEFAULT_DYNAMIC_FEES.Turbo),
-            };
-
-            console.log("Calculated Dynamic Fees (scaled for display):", newDynamicFees);
-            setDynamicFees(newDynamicFees);
+            } else {
+                console.warn("Helius API response did not contain expected priorityFeeLevels. Using default dynamic fees (converted to SOL).");
+                // Convert default micro-lamports/CU fees to SOL
+                setDynamicFees({
+                    Normal: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Normal),
+                    Fast: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Fast),
+                    Turbo: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Turbo),
+                });
+            }
 
         } catch (error) {
-            console.error("Failed to fetch or process dynamic priority fees:", error);
-            // Fallback to defaults on error
-            setDynamicFees(SETTINGS_DEFAULT_DYNAMIC_FEES); // Use imported constant
+            console.error("Failed to fetch or process dynamic priority fees from Helius:", error);
+            // Convert default micro-lamports/CU fees to SOL on error
+            setDynamicFees({
+                Normal: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Normal),
+                Fast: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Fast),
+                Turbo: calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES.Turbo),
+            });
         }
-    }, []);
+    }, []); // REMOVED HELIUS_API_KEY and calculateSolFromFeeMicroLamportsPerCu from dependencies
 
     // Save fee level to localStorage
     const setFeeLevel = useCallback((level: FeeLevel) => {
         if (isLoaded) {
             try {
-                localStorage.setItem('feeLevel', level);
+                localStorage.setItem(LOCAL_STORAGE_KEY_FEE_LEVEL, level);
                 setFeeLevelState(level);
             } catch (error) {
                 console.error("Error saving feeLevel to localStorage:", error);
@@ -139,7 +182,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setMaxPriorityFeeCapSol = useCallback((cap: number) => { // Added
         if (isLoaded) {
             try {
-                localStorage.setItem('maxPriorityFeeCapSol', cap.toString());
+                localStorage.setItem(LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL, cap.toString());
                 setMaxPriorityFeeCapSolState(cap);
             } catch (error) {
                 console.error("Error saving maxPriorityFeeCapSol to localStorage:", error);
@@ -151,7 +194,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setSlippageBps = useCallback((bps: number) => {
         if (isLoaded) {
             try {
-                localStorage.setItem('slippageBps', bps.toString());
+                localStorage.setItem(LOCAL_STORAGE_KEY_SLIPPAGE_BPS, bps.toString());
                 setSlippageBpsState(bps);
             } catch (error) {
                 console.error("Error saving slippageBps to localStorage:", error);
@@ -163,7 +206,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const setRpcEndpoint = useCallback((endpoint: string) => {
         if (isLoaded) {
             try {
-                localStorage.setItem('rpcEndpoint', endpoint);
+                localStorage.setItem(LOCAL_STORAGE_KEY_RPC_ENDPOINT, endpoint);
                 setRpcEndpointState(endpoint);
                 console.warn("RPC endpoint updated in context. SettingsModal will trigger user-facing alert if changed there.");
             } catch (error) {
@@ -174,37 +217,37 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Calculate the effective priority fee (actual microLamports per CU for transaction)
     const priorityFee = useMemo(() => {
-        const calculateMicroLamportsPerCU = (targetTotalSol: number): number => {
-            // TRANSACTION_COMPUTE_UNITS is a non-zero constant, so direct division is safe.
-            return Math.round((targetTotalSol * LAMPORTS_PER_SOL * 1_000_000) / TRANSACTION_COMPUTE_UNITS);
+        const calculateMicroLamportsPerCUFromSol = (targetSol: number): number => {
+            // targetSol = (microLamportsPerCU * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL)
+            // microLamportsPerCU = (targetSol * 1_000_000 * LAMPORTS_PER_SOL) / TRANSACTION_COMPUTE_UNITS
+            return Math.round((targetSol * 1_000_000 * LAMPORTS_PER_SOL) / TRANSACTION_COMPUTE_UNITS);
         };
 
         let selectedFeeLevel = feeLevel;
-        // Fallback for 'Custom' if it somehow still exists as a feeLevel,
-        // though it shouldn't be settable through the UI anymore.
         if (feeLevel === 'Custom') {
             console.warn("'Custom' feeLevel encountered in priorityFee calculation, defaulting to Normal's capped fee.");
-            selectedFeeLevel = 'Normal'; // Default to Normal for calculation
+            selectedFeeLevel = 'Normal';
         }
         
         const validFeeLevel = selectedFeeLevel as Exclude<FeeLevel, 'Custom'>;
-        const scaledTotalFeeForLevel = dynamicFees[validFeeLevel] !== undefined 
-            ? dynamicFees[validFeeLevel] 
-            : SETTINGS_DEFAULT_DYNAMIC_FEES[validFeeLevel];
         
-        // Convert scaled display fee to target total SOL
-        const targetTotalSolForLevel = scaledTotalFeeForLevel / 1_000_000; 
+        // dynamicFees now stores SOL amounts.
+        // SETTINGS_DEFAULT_DYNAMIC_FEES stores micro-lamports/CU.
+        // We need to ensure we get a SOL value here.
+        let solForLevel: number;
+        if (dynamicFees[validFeeLevel] !== undefined) {
+            solForLevel = dynamicFees[validFeeLevel];
+        } else {
+            // Fallback: calculate SOL from the default micro-lamports/CU
+            solForLevel = calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES[validFeeLevel]);
+        }
         
-        // Calculate microLamports per CU for the selected fee level's target SOL
-        const microLamportsPerCUForLevel = calculateMicroLamportsPerCU(targetTotalSolForLevel);
-
-        // Calculate max allowed microLamports per CU based on the SOL cap
-        const maxMicroLamportsPerCUFromCap = calculateMicroLamportsPerCU(maxPriorityFeeCapSol);
+        const microLamportsPerCUForLevel = calculateMicroLamportsPerCUFromSol(solForLevel);
+        const maxMicroLamportsPerCUFromCap = calculateMicroLamportsPerCUFromSol(maxPriorityFeeCapSol);
         
-        // The final priority fee is the lesser of the level's fee and the cap, ensuring it's not negative
         const finalMicroLamportsPerCU = Math.max(0, Math.min(microLamportsPerCUForLevel, maxMicroLamportsPerCUFromCap));
         
-        // console.log(`Priority Fee Calculation: Level=${validFeeLevel}, ScaledFee=${scaledTotalFeeForLevel}, TargetSOL=${targetTotalSolForLevel.toFixed(9)}, LevelCU=${microLamportsPerCUForLevel}, CapSOL=${maxPriorityFeeCapSol.toFixed(9)}, CapCU=${maxMicroLamportsPerCUFromCap}, FinalCU=${finalMicroLamportsPerCU}`);
+        // console.log(`Priority Fee Calculation: Level=${validFeeLevel}, SOLForLevel=${solForLevel.toFixed(9)}, LevelCU=${microLamportsPerCUForLevel}, CapSOL=${maxPriorityFeeCapSol.toFixed(9)}, CapCU=${maxMicroLamportsPerCUFromCap}, FinalCU=${finalMicroLamportsPerCU}`);
         
         return finalMicroLamportsPerCU;
     }, [feeLevel, dynamicFees, maxPriorityFeeCapSol]);

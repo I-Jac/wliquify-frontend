@@ -2,50 +2,18 @@
 
 import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { FeeLevel, RpcOption } from '@/utils/types';
-import { Connection } from '@solana/web3.js';
-import { SETTINGS_DEFAULT_DYNAMIC_FEES } from '@/utils/constants';
+import type { FeeLevel, InitialSettings } from '@/utils/types';
+import {
+    SETTINGS_DEFAULT_DYNAMIC_FEES,
+    PREDEFINED_SLIPPAGE_OPTIONS,
+    PREDEFINED_RPCS
+} from '@/utils/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
-
-// PREDEFINED_RPCS needs to be restored here
-const PREDEFINED_RPCS: RpcOption[] = [
-    { name: 'Solana Devnet', url: 'https://api.devnet.solana.com' },
-    // { name: 'dRPC Devnet', url: 'https://solana.drpc.org' }, // Commented out for now
-];
-
-// Original getRpcLatency function - restored
-async function getRpcLatency(url: string): Promise<number | null> {
-    try {
-        console.log(`[getRpcLatency] Attempting to connect: ${url}`); 
-        const connection = new Connection(url, { 
-            commitment: 'confirmed', 
-            confirmTransactionInitialTimeout: 10000 // Increased timeout to 10 seconds
-        });
-        const startTime = performance.now();
-        console.log(`[getRpcLatency] Calling getEpochInfo for: ${url}`); 
-        await connection.getEpochInfo(); 
-        const endTime = performance.now();
-        const duration = Math.round(endTime - startTime);
-        console.log(`[getRpcLatency] Success for ${url}. Latency: ${duration}ms`); 
-        return duration;
-    } catch (error) {
-        console.error(`[getRpcLatency] Ping failed for ${url}:`, error instanceof Error ? error.message : String(error));
-        return null; 
-    }
-}
+import { getRpcLatency } from '@/utils/networkUtils';
+import { calculateEffectiveDisplayFeeSol } from '@/utils/calculations';
 
 interface SettingsModalProps {
     closePanel?: () => void;
-}
-
-interface InitialSettings {
-    feeLevel: FeeLevel;
-    maxPriorityFeeCapSol: number;
-    slippageBps: number;
-    selectedRpcUrl: string;
-    isCustomRpc: boolean;
-    customRpcInputValue: string;
-    isCustomSlippage: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
@@ -56,7 +24,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         maxPriorityFeeCapSol: contextMaxPriorityFeeCapSol,
         setMaxPriorityFeeCapSol: setContextMaxPriorityFeeCapSol,
         dynamicFees,
-        fetchDynamicFees,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        fetchDynamicFees: _fetchDynamicFees,
         slippageBps: contextSlippageBps,
         setSlippageBps: setContextSlippageBps,
         rpcEndpoint: contextRpcEndpoint,
@@ -67,7 +36,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         isSettingsModalOpen
     } = useSettings();
 
-    const { connection } = useConnection();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { connection: _connection } = useConnection();
 
     // Local states for all editable fields
     const [localFeeLevel, setLocalFeeLevel] = useState<FeeLevel>(contextFeeLevel);
@@ -90,45 +60,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     const componentIsMountedRef = useRef(true);
     const initialSettingsRef = useRef<InitialSettings | null>(null);
 
-    const PREDEFINED_SLIPPAGE_OPTIONS = [
-        { label: '0.1%', bps: 10, value: '0.10' },
-        { label: '0.5%', bps: 50, value: '0.50' },
-        { label: '1%', bps: 100, value: '1.00' },
-    ];
-
     // Effect to initialize/reset local states and initialSettingsRef ONCE on MOUNT
     // or when the modal is effectively re-initialized (e.g. by closing and reopening)
     useEffect(() => {
-        // Capture initial settings from context when component mounts
-        const currentInitialRpcIsPredefined = PREDEFINED_RPCS.some(r => r.url === contextRpcEndpoint);
-        const currentInitialRpcIsCustom = !currentInitialRpcIsPredefined;
+        // Only re-initialize fully if the modal is just opening.
+        // We use initialSettingsRef.current === null as a proxy for "just opened and not initialized"
+        // OR if isSettingsModalOpen became true in this render cycle (needs a ref to track previous state of isSettingsModalOpen)
 
-        // Determine initial slippage mode and input value
-        const matchingPredefinedSlippage = PREDEFINED_SLIPPAGE_OPTIONS.find(o => o.bps === contextSlippageBps);
-        let initialIsCustomSlippage: boolean;
-        let initialSlippageInputValue: string;
+        // Let's simplify: For now, only fully initialize if isSettingsModalOpen is true AND initialSettingsRef is not yet set.
+        // This means subsequent changes to context values while the modal is open won't cause a full reset.
+        // A more robust solution might track the previous value of isSettingsModalOpen.
+        if (isSettingsModalOpen && !initialSettingsRef.current) {
+            console.log("[InitializationEffect] Running FULL initialization because modal is open and initialSettingsRef is null.");
+            // Capture initial settings from context when component mounts
+            const currentInitialRpcIsPredefined = PREDEFINED_RPCS.some(r => r.url === contextRpcEndpoint);
+            const currentInitialRpcIsCustomDerived = !currentInitialRpcIsPredefined; // Derived value
 
-        if (matchingPredefinedSlippage) {
-            initialIsCustomSlippage = false;
-            initialSlippageInputValue = ""; // Clear input if a predefined is active from context
-        } else {
-            initialIsCustomSlippage = true;
-            initialSlippageInputValue = (contextSlippageBps / 100).toFixed(2);
-        }
+            // Determine initial slippage mode and input value
+            const matchingPredefinedSlippage = PREDEFINED_SLIPPAGE_OPTIONS.find(o => o.bps === contextSlippageBps);
+            let initialIsCustomSlippage: boolean;
+            let initialSlippageInputValue: string;
 
-        if (isSettingsModalOpen) { // Only initialize if modal is open
-            console.log("[SettingsModal InitEffect] Re-initializing due to isSettingsModalOpen=true or context change.");
+            if (matchingPredefinedSlippage) {
+                initialIsCustomSlippage = false;
+                initialSlippageInputValue = ""; // Clear input if a predefined is active from context
+            } else {
+                initialIsCustomSlippage = true;
+                initialSlippageInputValue = (contextSlippageBps / 100).toFixed(2);
+            }
+
+            // First, set initialSettingsRef.current with values derived from context
             initialSettingsRef.current = {
                 feeLevel: contextFeeLevel,
                 maxPriorityFeeCapSol: contextMaxPriorityFeeCapSol,
                 slippageBps: contextSlippageBps,
                 selectedRpcUrl: currentInitialRpcIsPredefined ? contextRpcEndpoint : (PREDEFINED_RPCS[0]?.url || ''),
-                isCustomRpc: currentInitialRpcIsCustom,
-                customRpcInputValue: currentInitialRpcIsCustom ? contextRpcEndpoint : 'https://',
-                isCustomSlippage: initialIsCustomSlippage, // Store initial slippage mode
+                isCustomRpc: currentInitialRpcIsCustomDerived,
+                customRpcInputValue: currentInitialRpcIsCustomDerived ? contextRpcEndpoint : 'https://',
+                isCustomSlippage: initialIsCustomSlippage,
             };
+            console.log("[InitializationEffect] Set initialSettingsRef.current:", initialSettingsRef.current);
 
-            // Initialize local states from context
+            // Then, set local states based on context (or derived values for RPC)
             setLocalFeeLevel(contextFeeLevel);
             setLocalMaxPriorityFeeCapSol(contextMaxPriorityFeeCapSol.toString());
             setLocalSlippageBps(contextSlippageBps.toString());
@@ -136,20 +109,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             setLocalIsCustomSlippageActive(initialIsCustomSlippage); 
             setLocalSlippageInput(initialSlippageInputValue);
 
-            setLocalSelectedRpcUrl(initialSettingsRef.current.selectedRpcUrl);
-            setLocalIsCustomRpc(initialSettingsRef.current.isCustomRpc);
-            setLocalCustomRpcInputValue(initialSettingsRef.current.customRpcInputValue);
+            // Set local RPC states directly from derived context values
+            setLocalSelectedRpcUrl(currentInitialRpcIsPredefined ? contextRpcEndpoint : (PREDEFINED_RPCS[0]?.url || ''));
+            setLocalIsCustomRpc(currentInitialRpcIsCustomDerived);
+            setLocalCustomRpcInputValue(currentInitialRpcIsCustomDerived ? contextRpcEndpoint : 'https://');
             
             setIsSettingsDirty(false); // Initially, form is not dirty
+        } else if (!isSettingsModalOpen && initialSettingsRef.current) {
+            // If modal is closing, clear the initialSettingsRef so it re-initializes next time it opens.
+            console.log("[InitializationEffect] Modal closed. Clearing initialSettingsRef.current.");
+            initialSettingsRef.current = null;
+            // Optionally, also reset isSettingsDirty if it shouldn't persist after closing
+            // setIsSettingsDirty(false); // Uncomment if dirty state should reset on close regardless
         }
     }, [
         isSettingsModalOpen,
-        contextFeeLevel,
+        contextFeeLevel, // Keep these as they are needed if we decide to re-sync on external changes
         contextMaxPriorityFeeCapSol,
         contextSlippageBps,
         contextRpcEndpoint,
-        setIsSettingsDirty
-        // PREDEFINED_RPCS and PREDEFINED_SLIPPAGE_OPTIONS are stable constants
+        setIsSettingsDirty,
+        // PREDEFINED_SLIPPAGE_OPTIONS is now a module constant, remove from deps
+        // PREDEFINED_RPCS is a stable constant
     ]);
 
     // ComponentDidMount/Unmount for componentIsMountedRef
@@ -162,6 +143,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
     // Effect to check for changes and update isSettingsDirty
     useEffect(() => {
+        console.log("[DirtyCheckEffect] Running. Local states before check:", {
+            localFeeLevel,
+            localMaxPriorityFeeCapSol,
+            localSlippageBps,
+            localSelectedRpcUrl,
+            localIsCustomRpc,
+            localCustomRpcInputValue,
+            localIsCustomSlippageActive,
+            initialSettings: initialSettingsRef.current // Also log what it's comparing against
+        });
+
         if (!initialSettingsRef.current) {
             // This can happen if this effect runs before the initialization effect.
             // To be safe, only proceed if initial settings are captured.
@@ -224,28 +216,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                 }
             });
         } else if (activeTab === 'transaction') {
-            // Fetch dynamic fees when transaction tab is active
-            if (connection) {
-                console.log("[SettingsModal] Transaction tab active, fetching dynamic fees...");
-                fetchDynamicFees(connection).catch(error => {
-                    console.error("[SettingsModal] Error fetching dynamic fees on tab activation:", error);
-                });
-            } else {
-                console.warn("[SettingsModal] Cannot fetch dynamic fees, connection not available.");
-            }
+            // Removed on-demand fetch for transaction tab.
+            // Fees will be based on dynamicFees from context, updated by DynamicFeeUpdater.
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, connection, fetchDynamicFees]); // Added connection and fetchDynamicFees to dependencies
+    }, [activeTab]); // Removed contextRpcEndpoint and fetchDynamicFees from dependencies for this simplified effect
 
     const performSave = () => {
+        console.log("[PerformSave] Starting. Local states:", {
+            localFeeLevel,
+            localMaxPriorityFeeCapSol,
+            localSlippageBps,
+            localSelectedRpcUrl,
+            localIsCustomRpc,
+            localCustomRpcInputValue,
+            localIsCustomSlippageActive,
+        });
+
         const slippageNum = parseInt(localSlippageBps, 10);
         const maxPriorityFeeCapSolNum = parseFloat(localMaxPriorityFeeCapSol);
 
         // Validate and set Fee Level
+        console.log("[PerformSave] Setting Fee Level to context:", localFeeLevel);
         setContextFeeLevel(localFeeLevel);
 
         // Validate and set Slippage
         if (!isNaN(slippageNum) && slippageNum >= 0) {
+            console.log("[PerformSave] Setting SlippageBps to context:", slippageNum);
             setContextSlippageBps(slippageNum);
         } else {
             openAlertModal('Invalid Slippage. Please enter a non-negative number (in BPS).');
@@ -257,6 +254,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             openAlertModal('Invalid Max Priority Fee Cap. Please enter a non-negative number.');
             return false;
         }
+        console.log("[PerformSave] Setting MaxPriorityFeeCapSol to context:", maxPriorityFeeCapSolNum);
+        setContextMaxPriorityFeeCapSol(maxPriorityFeeCapSolNum); 
 
         // Validate and set RPC Endpoint
         let finalRpcToSave = '';
@@ -296,12 +295,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
         // Apply all settings to context
         // Non-RPC settings are applied first
-        setContextFeeLevel(localFeeLevel); 
-        setContextMaxPriorityFeeCapSol(maxPriorityFeeCapSolNum);
-        setContextSlippageBps(slippageNum);
+        // setContextFeeLevel(localFeeLevel); // Already set above
+        // setContextMaxPriorityFeeCapSol(maxPriorityFeeCapSolNum); // Already set above
+        // setContextSlippageBps(slippageNum); // Already set above
         
         // Conditionally update RPC context and show alert
         if (rpcHasChanged) {
+            console.log("[PerformSave] Setting RPC Endpoint to context:", finalRpcToSave);
             setContextRpcEndpoint(finalRpcToSave);
             openAlertModal('RPC endpoint updated. A page refresh may be needed for it to take full effect.');
         }
@@ -318,6 +318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                 customRpcInputValue: localIsCustomRpc ? finalRpcToSave : 'https://',
                 isCustomSlippage: localIsCustomSlippageActive,
             };
+            console.log("[PerformSave] Updated initialSettingsRef.current:", initialSettingsRef.current);
         }
         setIsSettingsDirty(false); // Mark as not dirty
         return true; // Indicate save was successful
@@ -355,6 +356,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     };
     
     const handleLocalRpcSelection = (url: string) => {
+        console.log("[handleLocalRpcSelection] Called with URL:", url);
         setLocalSelectedRpcUrl(url);
         setLocalIsCustomRpc(false);
         if (!localCustomRpcInputValue || localCustomRpcInputValue === 'https://') {
@@ -363,18 +365,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     };
 
     const handleLocalCustomRpcSelect = () => {
+        console.log("[handleLocalCustomRpcSelect] Called");
         setLocalIsCustomRpc(true);
     };
 
     const feeButtonLevels: FeeLevel[] = ['Normal', 'Fast', 'Turbo'];
 
-    const handlePredefinedSlippageClick = (bpsValue: number, stringValue: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handlePredefinedSlippageClick = (bpsValue: number, _stringValue: string) => {
+        console.log("[handlePredefinedSlippageClick] Called with BPS:", bpsValue);
         setLocalSlippageBps(bpsValue.toString());
         setLocalSlippageInput(""); // Clear input when predefined is clicked
         setLocalIsCustomSlippageActive(false); // Set mode to predefined
     };
 
     const handleCustomSlippageInputFocus = () => {
+        console.log("[handleCustomSlippageInputFocus] Called");
         setLocalIsCustomSlippageActive(true);
         // If the input is empty when focused, and we have a valid non-custom BPS,
         // we could pre-fill it. However, Jupiter's behavior is to keep it empty
@@ -384,6 +390,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     };
 
     const handleCustomSlippageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log("[handleCustomSlippageInputChange] Called with value:", e.target.value);
         setLocalIsCustomSlippageActive(true); // Ensure custom mode is active when typing
         const inputValue = e.target.value;
         setLocalSlippageInput(inputValue);
@@ -398,28 +405,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                 setLocalSlippageBps(Math.round(percentage * 100).toString()); // Convert % to BPS
             }
         }
-    };
-
-    // Helper function to calculate and format the effective fee in SOL for display
-    const calculateEffectiveDisplayFeeSol = (
-        totalMicroLamportsForLevel: number | undefined,
-        defaultTotalMicroLamportsForLevel: number,
-        maxCapSolString?: string
-    ): string => {
-        const microLamportsToUse = totalMicroLamportsForLevel ?? defaultTotalMicroLamportsForLevel;
-        
-        const totalEstimatedPriorityFeeSol = microLamportsToUse / 1_000_000; 
-
-        let effectiveFeeSol = totalEstimatedPriorityFeeSol;
-
-        if (maxCapSolString !== undefined) {
-            const maxCapSolNum = parseFloat(maxCapSolString);
-            if (!isNaN(maxCapSolNum) && maxCapSolNum >= 0) {
-                effectiveFeeSol = Math.min(totalEstimatedPriorityFeeSol, maxCapSolNum);
-            }
-        }
-
-        return effectiveFeeSol.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 9 });
     };
 
     return (
@@ -505,7 +490,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                         type="text"
                                         id="customRpcEndpointInput"
                                         value={localCustomRpcInputValue}
-                                        onChange={(e) => setLocalCustomRpcInputValue(e.target.value)}
+                                        onChange={(e) => {
+                                            console.log("[CustomRPCInput] Changed. Setting localCustomRpcInputValue to:", e.target.value);
+                                            setLocalCustomRpcInputValue(e.target.value)
+                                        }}
                                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
                                         placeholder="https://your-custom-rpc-url.com"
                                     />
@@ -520,28 +508,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Priority Fee Level</label>
                                 <div className="grid grid-cols-3 gap-2 mb-4">
-                                    {feeButtonLevels.map((level) => (
-                                        <button
-                                            key={level}
-                                            onClick={() => setLocalFeeLevel(level)}
-                                            className={`px-3 py-2 rounded-md text-sm font-medium border ${localFeeLevel === level 
-                                                ? 'bg-cyan-600 border-cyan-500 text-white' 
-                                                : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300'
-                                            }`}
-                                        >
-                                            {level}
-                                            {dynamicFees[level as Exclude<FeeLevel, 'Custom'>] !== undefined && (
-                                                <span className="block text-xs opacity-75"> 
-                                                    (~
-                                                    {calculateEffectiveDisplayFeeSol(
-                                                        dynamicFees[level as Exclude<FeeLevel, 'Custom'>],
-                                                        SETTINGS_DEFAULT_DYNAMIC_FEES[level as Exclude<FeeLevel, 'Custom'>]
-                                                    )}
-                                                    SOL)
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
+                                    {feeButtonLevels.map((level) => {
+                                        const isSelectedLevel = localFeeLevel === level;
+                                        const baseSolForLevel = dynamicFees[level as Exclude<FeeLevel, 'Custom'>];
+                                        const maxCapSolNum = parseFloat(localMaxPriorityFeeCapSol);
+                                        let isCappedAndSelected = false;
+
+                                        if (isSelectedLevel && baseSolForLevel !== undefined && !isNaN(maxCapSolNum) && maxCapSolNum >= 0) {
+                                            if (baseSolForLevel > maxCapSolNum) {
+                                                isCappedAndSelected = true;
+                                            }
+                                        }
+
+                                        return (
+                                            <button
+                                                key={level}
+                                                onClick={() => {
+                                                    console.log("[FeeLevelButton] Clicked. Setting localFeeLevel to:", level);
+                                                    setLocalFeeLevel(level);
+                                                }}
+                                                className={`px-3 py-2 rounded-md text-sm font-medium border ${isSelectedLevel 
+                                                    ? 'bg-cyan-600 border-cyan-500 text-white' 
+                                                    : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300'
+                                                }`}
+                                                data-tooltip-id="app-tooltip"
+                                                data-tooltip-content={
+                                                    isCappedAndSelected && baseSolForLevel !== undefined && !isNaN(maxCapSolNum)
+                                                        ? `Base fee for ${level} (${baseSolForLevel.toLocaleString('en-US', {minimumFractionDigits: 9, maximumFractionDigits: 9})} SOL) exceeds your max cap of ${maxCapSolNum.toLocaleString('en-US', {minimumFractionDigits: 9, maximumFractionDigits: 9})} SOL. Consider increasing cap or choosing a lower level.`
+                                                        : `Select ${level} priority`
+                                                }
+                                            >
+                                                {level}
+                                                {baseSolForLevel !== undefined && (
+                                                    <span 
+                                                        className={`block text-xs ${isCappedAndSelected ? 'text-red-400 font-semibold' : 'opacity-75'}`}
+                                                    > 
+                                                        (~ 
+                                                        {calculateEffectiveDisplayFeeSol(
+                                                            baseSolForLevel, // This is now SOL
+                                                            SETTINGS_DEFAULT_DYNAMIC_FEES[level as Exclude<FeeLevel, 'Custom'>] // This is microLamports/CU
+                                                        )}
+                                                        SOL)
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                             
@@ -555,7 +567,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                     min="0"
                                     step="0.0001"
                                     value={localMaxPriorityFeeCapSol}
-                                    onChange={(e) => setLocalMaxPriorityFeeCapSol(e.target.value)}
+                                    onChange={(e) => {
+                                        console.log("[MaxCapInput] Changed. Setting localMaxPriorityFeeCapSol to:", e.target.value);
+                                        setLocalMaxPriorityFeeCapSol(e.target.value);
+                                    }}
                                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
                                     placeholder="e.g., 0.001"
                                 />

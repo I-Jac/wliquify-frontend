@@ -21,6 +21,7 @@ import {
     DELISTED_WITHDRAW_BONUS_BPS,
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
+import { safeConvertBnToNumber } from '@/utils/helpers';
 
 // --- TokenRow Props ---
 export interface TokenRowProps {
@@ -137,6 +138,14 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     });
 
     // --- Button State & Labels ---
+    const depositValueUsdBN = isDepositInputFilled && decimals !== null && priceData ?
+        calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData) 
+        : undefined;
+
+    const withdrawValueUsdBN = isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && new BN(10).pow(new BN(wLqiDecimals)).gtn(0) ?
+        new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)))
+        : undefined;
+
     const buttonStates = calculateButtonStates({
         actionDisabled,
         isDepositing,
@@ -151,10 +160,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
         symbol,
         estimatedDepositFeeBps,
         estimatedWithdrawFeeBps,
-        depositInputValueUsd: isDepositInputFilled && decimals !== null && priceData ?
-            calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData).toNumber() / Math.pow(10, USD_SCALE) : undefined,
-        withdrawInputValueUsd: isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled ?
-            new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals))).toNumber() / Math.pow(10, USD_SCALE) : undefined,
+        depositInputValueUsd: depositValueUsdBN ? safeConvertBnToNumber(depositValueUsdBN, USD_SCALE) : undefined,
+        withdrawInputValueUsd: withdrawValueUsdBN ? safeConvertBnToNumber(withdrawValueUsdBN, USD_SCALE) : undefined,
     });
 
     const {
@@ -290,7 +297,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                         priceData={priceData}
                         wLqiValueScaled={wLqiValueScaled}
                         wLqiDecimals={wLqiDecimals}
-                        userBalance={userWlqiBalance} // For withdraw, this should be wLQI balance, handled by TokenInputControls logic
+                        userBalance={userWlqiBalance}
                         actionDisabled={actionDisabled}
                         isDelisted={isDelisted}
                         handleAmountChange={handleAmountChange}

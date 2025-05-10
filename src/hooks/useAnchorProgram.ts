@@ -66,7 +66,6 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
                 const newProvider = new AnchorProvider(connection, anchorWallet, { commitment: COMMITMENT });
                 setProviderState(newProvider);
                 setProvider(newProvider); // Set globally for anchor commands if needed
-                console.log('Anchor provider initialized successfully');
                 initialized.current = true;
                 setIsInitialized(true);
             } catch (error) {

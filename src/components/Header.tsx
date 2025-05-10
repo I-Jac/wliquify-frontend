@@ -3,10 +3,17 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { SettingsModal } from './SettingsModal';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, FeeLevel } from '@/contexts/SettingsContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Popover, Transition } from '@headlessui/react';
-import { Cog6ToothIcon } from '@heroicons/react/24/solid';
+import { Cog6ToothIcon as SolidCogIcon } from '@heroicons/react/24/solid';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+    TRANSACTION_COMPUTE_UNITS,
+    FAUCET_URL_TOKEN,
+    FAUCET_URL_SOL_1,
+    FAUCET_URL_SOL_2
+} from '@/utils/constants';
 
 // Helper component to manage Popover state synchronization with context
 interface PopoverStateSyncProps {
@@ -32,23 +39,27 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
         const prevHuiOpen = prevInternalPopoverOpenStateRef.current;
         const huiOpen = internalPopoverOpenState;
 
-        console.log('[PopoverStateSync]', { huiOpen, prevHuiOpen, isSettingsModalOpen, isSettingsDirty });
-
-        if (huiOpen && !isSettingsModalOpen) {
-            console.log('[PopoverStateSync] Scenario 1: HUI attempting to open, context closed. Opening context.');
+        // Scenario 1: Headless UI trying to open, but our context says modal is closed
+        if (huiOpen && !prevHuiOpen && !isSettingsModalOpen) {
             openSettingsModal();
-        } else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
-            console.log('[PopoverStateSync] Scenario 2: HUI newly closed, context open.');
+        }
+        // Scenario 2: Headless UI trying to close, but our context says modal is open
+        // This is usually an Esc key press or click outside.
+        else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
             if (isSettingsDirty) {
-                console.log('[PopoverStateSync] Scenario 2a: DIRTY. Opening alert and forcing context open.');
-                openAlertModal("You have unsaved changes. Please save or revert them first.");
-                openSettingsModal(); 
+                openAlertModal("You have unsaved changes. Please save or discard them before closing.");
             } else {
-                console.log('[PopoverStateSync] Scenario 2b: NOT DIRTY. Closing context.');
                 closeSettingsModal();
             }
-        } else if (huiOpen && isSettingsModalOpen && isSettingsDirty && prevHuiOpen === false) {
-            console.log('[PopoverStateSync] Scenario 3: Context open (forced due to dirtiness), HUI was trying to be closed.');
+        }
+        // Scenario 3: Our context modal is told to close (e.g., by 'Close' button), but Headless UI is still open
+        else if (huiOpen && prevHuiOpen && !isSettingsModalOpen) {
+            closeSettingsModal();
+        }
+        // Scenario 4: Our context modal is told to open, but Headless UI is closed
+        // This shouldn't happen if openSettingsModal is only called from the Popover.Button
+        // but as a safeguard:
+        else if (!huiOpen && !prevHuiOpen && isSettingsModalOpen) {
         }
 
         prevInternalPopoverOpenStateRef.current = huiOpen;
@@ -66,6 +77,9 @@ export const Header: React.FC = () => {
         closeSettingsModal, 
         isSettingsModalOpen, 
         feeLevel, 
+        priorityFee,
+        dynamicFees,
+        maxPriorityFeeCapSol,
         isSettingsDirty,
         openAlertModal
     } = useSettings();
@@ -99,7 +113,7 @@ export const Header: React.FC = () => {
     }, [isSettingsModalOpen]);
 
     const openTokenFaucet = () => {
-        window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
+        window.open(FAUCET_URL_TOKEN, '_blank', 'noopener,noreferrer');
     };
     const openSolFaucet = (url: string) => {
         window.open(url, '_blank', 'noopener,noreferrer');
@@ -146,10 +160,10 @@ export const Header: React.FC = () => {
                                         <p>Tip: Copy wallet address to paste into faucets.</p>
                                     </div>
                                     <div className="py-1" role="menu" aria-orientation="vertical">
-                                        <button onClick={() => { openSolFaucet('https://solfaucet.com/'); setIsDevToolsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" role="menuitem" title="Get Devnet/Testnet SOL (Option 1)">
+                                        <button onClick={() => { openSolFaucet(FAUCET_URL_SOL_1); setIsDevToolsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" role="menuitem" title="Get Devnet/Testnet SOL (Option 1)">
                                             1. Airdrop SOL (solfaucet.com)
                                         </button>
-                                        <button onClick={() => { openSolFaucet('https://solfate.com/faucet'); setIsDevToolsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" role="menuitem" title="Get Devnet/Testnet SOL (Option 2)">
+                                        <button onClick={() => { openSolFaucet(FAUCET_URL_SOL_2); setIsDevToolsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" role="menuitem" title="Get Devnet/Testnet SOL (Option 2)">
                                             1. Airdrop SOL (solfate.com)
                                         </button>
                                         <button onClick={() => { openTokenFaucet(); setIsDevToolsOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white" role="menuitem" title="Mint test tokens (requires SOL)">
@@ -171,6 +185,28 @@ export const Header: React.FC = () => {
                                     >
                                         <span>Priority:</span>
                                         <span className="text-white font-semibold ml-1.5">{feeLevel}</span>
+                                        {(priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (() => {
+                                            const cleanFeeLevel = feeLevel as Exclude<FeeLevel, 'Custom'>;
+                                            const baseSolForSelectedLevel = dynamicFees[cleanFeeLevel];
+                                            
+                                            let isSelectedLevelCapped = false;
+                                            if (baseSolForSelectedLevel !== undefined && maxPriorityFeeCapSol >= 0) {
+                                                if (baseSolForSelectedLevel > maxPriorityFeeCapSol) {
+                                                    isSelectedLevelCapped = true;
+                                                }
+                                            }
+                                            const displayedSol = (priorityFee * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
+                                            
+                                            return (
+                                                <span 
+                                                    className={`${isSelectedLevelCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
+                                                    data-tooltip-id="app-tooltip"
+                                                    data-tooltip-content={isSelectedLevelCapped ? `Selected priority fee (${feeLevel}) is above your Max Cap. Effective fee is capped, potentially reducing priority. Check Settings.` : `Effective priority fee based on current settings.`}
+                                                >
+                                                    (~{displayedSol.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 9 })} SOL)
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                 )}
 
@@ -191,7 +227,7 @@ export const Header: React.FC = () => {
                                                 className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8"
                                                 title="Settings"
                                             >
-                                                <Cog6ToothIcon className="h-5 w-5" />
+                                                <SolidCogIcon className="h-5 w-5" />
                                             </Popover.Button>
 
                                             {/* Overlay: shown when our context modal is open. */}
@@ -208,19 +244,9 @@ export const Header: React.FC = () => {
                                                 <Popover.Overlay 
                                                     className="fixed inset-0 z-40 bg-black/30" 
                                                     onClick={() => {
-                                                        console.log("[Overlay Click] Clicked. isSettingsDirty:", isSettingsDirty);
                                                         if (isSettingsDirty) {
-                                                            // If dirty, show the alert.
                                                             openAlertModal("You have unsaved changes. Please save or revert them before closing.");
-                                                            // Do NOT call closeSettingsModal() or internalPopoverCloseFunction().
-                                                            // The popover should remain open.
-                                                            // PopoverStateSync will handle keeping the context open if HUI tries to close.
-                                                            console.log("[Overlay Click] Dirty, alert shown. Popover remains open.");
                                                         } else {
-                                                            // If not dirty, proceed to close the modal.
-                                                            // HUI's internalPopoverCloseFunction() will also be called by HUI itself if it's managing the click,
-                                                            // so internalPopoverOpenState will become false.
-                                                            // We also directly close our context.
                                                             closeSettingsModal(); 
                                                         }
                                                     }}
@@ -340,13 +366,13 @@ export const Header: React.FC = () => {
                                             <p>Tip: Copy wallet address to paste into faucets.</p>
                                         </div>
                                         <button 
-                                            onClick={() => { openSolFaucet('https://solfaucet.com/'); toggleMobileMenu(); setIsMobileDevToolsOpen(false);}}
+                                            onClick={() => { openSolFaucet(FAUCET_URL_SOL_1); toggleMobileMenu(); setIsMobileDevToolsOpen(false);}}
                                             className="flex items-center w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-gray-600 hover:text-white rounded-md"
                                         >
                                             1. Airdrop SOL (solfaucet.com)
                                         </button>
                                         <button 
-                                            onClick={() => { openSolFaucet('https://solfate.com/faucet'); toggleMobileMenu(); setIsMobileDevToolsOpen(false);}}
+                                            onClick={() => { openSolFaucet(FAUCET_URL_SOL_2); toggleMobileMenu(); setIsMobileDevToolsOpen(false);}}
                                             className="flex items-center w-full text-left px-2 py-2 text-xs text-gray-300 hover:bg-gray-600 hover:text-white rounded-md"
                                         >
                                             1. Airdrop SOL (solfate.com)

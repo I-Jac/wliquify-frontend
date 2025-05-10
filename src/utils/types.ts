@@ -160,4 +160,15 @@ export type RpcOption = {
     url: string;
 };
 
+// SettingsModal specific type
+export interface InitialSettings {
+    feeLevel: FeeLevel;
+    maxPriorityFeeCapSol: number;
+    slippageBps: number;
+    selectedRpcUrl: string;
+    isCustomRpc: boolean;
+    customRpcInputValue: string;
+    isCustomSlippage: boolean;
+}
+
 // ... (if any other types exist below, keep them) 

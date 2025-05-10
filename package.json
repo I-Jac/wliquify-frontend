@@ -27,7 +27,8 @@
     "node-fetch": "^2.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2"
+    "react-hot-toast": "^2.5.2",
+    "react-tooltip": "^5.28.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer'; // Ensure Buffer is available
 import { BN } from '@coral-xyz/anchor'; // Import BN for BN constants
+import type { RpcOption } from './types'; // Added import for RpcOption
 
 // Network Configuration
 //export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8900";
@@ -77,7 +78,7 @@ export const MAX_CONCURRENT_REQUESTS = 8; // Reduced from 10 to 8 to reduce rate
 export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance for transaction fees
 
 // Compute budget constants
-export const TRANSACTION_COMPUTE_UNITS = 1200000;
+export const TRANSACTION_COMPUTE_UNITS = 450000;
 
 // Settings Defaults
 export const SETTINGS_DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
@@ -88,3 +89,34 @@ export const SETTINGS_DEFAULT_DYNAMIC_FEES = {
     Fast: 10000,   // Example medium fee
     Turbo: 50000   // Example high fee
 };
+
+export const MIN_TARGET_DOMINANCE_TO_RANK = 0.0005; // Minimum targetDominance for a token to be ranked
+
+// Helius API Key
+// TODO: Move to environment variable for production!
+export const HELIUS_API_KEY = '719a9a14-11e6-4629-901b-53d3a209941e';
+
+// LocalStorage Keys
+export const LOCAL_STORAGE_KEY_FEE_LEVEL = 'feeLevel';
+export const LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL = 'maxPriorityFeeCapSol';
+export const LOCAL_STORAGE_KEY_SLIPPAGE_BPS = 'slippageBps';
+export const LOCAL_STORAGE_KEY_RPC_ENDPOINT = 'rpcEndpoint';
+
+// Transaction Compute Units for fee calculation - general estimate
+
+// Predefined settings options (moved from SettingsModal.tsx)
+export const PREDEFINED_SLIPPAGE_OPTIONS = [
+    { label: '0.1%', bps: 10, value: '0.10' },
+    { label: '0.5%', bps: 50, value: '0.50' },
+    { label: '1%', bps: 100, value: '1.00' },
+];
+
+export const PREDEFINED_RPCS: RpcOption[] = [
+    { name: 'Solana Devnet', url: 'https://api.devnet.solana.com' },
+    // { name: 'dRPC Devnet', url: 'https://solana.drpc.org' }, // Commented out for now
+];
+
+// Faucet URLs (moved from Header.tsx)
+export const FAUCET_URL_TOKEN = 'https://i-jac.github.io/faucet-frontend/';
+export const FAUCET_URL_SOL_1 = 'https://solfaucet.com/';
+export const FAUCET_URL_SOL_2 = 'https://solfate.com/faucet';
