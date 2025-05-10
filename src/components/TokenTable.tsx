@@ -9,7 +9,8 @@ import {
     calculateTotalTargetDominance,
     calculateTargetPercentageScaled,
     usdToTokenAmount,
-    usdToWlqiAmount
+    usdToWlqiAmount,
+    estimateFeeBpsBN
 } from '@/utils/calculations';
 import { SkeletonTokenTable } from './SkeletonTokenTable';
 import {
@@ -42,7 +43,10 @@ interface TokenTableProps {
 }
 
 // Define type for sortable keys
-type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent';
+type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent' | 'depositFeeBonus' | 'withdrawFeeBonus';
+
+// Fallback for sorting if fee/bonus cannot be estimated
+const FEE_SORT_FALLBACK = new BN(1_000_000_000); // A very large fee
 
 // --- TokenTable Component --- (Main component definition)
 export const TokenTable = React.memo<TokenTableProps>(({
@@ -75,7 +79,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
         } else {
             setSortKey(key);
-            setSortDirection('asc');
+            setSortDirection('desc');
         }
     };
 
@@ -83,6 +87,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         if (!tokenData) return [];
         const dataToSort = [...tokenData];
         if (!sortKey) return dataToSort;
+
         const getCompareValues = (tokenItem: ProcessedTokenData) => {
             const tokenValueUsd = tokenItem.vaultBalance !== null && tokenItem.decimals !== null
                 ? calculateTokenValueUsdScaled(tokenItem.vaultBalance, tokenItem.decimals, tokenItem.priceData)
@@ -90,28 +95,90 @@ export const TokenTable = React.memo<TokenTableProps>(({
             const targetScaled = calculateTargetPercentageScaled(tokenItem.targetDominance, totalTargetDominance);
             const actualPercent = tokenItem.actualDominancePercent !== null && tokenItem.actualDominancePercent !== undefined
                 ? new BN(Math.round(tokenItem.actualDominancePercent * BPS_SCALE))
-                : new BN(-1);
+                : new BN(-1); // Using -1 for undefined actualPercent to sort them last if needed
+
+            // Calculate estimated fees/bonuses for sorting
+            const nominalValueChangeUsdScaled = new BN(1);
+
+            const depositFeeBonusSortValue = estimateFeeBpsBN(
+                tokenItem.isDelisted,
+                true, // isDeposit
+                tokenValueUsd,
+                totalPoolValueScaled,
+                tokenItem.targetDominance,
+                nominalValueChangeUsdScaled,
+                wLqiValueScaled,
+                wLqiDecimals
+            ) ?? FEE_SORT_FALLBACK;
+
+            const withdrawFeeBonusSortValue = estimateFeeBpsBN(
+                tokenItem.isDelisted,
+                false, // isDeposit
+                tokenValueUsd,
+                totalPoolValueScaled,
+                tokenItem.targetDominance,
+                nominalValueChangeUsdScaled,
+                wLqiValueScaled,
+                wLqiDecimals
+            ) ?? FEE_SORT_FALLBACK;
+
             return {
-                symbol: tokenItem.symbol,
+                symbol: tokenItem.symbol ? tokenItem.symbol.trim().toLowerCase() : '', // Trim and normalize symbol
                 value: tokenValueUsd ?? new BN(-1),
                 targetPercent: targetScaled,
                 actualPercent: actualPercent,
+                depositFeeBonusSortValue,
+                withdrawFeeBonusSortValue,
             };
         };
-        dataToSort.sort((a, b) => {
-            const valuesA = getCompareValues(a);
-            const valuesB = getCompareValues(b);
+
+        dataToSort.sort((aItem, bItem) => {
+            const valuesA = getCompareValues(aItem);
+            const valuesB = getCompareValues(bItem);
             let compareResult = 0;
+
             switch (sortKey) {
-                case 'symbol': compareResult = valuesA.symbol.localeCompare(valuesB.symbol); break;
-                case 'value': compareResult = valuesA.value.cmp(valuesB.value); break;
-                case 'targetPercent': compareResult = valuesA.targetPercent.cmp(valuesB.targetPercent); break;
-                case 'actualPercent': compareResult = valuesA.actualPercent.cmp(valuesB.actualPercent); break;
+                case 'symbol':
+                    const strA = String(valuesA.symbol); // Ensure primitive string
+                    const strB = String(valuesB.symbol); // Ensure primitive string
+                    compareResult = strA.localeCompare(strB, 'en-US-u-co-standard'); // Specify locale and standard collation
+                    // For Symbol: ▼ (desc state) means A-Z (natural compareResult)
+                    //             ▲ (asc state) means Z-A (negated compareResult)
+                    if (sortDirection === 'asc') compareResult = -compareResult;
+                    break;
+                case 'value':
+                    compareResult = valuesA.value.cmp(valuesB.value);
+                    if (sortDirection === 'desc') compareResult = -compareResult;
+                    break;
+                case 'targetPercent':
+                    compareResult = valuesA.targetPercent.cmp(valuesB.targetPercent);
+                    if (sortDirection === 'desc') compareResult = -compareResult;
+                    break;
+                case 'actualPercent':
+                    compareResult = valuesA.actualPercent.cmp(valuesB.actualPercent);
+                    if (sortDirection === 'desc') compareResult = -compareResult;
+                    break;
+                case 'depositFeeBonus':
+                    compareResult = sortDirection === 'desc' 
+                        ? valuesA.depositFeeBonusSortValue.cmp(valuesB.depositFeeBonusSortValue) 
+                        : valuesB.depositFeeBonusSortValue.cmp(valuesA.depositFeeBonusSortValue);
+                    break;
+                case 'withdrawFeeBonus':
+                    compareResult = sortDirection === 'desc'
+                        ? valuesA.withdrawFeeBonusSortValue.cmp(valuesB.withdrawFeeBonusSortValue)
+                        : valuesB.withdrawFeeBonusSortValue.cmp(valuesA.withdrawFeeBonusSortValue);
+                    break;
             }
-            return sortDirection === 'asc' ? compareResult : -compareResult;
+            
+            // Secondary sort by targetPercent descending if primary sort result is equal for ANY sortKey
+            if (compareResult === 0) {
+                compareResult = valuesB.targetPercent.cmp(valuesA.targetPercent);
+            }
+
+            return compareResult;
         });
         return dataToSort;
-    }, [tokenData, sortKey, sortDirection, totalTargetDominance]);
+    }, [tokenData, sortKey, sortDirection, totalTargetDominance, totalPoolValueScaled, wLqiValueScaled, wLqiDecimals]);
 
     const handleSetAmount = useCallback((mintAddress: string, action: 'deposit' | 'withdraw', fraction: number) => {
         if (!tokenData) return;
@@ -261,15 +328,28 @@ export const TokenTable = React.memo<TokenTableProps>(({
             <div className="hidden md:block">
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="bg-gray-600">
-                        <tr><th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}
-                        >Symbol{getSortIndicator('symbol')}</th><th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}
-                        >Pool Balance{getSortIndicator('value')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}
-                        >Actual %{getSortIndicator('actualPercent')}</th><th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}
-                        >Target %{getSortIndicator('targetPercent')}</th>
+                        <tr className="bg-gray-600">
+                            <th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
+                                Symbol{getSortIndicator('symbol')}
+                            </th>
+                            <th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
+                                Pool Balance{getSortIndicator('value')}
+                            </th>
+                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}>
+                                Actual %{getSortIndicator('actualPercent')}
+                            </th>
+                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
+                                Target %{getSortIndicator('targetPercent')}
+                            </th>
                             {!hideDepositColumn && (
-                                <th className="p-2 w-40 text-center">Deposit</th>
+                                <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('depositFeeBonus')}>
+                                    Deposit{getSortIndicator('depositFeeBonus')}
+                                </th>
                             )}
-                            <th className="p-2 w-40 text-center">Withdraw</th></tr>
+                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('withdrawFeeBonus')}>
+                                Withdraw{getSortIndicator('withdrawFeeBonus')}
+                            </th>
+                        </tr>
                     </thead>
                     <tbody>
                         {sortedTokenData.map((tokenItem, idx) => (
