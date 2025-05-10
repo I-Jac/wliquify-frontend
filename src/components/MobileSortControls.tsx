@@ -27,8 +27,8 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const sortOptions: SortOption[] = [
-        { label: 'Symbol: A-Z', key: 'symbol', direction: 'asc' },
-        { label: 'Symbol: Z-A', key: 'symbol', direction: 'desc' },
+        { label: 'Symbol: A-Z', key: 'symbol', direction: 'desc' },
+        { label: 'Symbol: Z-A', key: 'symbol', direction: 'asc' },
         { label: 'Pool Balance: High to Low', key: 'value', direction: 'desc' },
         { label: 'Pool Balance: Low to High', key: 'value', direction: 'asc' },
         { label: 'Actual %: High to Low', key: 'actualPercent', direction: 'desc' },
