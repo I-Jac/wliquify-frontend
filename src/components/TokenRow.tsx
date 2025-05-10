@@ -45,6 +45,8 @@ export interface TokenRowProps {
     handleSetTargetAmount: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
     // Calculated values from TokenTable
     totalTargetDominance: BN;
+    targetRank: number | null;
+    showRankColumn: boolean;
 }
 
 // --- TokenRow Component ---
@@ -68,6 +70,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     handleSetAmount,
     handleSetTargetAmount,
     totalTargetDominance,
+    targetRank,
+    showRankColumn,
 }) => {
     // Destructure token object inside the function
     const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
@@ -214,8 +218,17 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
 
     return (
         <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
-            <td className="p-0 font-semibold align-middle text-center" title={token.mintAddress}>
-                <div className="flex items-center justify-center h-full space-x-2 px-2">
+            {showRankColumn && (
+                <td className="p-2 align-middle text-center">
+                    {isDelisted ? (
+                        <div className="text-gray-500 italic font-normal">N/A</div>
+                    ) : (
+                        targetRank !== null ? <span className="font-semibold text-sm">{targetRank}</span> : ''
+                    )}
+                </td>
+            )}
+            <td className="p-0 font-semibold align-middle text-left" title={token.mintAddress}>
+                <div className="flex items-center h-full space-x-1 px-2">
                     <Image
                         src={currentIconSrc}
                         alt={symbol}

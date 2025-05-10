@@ -74,6 +74,25 @@ export const TokenTable = React.memo<TokenTableProps>(({
         return calculateTotalTargetDominance(tokenData);
     }, [tokenData]);
 
+    const rankedTokenMap = useMemo(() => {
+        if (!tokenData) return new Map<string, number>();
+
+        const nonDelistedTokens = tokenData.filter(token => !token.isDelisted);
+
+        // Sort by targetDominance descending. Higher targetDominance = better rank (e.g., #1)
+        const sortedByTargetDominance = [...nonDelistedTokens].sort((a, b) => {
+            // BN.cmp: a.cmp(b) returns >0 if a > b, <0 if a < b, 0 if a === b
+            // For descending sort by targetDominance, we want b to come before a if b.targetDominance > a.targetDominance
+            return b.targetDominance.cmp(a.targetDominance);
+        });
+
+        const rankMap = new Map<string, number>();
+        sortedByTargetDominance.forEach((token, index) => {
+            rankMap.set(token.mintAddress, index + 1); // 1-based ranking
+        });
+        return rankMap;
+    }, [tokenData]);
+
     const handleSort = (key: SortableKey) => {
         if (sortKey === key) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -179,6 +198,14 @@ export const TokenTable = React.memo<TokenTableProps>(({
         });
         return dataToSort;
     }, [tokenData, sortKey, sortDirection, totalTargetDominance, totalPoolValueScaled, wLqiValueScaled, wLqiDecimals]);
+
+    const showRankColumn = useMemo(() => {
+        if (!sortedTokenData || sortedTokenData.length === 0) {
+            return false; // No data, so no rank column
+        }
+        // Show rank column if at least one token is not delisted
+        return sortedTokenData.some(token => !token.isDelisted);
+    }, [sortedTokenData]);
 
     const handleSetAmount = useCallback((mintAddress: string, action: 'deposit' | 'withdraw', fraction: number) => {
         if (!tokenData) return;
@@ -329,10 +356,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="bg-gray-600">
                         <tr className="bg-gray-600">
-                            <th className="p-2 w-16 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
+                            {showRankColumn && (
+                                <th scope="col" className="p-2 text-center">#</th>
+                            )}
+                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
                                 Symbol{getSortIndicator('symbol')}
                             </th>
-                            <th className="p-2 w-32 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
+                            <th className="p-2 w-48 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
                                 Pool Balance{getSortIndicator('value')}
                             </th>
                             <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}>
@@ -352,59 +382,69 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         </tr>
                     </thead>
                     <tbody>
-                        {sortedTokenData.map((tokenItem, idx) => (
-                            <TokenRow
-                                key={tokenItem.mintAddress}
-                                token={tokenItem}
-                                index={idx}
-                                totalPoolValueScaled={totalPoolValueScaled}
-                                wLqiValueScaled={wLqiValueScaled}
-                                wLqiDecimals={wLqiDecimals}
-                                userWlqiBalance={userWlqiBalance}
-                                onDeposit={onDeposit}
-                                onWithdraw={onWithdraw}
-                                isDepositing={isDepositing}
-                                isWithdrawing={isWithdrawing}
-                                depositAmounts={depositAmounts}
-                                withdrawAmounts={withdrawAmounts}
-                                handleAmountChange={handleAmountChange}
-                                isLoadingUserData={isLoadingUserData}
-                                isLoadingPublicData={isLoadingPublicData}
-                                hideDepositColumn={hideDepositColumn}
-                                handleSetAmount={handleSetAmount}
-                                handleSetTargetAmount={handleSetTargetAmount}
-                                totalTargetDominance={totalTargetDominance}
-                            />
-                        ))}
+                        {sortedTokenData.map((tokenItem, idx) => {
+                            const targetRank = tokenItem.isDelisted ? null : rankedTokenMap.get(tokenItem.mintAddress) ?? null;
+                            return (
+                                <TokenRow
+                                    key={tokenItem.mintAddress}
+                                    token={tokenItem}
+                                    index={idx}
+                                    targetRank={targetRank}
+                                    showRankColumn={showRankColumn}
+                                    totalPoolValueScaled={totalPoolValueScaled}
+                                    wLqiValueScaled={wLqiValueScaled}
+                                    wLqiDecimals={wLqiDecimals}
+                                    userWlqiBalance={userWlqiBalance}
+                                    onDeposit={onDeposit}
+                                    onWithdraw={onWithdraw}
+                                    isDepositing={isDepositing}
+                                    isWithdrawing={isWithdrawing}
+                                    depositAmounts={depositAmounts}
+                                    withdrawAmounts={withdrawAmounts}
+                                    handleAmountChange={handleAmountChange}
+                                    isLoadingUserData={isLoadingUserData}
+                                    isLoadingPublicData={isLoadingPublicData}
+                                    hideDepositColumn={hideDepositColumn}
+                                    handleSetAmount={handleSetAmount}
+                                    handleSetTargetAmount={handleSetTargetAmount}
+                                    totalTargetDominance={totalTargetDominance}
+                                />
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
 
             {/* --- Mobile Card List (Visible on Mobile) --- */}
             <div className="block md:hidden space-y-3">
-                {sortedTokenData.map((tokenItem) => (
-                    <TokenCard
-                        key={tokenItem.mintAddress}
-                        token={tokenItem}
-                        totalPoolValueScaled={totalPoolValueScaled}
-                        wLqiValueScaled={wLqiValueScaled}
-                        wLqiDecimals={wLqiDecimals}
-                        userWlqiBalance={userWlqiBalance}
-                        onDeposit={onDeposit}
-                        onWithdraw={onWithdraw}
-                        isDepositing={isDepositing}
-                        isWithdrawing={isWithdrawing}
-                        depositAmounts={depositAmounts}
-                        withdrawAmounts={withdrawAmounts}
-                        handleAmountChange={handleAmountChange}
-                        isLoadingUserData={isLoadingUserData}
-                        isLoadingPublicData={isLoadingPublicData}
-                        hideDepositColumn={hideDepositColumn}
-                        handleSetAmount={handleSetAmount}
-                        handleSetTargetAmount={handleSetTargetAmount}
-                        totalTargetDominance={totalTargetDominance}
-                    />
-                ))}
+                {sortedTokenData.map((tokenItem) => {
+                    const targetRank = tokenItem.isDelisted ? null : rankedTokenMap.get(tokenItem.mintAddress) ?? null;
+                    return (
+                        <TokenCard
+                            key={tokenItem.mintAddress}
+                            token={tokenItem}
+                            targetRank={targetRank}
+                            showRankColumn={showRankColumn}
+                            totalPoolValueScaled={totalPoolValueScaled}
+                            wLqiValueScaled={wLqiValueScaled}
+                            wLqiDecimals={wLqiDecimals}
+                            userWlqiBalance={userWlqiBalance}
+                            onDeposit={onDeposit}
+                            onWithdraw={onWithdraw}
+                            isDepositing={isDepositing}
+                            isWithdrawing={isWithdrawing}
+                            depositAmounts={depositAmounts}
+                            withdrawAmounts={withdrawAmounts}
+                            handleAmountChange={handleAmountChange}
+                            isLoadingUserData={isLoadingUserData}
+                            isLoadingPublicData={isLoadingPublicData}
+                            hideDepositColumn={hideDepositColumn}
+                            handleSetAmount={handleSetAmount}
+                            handleSetTargetAmount={handleSetTargetAmount}
+                            totalTargetDominance={totalTargetDominance}
+                        />
+                    );
+                })}
             </div>
         </div>
     );

@@ -25,6 +25,7 @@ import { TokenRowProps } from './TokenRow'; // Import TokenRowProps to base Toke
 
 // --- TokenCard Props (Omit 'index' from TokenRowProps) ---
 export type TokenCardProps = Omit<TokenRowProps, 'index'>;
+// Reverted from interface to type alias as it has no new members
 
 // --- TokenCard Component ---
 export const TokenCard: React.FC<TokenCardProps> = React.memo(({
@@ -46,6 +47,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     handleSetAmount,
     handleSetTargetAmount,
     totalTargetDominance,
+    targetRank,
+    showRankColumn, // Destructure showRankColumn
 }) => {
     // --- Re-use calculations and formatting logic from TokenRow ---
     const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
@@ -177,6 +180,7 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         <div className={`border border-gray-600 rounded-lg p-3 ${isDelisted ? 'bg-red-900/20' : 'bg-gray-750'} ${actionDisabled ? 'opacity-50' : ''}`}>
             {/* --- Header --- */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-600">
+                {/* Left Part: Icon and Symbol */}
                 <div className="flex items-center space-x-2">
                     <Image
                         src={currentIconSrc}
@@ -190,9 +194,19 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
                             }
                         }}
                     />
+                    {/* Symbol is now directly here */}
                     <span className="font-semibold text-white text-lg">{displaySymbol}</span>
                 </div>
-                {isDelisted && <span className="text-xs text-red-400 font-medium bg-red-900/50 px-1.5 py-0.5 rounded">Delisted</span>}
+
+                {/* Right Part: Rank or Delisted Badge */}
+                <div> 
+                    {showRankColumn && targetRank !== null && !isDelisted && (
+                        <span className="text-xs text-gray-400 font-normal">#{targetRank}</span>
+                    )}
+                    {isDelisted && (
+                        <span className="text-xs text-red-400 font-medium bg-red-900/50 px-1.5 py-0.5 rounded">Delisted</span>
+                    )}
+                </div>
             </div>
 
             {/* --- Data Section --- */}
