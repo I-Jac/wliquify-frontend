@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 // Import the new components
 import { TokenRow } from './TokenRow';
 import { TokenCard } from './TokenCard';
+import { MobileSortControls } from './MobileSortControls';
 
 // --- Component Props ---
 interface TokenTableProps {
@@ -43,7 +44,7 @@ interface TokenTableProps {
 }
 
 // Define type for sortable keys
-type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent' | 'depositFeeBonus' | 'withdrawFeeBonus';
+export type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent' | 'depositFeeBonus' | 'withdrawFeeBonus';
 
 // Fallback for sorting if fee/bonus cannot be estimated
 const FEE_SORT_FALLBACK = new BN(1_000_000_000); // A very large fee
@@ -93,14 +94,16 @@ export const TokenTable = React.memo<TokenTableProps>(({
         return rankMap;
     }, [tokenData]);
 
-    const handleSort = (key: SortableKey) => {
-        if (sortKey === key) {
-            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    const handleSort = useCallback((key: SortableKey, explicitDirection?: 'asc' | 'desc') => {
+        setSortKey(key); // Always set the key
+        if (explicitDirection) {
+            setSortDirection(explicitDirection);
         } else {
-            setSortKey(key);
-            setSortDirection('desc');
+            // If the key is the same as the current sortKey, toggle direction
+            // Otherwise, default to 'desc' for the new key
+            setSortDirection(prevDirection => (sortKey === key && prevDirection === 'desc') ? 'asc' : 'desc');
         }
-    };
+    }, [sortKey]); // Added sortKey to dependencies of useCallback
 
     const sortedTokenData = useMemo(() => {
         if (!tokenData) return [];
@@ -416,7 +419,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
             </div>
 
             {/* --- Mobile Card List (Visible on Mobile) --- */}
-            <div className="block md:hidden space-y-3">
+            <div className="block md:hidden space-y-3 px-2 py-2">
+                <MobileSortControls 
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    handleSort={handleSort}
+                    hideDepositColumn={hideDepositColumn}
+                />
                 {sortedTokenData.map((tokenItem) => {
                     const targetRank = tokenItem.isDelisted ? null : rankedTokenMap.get(tokenItem.mintAddress) ?? null;
                     return (
