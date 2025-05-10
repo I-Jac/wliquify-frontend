@@ -72,6 +72,7 @@ export const Header: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isMobileDevToolsOpen, setIsMobileDevToolsOpen] = useState(false);
+    const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         function handleClickOutsideDevTools(event: MouseEvent) {
@@ -90,6 +91,12 @@ export const Header: React.FC = () => {
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (!isSettingsModalOpen && settingsButtonRef.current) {
+            settingsButtonRef.current.blur();
+        }
+    }, [isSettingsModalOpen]);
 
     const openTokenFaucet = () => {
         window.open('https://i-jac.github.io/faucet-frontend/', '_blank', 'noopener,noreferrer');
@@ -179,7 +186,8 @@ export const Header: React.FC = () => {
                                                 isSettingsDirty={isSettingsDirty}
                                                 openAlertModal={openAlertModal}
                                             />
-                                            <Popover.Button // No onClick here; Headless UI manages this button's role
+                                            <Popover.Button 
+                                                ref={settingsButtonRef}
                                                 className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8"
                                                 title="Settings"
                                             >
@@ -201,19 +209,19 @@ export const Header: React.FC = () => {
                                                     className="fixed inset-0 z-40 bg-black/30" 
                                                     onClick={() => {
                                                         console.log("[Overlay Click] Clicked. isSettingsDirty:", isSettingsDirty);
-                                                        if (!isSettingsDirty) {
-                                                            // HUI's internalPopoverCloseFunction() will also be called by HUI itself,
+                                                        if (isSettingsDirty) {
+                                                            // If dirty, show the alert.
+                                                            openAlertModal("You have unsaved changes. Please save or revert them before closing.");
+                                                            // Do NOT call closeSettingsModal() or internalPopoverCloseFunction().
+                                                            // The popover should remain open.
+                                                            // PopoverStateSync will handle keeping the context open if HUI tries to close.
+                                                            console.log("[Overlay Click] Dirty, alert shown. Popover remains open.");
+                                                        } else {
+                                                            // If not dirty, proceed to close the modal.
+                                                            // HUI's internalPopoverCloseFunction() will also be called by HUI itself if it's managing the click,
                                                             // so internalPopoverOpenState will become false.
                                                             // We also directly close our context.
-                                                            closeSettingsModal();
-                                                        } else {
-                                                            // If dirty, do nothing here. PopoverStateSync will handle
-                                                            // re-opening the context if HUI tries to close.
-                                                            // We could also call internalPopoverCloseFunction() to ensure HUI tries to close,
-                                                            // and let PopoverStateSync catch it, but this might be cleaner.
-                                                            console.log("[Overlay Click] Dirty, overlay click ignored by direct close.");
-                                                            // Optionally, explicitly call HUI's close if PopoverStateSync needs that signal
-                                                            // internalPopoverCloseFunction(); 
+                                                            closeSettingsModal(); 
                                                         }
                                                     }}
                                                 />
