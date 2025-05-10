@@ -126,4 +126,125 @@ Calculated amounts:
 
 ## Conclusion
 
-The proposed optimization will provide a more robust and cleaner withdrawal process while maintaining the exact same user experience and fee calculations. By handling the entire amount in a single initial transfer and then managing the fee and burn operations from a program-controlled account, we eliminate the possibility of dust amounts and ensure atomic operations. This change improves the internal handling of withdrawals without affecting how users interact with the system or how fees are calculated. 
+The proposed optimization will provide a more robust and cleaner withdrawal process while maintaining the exact same user experience and fee calculations. By handling the entire amount in a single initial transfer and then managing the fee and burn operations from a program-controlled account, we eliminate the possibility of dust amounts and ensure atomic operations. This change improves the internal handling of withdrawals without affecting how users interact with the system or how fees are calculated.
+
+---
+
+# Adding Slippage Protection
+
+This section details the implementation of slippage protection for `deposit` and `withdraw` instructions within the Solana program. This is a crucial feature to protect users from unfavorable price movements that might occur between transaction submission and on-chain confirmation.
+
+## Objective
+
+To enhance the `deposit` and `withdraw` instructions to allow users to specify their maximum tolerable slippage, preventing transactions from executing if the price moves against them beyond this limit.
+
+## Mechanism
+
+1.  **Client-Side Calculation**: The frontend calculates the minimum acceptable amount of tokens the user should receive (for deposits, this is LP tokens; for withdrawals, this is the underlying asset) based on their input and selected slippage tolerance.
+2.  **Parameter Passing**: This calculated `minimum_tokens_out` value is passed as an argument to the corresponding Solana program instruction.
+3.  **On-Chain Enforcement**: The Solana program, before finalizing the token exchange, compares the actual calculated output amount against the `minimum_tokens_out` parameter provided by the user. If the actual output is less than the user's specified minimum, the transaction is reverted.
+
+## Program Changes (Conceptual Rust/Anchor)
+
+The following changes would typically be made to the Solana program (e.g., in `lib.rs` and relevant instruction modules):
+
+### 1. New Error Code for Slippage
+
+A dedicated error code should be added to the program's custom errors (usually within an `#[error_code]` enum in `lib.rs`).
+
+```rust
+// In lib.rs
+#[error_code]
+pub enum ErrorCode {
+    // ... your existing errors ...
+    #[msg("Slippage tolerance exceeded.")]
+    SlippageExceeded,
+    // ...
+}
+```
+
+### 2. `deposit` Instruction Modification
+
+*   **Instruction Arguments**:
+    The `deposit` instruction handler and its argument struct (if used) will need a new parameter.
+    Currently (from IDL): `args: [{ "name": "amount", "type": "u64" }]`
+    Add: `minimum_lp_tokens_out: u64`
+
+    ```rust
+    // Conceptual change in lib.rs or instruction handler
+    pub fn deposit(
+        ctx: Context<DepositAccounts>, // Your accounts struct for deposit
+        amount_to_deposit: u64,        // Amount of underlying token to deposit
+        minimum_lp_tokens_out: u64     // New: Minimum wLQI/LP tokens user expects
+    ) -> Result<()> {
+        // ... existing deposit logic to calculate actual LP tokens to mint ...
+        let actual_lp_tokens_to_mint = calculate_lp_tokens_for_deposit(amount_to_deposit, &ctx.accounts.pool_config /*, other relevant accounts/data */)?;
+
+        // --- SLIPPAGE CHECK ---
+        if actual_lp_tokens_to_mint < minimum_lp_tokens_out {
+            return err!(ErrorCode::SlippageExceeded);
+        }
+        // --- END SLIPPAGE CHECK ---
+
+        // ... proceed with minting actual_lp_tokens_to_mint and other operations ...
+        Ok(())
+    }
+    ```
+
+### 3. `withdraw` Instruction Modification
+
+*   **Instruction Arguments**:
+    The `withdraw` instruction handler and its argument struct will also require a new parameter.
+    Currently (from IDL): `args: [{ "name": "amount", "type": "u64" }, { "name": "withdraw_full_delisted_balance", "type": "bool" }]`
+    Add: `minimum_underlying_tokens_out: u64`
+
+    ```rust
+    // Conceptual change in lib.rs or instruction handler
+    pub fn withdraw(
+        ctx: Context<WithdrawAccounts>,             // Your accounts struct for withdraw
+        wLqi_amount_to_burn: u64,                   // Amount of wLQI/LP tokens to burn
+        withdraw_full_delisted_balance: bool,       // Existing argument
+        minimum_underlying_tokens_out: u64          // New: Minimum underlying tokens user expects
+    ) -> Result<()> {
+        // ... existing withdrawal logic to calculate actual underlying tokens to return ...
+        let actual_underlying_tokens_to_return = calculate_underlying_for_withdrawal(wLqi_amount_to_burn, &ctx.accounts.pool_config /*, other relevant accounts/data */)?;
+
+        // --- SLIPPAGE CHECK ---
+        // This check might only apply for standard partial withdrawals.
+        // The `withdraw_full_delisted_balance` case might have different semantics
+        // and could potentially bypass this specific slippage check if it's intended to always clear the full balance regardless of minor price shifts.
+        if !withdraw_full_delisted_balance && actual_underlying_tokens_to_return < minimum_underlying_tokens_out {
+            return err!(ErrorCode::SlippageExceeded);
+        }
+        // --- END SLIPPAGE CHECK ---
+
+        // ... proceed with transferring actual_underlying_tokens_to_return and burning wLQI ...
+        Ok(())
+    }
+    ```
+
+### 4. IDL Update and Regeneration
+
+After modifying the Rust program:
+*   The program must be rebuilt (e.g., `anchor build`).
+*   The IDL JSON file (`w_liquify_pool.json`) must be regenerated and updated in the frontend project. This ensures the frontend's Anchor client is aware of the new instruction parameters.
+
+## Frontend Responsibilities
+
+The client-side application (Next.js frontend) will need to:
+
+1.  **Calculate Slippage Parameters**:
+    *   When a user initiates a deposit or withdrawal, and after they input their desired amount:
+        *   Fetch the latest relevant on-chain data (pool reserves, token prices, total LP supply).
+        *   Calculate the `expected_output_amount` (LP tokens for deposit, underlying tokens for withdrawal) based on the current state.
+        *   Using the user's selected `slippageBps` (from settings), calculate the `minimum_tokens_out` parameter:
+            `minimum_tokens_out = expected_output_amount * (1 - (slippageBps / 10000))`
+            (Ensure precise integer arithmetic, e.g., using `BN.js` or `BigInt`).
+2.  **Pass Parameters to Program**:
+    *   Include the calculated `minimum_lp_tokens_out` or `minimum_underlying_tokens_out` (as a `u64` compatible type like `BN`) when constructing and sending the `deposit` or `withdraw` transaction.
+3.  **Handle New Error**:
+    *   Update the frontend's transaction error handling logic to recognize and appropriately display messages for the new `SlippageExceeded` error returned by the program.
+4.  **UI Considerations**:
+    *   Consider displaying both the "Estimated amount you will receive" and the "Minimum acceptable amount (after slippage)" to the user in the transaction confirmation UI for transparency.
+
+By implementing these changes, the wLiquify pool will offer robust, on-chain slippage protection, significantly improving user safety and trust. 
