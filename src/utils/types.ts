@@ -99,6 +99,7 @@ export interface ProcessedTokenData {
     priceData: DecodedPriceData; // Use local DecodedPriceData type
     userBalance: BN | null; // User balance BN
     timestamp: string; // ADDED: Timestamp as string
+    targetRank?: number; // Optional rank based on targetDominance, for non-delisted tokens
 }
 
 // --- Price Data Types ---
@@ -147,4 +148,16 @@ export interface FeeCalculationProps {
 // Settings Related Types
 export type FeeLevel = 'Normal' | 'Fast' | 'Turbo' | 'Custom';
 
-// --- Price Data Types --- 
+export type DynamicFeeLevels = {
+    Normal: number | undefined;
+    Fast: number | undefined;
+    Turbo: number | undefined;
+};
+
+// New Type for RPC Options
+export type RpcOption = {
+    name: string;
+    url: string;
+};
+
+// ... (if any other types exist below, keep them) 

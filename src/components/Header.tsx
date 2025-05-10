@@ -1,15 +1,42 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { SettingsModal } from './SettingsModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Popover, Transition } from '@headlessui/react';
+import { Cog6ToothIcon } from '@heroicons/react/24/solid';
+
+// Helper component to manage Popover state synchronization with context
+interface PopoverStateSyncProps {
+    internalPopoverOpenState: boolean;
+    isSettingsModalOpen: boolean;
+    openSettingsModal: () => void;
+    closeSettingsModal: () => void;
+}
+
+const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
+    internalPopoverOpenState,
+    isSettingsModalOpen,
+    openSettingsModal,
+    closeSettingsModal,
+}) => {
+    React.useEffect(() => {
+        if (internalPopoverOpenState && !isSettingsModalOpen) {
+            openSettingsModal();
+        } else if (!internalPopoverOpenState && isSettingsModalOpen) {
+            closeSettingsModal();
+        }
+    }, [internalPopoverOpenState, isSettingsModalOpen, openSettingsModal, closeSettingsModal]);
+
+    return null; // This component doesn't render anything itself
+};
 
 export const Header: React.FC = () => {
     const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
     const devToolsRef = useRef<HTMLDivElement>(null);
-    const { openSettingsModal } = useSettings();
+    const { openSettingsModal, closeSettingsModal, isSettingsModalOpen, feeLevel } = useSettings();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const [isMobileDevToolsOpen, setIsMobileDevToolsOpen] = useState(false);
@@ -45,7 +72,7 @@ export const Header: React.FC = () => {
 
     return (
         <header className="sticky top-0 z-30 bg-gray-800 shadow-md w-full">
-            <nav className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+            <nav className="px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-14">
                     <div className="flex items-center">
                         <span className="text-white text-xl font-bold">
@@ -98,16 +125,69 @@ export const Header: React.FC = () => {
                     <div className="flex items-center space-x-2 sm:space-x-3">
                         {isMounted && (
                             <>
-                                <button
-                                    onClick={openSettingsModal}
-                                    className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
-                                    title="Settings"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                </button>
+                                {feeLevel && (
+                                    <div 
+                                        className="hidden sm:flex items-center bg-gray-700 text-gray-300 text-xs px-2.5 py-1.5 rounded-md"
+                                        title={`Transaction Priority: ${feeLevel}`}
+                                    >
+                                        <span>Priority:</span>
+                                        <span className="text-white font-semibold ml-1.5">{feeLevel}</span>
+                                    </div>
+                                )}
+
+                                <Popover className="relative">
+                                    {({ open: internalPopoverOpenState }) => (
+                                        <>
+                                            <PopoverStateSync 
+                                                internalPopoverOpenState={internalPopoverOpenState}
+                                                isSettingsModalOpen={isSettingsModalOpen}
+                                                openSettingsModal={openSettingsModal}
+                                                closeSettingsModal={closeSettingsModal}
+                                            />
+                                            <Popover.Button // No onClick here; Headless UI manages this button's role
+                                                className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8"
+                                                title="Settings"
+                                            >
+                                                <Cog6ToothIcon className="h-5 w-5" />
+                                            </Popover.Button>
+
+                                            {/* Overlay: shown when our context modal is open. Click on it closes HUI state, then effect syncs. */}
+                                            <Transition
+                                                as={Fragment}
+                                                show={isSettingsModalOpen} // Show overlay when our modal is open
+                                                enter="transition-opacity ease-linear duration-100"
+                                                enterFrom="opacity-0"
+                                                enterTo="opacity-100"
+                                                leave="transition-opacity ease-linear duration-75"
+                                                leaveFrom="opacity-100"
+                                                leaveTo="opacity-0"
+                                            >
+                                                <Popover.Overlay className="fixed inset-0 z-40 bg-black/30" />
+                                            </Transition>
+
+                                            {/* Panel: shown when our context modal is open. */}
+                                            <Transition
+                                                as={Fragment}
+                                                show={isSettingsModalOpen} // Show panel when our modal is open
+                                                enter="transition ease-out duration-100"
+                                                enterFrom="transform opacity-0 scale-95"
+                                                enterTo="transform opacity-100 scale-100"
+                                                leave="transition ease-in duration-75"
+                                                leaveFrom="transform opacity-100 scale-100"
+                                                leaveTo="transform opacity-0 scale-95"
+                                            >
+                                                <Popover.Panel
+                                                    static
+                                                    className="absolute right-0 z-50 mt-2 w-screen max-w-lg origin-top-right rounded-md shadow-lg focus:outline-none"
+                                                >
+                                                    <div className="overflow-hidden rounded-lg bg-gray-800 p-6 text-white shadow-xl ring-1 ring-black ring-opacity-5 font-[family-name:var(--font-geist-mono)]">
+                                                        <SettingsModal />
+                                                    </div>
+                                                </Popover.Panel>
+                                            </Transition>
+                                        </>
+                                    )}
+                                </Popover>
                                 
                                 <WalletMultiButton 
                                     style={{
@@ -222,7 +302,6 @@ export const Header: React.FC = () => {
                     </div>
                 </>
             )}
-            <SettingsModal />
         </header>
     );
 };

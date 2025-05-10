@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
+    "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@pythnetwork/hermes-client": "^2.0.0",
     "@solana/spl-token": "^0.4.13",
