@@ -266,7 +266,7 @@ export const Header: React.FC = () => {
                                             >
                                                 <Popover.Panel
                                                     static
-                                                    className="absolute right-0 z-50 mt-2 w-screen max-w-lg origin-top-right rounded-md shadow-lg focus:outline-none"
+                                                    className="fixed md:absolute z-50 mt-2 inset-x-4 md:left-auto md:right-0 md:w-screen md:max-w-lg origin-top-right rounded-md shadow-lg focus:outline-none"
                                                 >
                                                     <div className="overflow-hidden rounded-lg bg-gray-800 p-6 text-white shadow-xl ring-1 ring-black ring-opacity-5 font-[family-name:var(--font-geist-mono)]">
                                                         <SettingsModal closePanel={internalPopoverCloseFunction} />

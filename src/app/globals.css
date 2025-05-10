@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.app-tooltip-custom {
+  max-width: 280px; /* Or your preferred max-width */
+  white-space: normal !important; /* Allow text to wrap */
+  overflow-wrap: break-word !important; /* Break long words if necessary */
+}
+
+/* You can also add media queries if needed */
+@media (max-width: 640px) { /* Example for smaller screens */
+  .app-tooltip-custom {
+    max-width: 80vw; /* Use viewport width percentage */
+    font-size: 0.8rem; /* Optionally slightly smaller font on mobile */
+  }
+}

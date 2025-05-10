@@ -100,7 +100,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
                                 <DynamicFeeUpdater />
                                 {children}
                                 <Toaster position="bottom-center" />
-                                <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} />
+                                <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} className="app-tooltip-custom" />
                             </AnchorProgramProvider>
                         </SettingsProvider>
                     </QueryClientProvider>

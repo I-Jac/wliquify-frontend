@@ -507,7 +507,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         <>
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Priority Fee Level</label>
-                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
                                     {feeButtonLevels.map((level) => {
                                         const isSelectedLevel = localFeeLevel === level;
                                         const baseSolForLevel = dynamicFees[level as Exclude<FeeLevel, 'Custom'>];
