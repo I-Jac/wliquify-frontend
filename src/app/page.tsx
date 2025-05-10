@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { PoolInfoDisplay } from "@/components/PoolInfoDisplay";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { usePoolData } from '@/hooks/usePoolData';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -121,6 +122,8 @@ export default function Home() {
         />
         {/* Commented out TokenTable removed */}
       </main>
+
+      <ScrollToTopButton />
     </div>
   );
 }
