@@ -4,6 +4,7 @@ import "@solana/wallet-adapter-react-ui/styles.css"; // Import wallet adapter st
 import type { Viewport } from 'next' // Import Viewport type
 
 import { ClientProviders } from "@/components/ClientProviders"; // Import the new wrapper
+import { Header } from "@/components/Header"; // Import the Header component
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -40,7 +41,10 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
                 <ClientProviders>
-                    {children}
+                    <Header />
+                    <main className="pt-28">
+                        {children}
+                    </main>
                 </ClientProviders>
             </body>
         </html>
