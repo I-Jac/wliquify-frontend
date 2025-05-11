@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector'; // For language detection
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import HttpApi from 'i18next-http-backend'; // Import the http backend
 import ChainedBackend from 'i18next-chained-backend';
 // Conditional import for FSBackend might be needed if Webpack struggles
@@ -55,33 +56,30 @@ if (isBrowser) {
   // Server-side (Node.js) configuration
   let ActualFSBackend;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fsBackendPath = require.resolve('i18next-fs-backend/cjs/index.js');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const FSBackendModule = require(fsBackendPath);
+    const FSBackendModule = require(fsBackendPath); // This require uses a variable, so it needs the disable.
     ActualFSBackend = FSBackendModule.default || FSBackendModule;
   } catch (e) {
     console.error("Failed to load i18next-fs-backend for server-side rendering:", e);
-    // Fallback or error handling if FSBackend can't be loaded, though build should ideally fail clearly.
   }
 
   if (ActualFSBackend) {
     i18nInstance = i18nInstance.use(ActualFSBackend);
+    i18nInstance.init({
+      ...baseInitOptions,
+      backend: { 
+        loadPath: './public/locales/{{lng}}/{{ns}}.json',
+        addPath: './public/locales/{{lng}}/{{ns}}.missing.json',
+      },
+    });
   } else {
-    console.warn("i18next-fs-backend was not loaded. Server-side translations might not work.");
-    // Optionally, you could initialize with no backend or a dummy backend here
-    // to prevent further errors if FSBackend is critical and fails to load.
+    console.warn("i18next-fs-backend was not loaded. Server-side translations might not work. Initializing with no backend for server.");
+    i18nInstance.init({ // Initialize with no backend if FSBackend failed
+      ...baseInitOptions,
+      lng: 'en', // Specify a language
+    });
   }
-  
-i18nInstance.init({
-    ...baseInitOptions,
-    backend: ActualFSBackend ? { // Only configure backend if FSBackend was loaded
-      loadPath: './public/locales/{{lng}}/{{ns}}.json',
-      addPath: './public/locales/{{lng}}/{{ns}}.missing.json',
-    } : undefined,
-    // If FSBackend failed, you might want to provide minimal resources here as a fallback
-    // or ensure your app can handle missing translations gracefully during SSR.
-  });
 }
 
 export default i18nInstance; 
