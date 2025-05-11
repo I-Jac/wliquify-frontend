@@ -23,11 +23,15 @@
     "bn.js": "^5.2.1",
     "dotenv": "^16.5.0",
     "ethers": "^6.13.7",
+    "i18next": "^25.1.2",
+    "i18next-browser-languagedetector": "^8.1.0",
+    "i18next-http-backend": "^3.0.2",
     "next": "15.3.1",
     "node-fetch": "^2.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
+    "react-i18next": "^15.5.1",
     "react-tooltip": "^5.28.1"
   },
   "devDependencies": {

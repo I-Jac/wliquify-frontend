@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { SettingsModal } from './SettingsModal';
-import { useSettings, FeeLevel } from '@/contexts/SettingsContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import type { FeeLevel } from '@/utils/types';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Popover, Transition } from '@headlessui/react';
 import { Cog6ToothIcon as SolidCogIcon } from '@heroicons/react/24/solid';
@@ -14,6 +15,7 @@ import {
     FAUCET_URL_SOL_1,
     FAUCET_URL_SOL_2
 } from '@/utils/constants';
+import { useTranslation } from 'react-i18next';
 
 // Helper component to manage Popover state synchronization with context
 interface PopoverStateSyncProps {
@@ -34,6 +36,7 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
     openAlertModal,
 }) => {
     const prevInternalPopoverOpenStateRef = useRef<boolean>(internalPopoverOpenState);
+    const { t } = useTranslation();
 
     React.useEffect(() => {
         const prevHuiOpen = prevInternalPopoverOpenStateRef.current;
@@ -47,7 +50,7 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
         // This is usually an Esc key press or click outside.
         else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
             if (isSettingsDirty) {
-                openAlertModal("You have unsaved changes. Please save or discard them before closing.");
+                openAlertModal(t('attemptCloseDirtyMessage'));
             } else {
                 closeSettingsModal();
             }
@@ -63,7 +66,7 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
         }
 
         prevInternalPopoverOpenStateRef.current = huiOpen;
-    }, [internalPopoverOpenState, isSettingsModalOpen, openSettingsModal, closeSettingsModal, isSettingsDirty, openAlertModal]);
+    }, [internalPopoverOpenState, isSettingsModalOpen, openSettingsModal, closeSettingsModal, isSettingsDirty, openAlertModal, t]);
 
     return null;
 };
@@ -72,11 +75,12 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
 export const Header: React.FC = () => {
     const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
     const devToolsRef = useRef<HTMLDivElement>(null);
+    const { t, i18n } = useTranslation();
     const { 
         openSettingsModal, 
         closeSettingsModal, 
         isSettingsModalOpen, 
-        feeLevel, 
+        feeLevel,
         priorityFee,
         dynamicFees,
         maxPriorityFeeCapSol,
@@ -181,13 +185,18 @@ export const Header: React.FC = () => {
                                 {feeLevel && (
                                     <div 
                                         className="hidden sm:flex items-center bg-gray-700 text-gray-300 text-xs px-2.5 py-1.5 rounded-md"
-                                        title={`Transaction Priority: ${feeLevel}`}
+                                        title={t('transactionPriorityTitle', { feeLevel: t(`feeLevel${feeLevel}`)})}
                                     >
-                                        <span>Priority:</span>
-                                        <span className="text-white font-semibold ml-1.5">{feeLevel}</span>
+                                        <span>{t('headerPriorityLabel')}</span>
+                                        <span className="text-white font-semibold ml-1.5">{t(`feeLevel${feeLevel}`)}</span>
                                         {(priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (() => {
-                                            const cleanFeeLevel = feeLevel as Exclude<FeeLevel, 'Custom'>;
-                                            const baseSolForSelectedLevel = dynamicFees[cleanFeeLevel];
+                                            // Ensure tempFeeLevel is a valid key for dynamicFees
+                                            let tempFeeLevel: Exclude<FeeLevel, 'Custom'> = feeLevel as Exclude<FeeLevel, 'Custom'>;
+                                            if (feeLevel === 'Custom') {
+                                                tempFeeLevel = 'Normal'; // Default to 'Normal' if current feeLevel is 'Custom'
+                                            }
+                                            
+                                            const baseSolForSelectedLevel = dynamicFees[tempFeeLevel];
                                             
                                             let isSelectedLevelCapped = false;
                                             if (baseSolForSelectedLevel !== undefined && maxPriorityFeeCapSol >= 0) {
@@ -196,14 +205,15 @@ export const Header: React.FC = () => {
                                                 }
                                             }
                                             const displayedSol = (priorityFee * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
+                                            const translatedFeeLevel = t(`feeLevel${feeLevel}`);
                                             
                                             return (
                                                 <span 
                                                     className={`${isSelectedLevelCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
                                                     data-tooltip-id="app-tooltip"
-                                                    data-tooltip-content={isSelectedLevelCapped ? `Selected priority fee (${feeLevel}) is above your Max Cap. Effective fee is capped, potentially reducing priority. Check Settings.` : `Effective priority fee based on current settings.`}
+                                                    data-tooltip-content={isSelectedLevelCapped ? t('tooltipFeeCapped', { feeLevel: translatedFeeLevel }) : t('tooltipFeeNormal')}
                                                 >
-                                                    (~{displayedSol.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 9 })} SOL)
+                                                    {t('headerApproximateFee', { value: displayedSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
                                                 </span>
                                             );
                                         })()}
@@ -245,7 +255,7 @@ export const Header: React.FC = () => {
                                                     className="fixed inset-0 z-40 bg-black/30" 
                                                     onClick={() => {
                                                         if (isSettingsDirty) {
-                                                            openAlertModal("You have unsaved changes. Please save or revert them before closing.");
+                                                            openAlertModal(t('attemptCloseDirtyMessage'));
                                                         } else {
                                                             closeSettingsModal(); 
                                                         }

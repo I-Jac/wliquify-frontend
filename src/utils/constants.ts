@@ -102,7 +102,11 @@ export const LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL = 'maxPriorityFeeCapSol'
 export const LOCAL_STORAGE_KEY_SLIPPAGE_BPS = 'slippageBps';
 export const LOCAL_STORAGE_KEY_RPC_ENDPOINT = 'rpcEndpoint';
 
-// Transaction Compute Units for fee calculation - general estimate
+// Profile Settings LocalStorage Keys
+export const LOCAL_STORAGE_KEY_PREFERRED_LANGUAGE = 'preferredLanguage';
+export const LOCAL_STORAGE_KEY_PREFERRED_CURRENCY = 'preferredCurrency';
+export const LOCAL_STORAGE_KEY_NUMBER_FORMAT = 'numberFormat';
+export const LOCAL_STORAGE_KEY_PREFERRED_EXPLORER = 'preferredExplorer';
 
 // Predefined settings options (moved from SettingsModal.tsx)
 export const PREDEFINED_SLIPPAGE_OPTIONS = [
@@ -120,3 +124,40 @@ export const PREDEFINED_RPCS: RpcOption[] = [
 export const FAUCET_URL_TOKEN = 'https://i-jac.github.io/faucet-frontend/';
 export const FAUCET_URL_SOL_1 = 'https://solfaucet.com/';
 export const FAUCET_URL_SOL_2 = 'https://solfate.com/faucet';
+
+// Default Profile Settings
+export const DEFAULT_PREFERRED_LANGUAGE = 'en';
+export const DEFAULT_PREFERRED_CURRENCY = 'USD';
+export const DEFAULT_NUMBER_FORMAT: { decimalSeparator: '.' | ','; thousandSeparator: ',' | '.' | ' ' | ''; } = {
+    decimalSeparator: '.',
+    thousandSeparator: ',',
+};
+export const DEFAULT_PREFERRED_EXPLORER = 'Solscan'; // Name matches a key in DEFAULT_EXPLORER_OPTIONS
+
+export const DEFAULT_EXPLORER_OPTIONS: Record<string, { name: string; urlTemplate: string; addressUrlTemplate?: string; tokenUrlTemplate?: string; }> = {
+    Solscan: {
+        name: 'Solscan',
+        urlTemplate: 'https://solscan.io/tx/{txId}?cluster={cluster}',
+        addressUrlTemplate: 'https://solscan.io/account/{address}?cluster={cluster}',
+        tokenUrlTemplate: 'https://solscan.io/token/{token_address}?cluster={cluster}',
+    },
+    SolanaFM: {
+        name: 'SolanaFM',
+        urlTemplate: 'https://solana.fm/tx/{txId}?cluster={cluster}',
+        addressUrlTemplate: 'https://solana.fm/address/{address}?cluster={cluster}',
+        tokenUrlTemplate: 'https://solana.fm/address/{token_address}?cluster={cluster}', // SolanaFM uses 'address' for tokens too
+    },
+    'Solana Explorer': { // Key with space
+        name: 'Solana Explorer',
+        urlTemplate: 'https://explorer.solana.com/tx/{txId}?cluster={cluster}',
+        addressUrlTemplate: 'https://explorer.solana.com/address/{address}?cluster={cluster}',
+        tokenUrlTemplate: 'https://explorer.solana.com/address/{token_address}?cluster={cluster}', // Explorer also uses 'address' for tokens
+    },
+    // Add XRAY if desired
+    // XRAY: {
+    //     name: 'XRAY',
+    //     urlTemplate: 'https://xray.helius.xyz/tx/{txId}?network={network_for_xray}', // network_for_xray needs to be 'devnet' or 'mainnet-beta'
+    //     addressUrlTemplate: 'https://xray.helius.xyz/account/{address}?network={network_for_xray}',
+    //     tokenUrlTemplate: 'https://xray.helius.xyz/token/{token_address}?network={network_for_xray}',
+    // },
+};

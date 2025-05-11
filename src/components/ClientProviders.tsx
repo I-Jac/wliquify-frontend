@@ -23,6 +23,8 @@ import { Toaster } from 'react-hot-toast';
 import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import AnchorProgramProvider
 import { Tooltip } from 'react-tooltip'; // Added import
 import 'react-tooltip/dist/react-tooltip.css'; // Added CSS import
+import { I18nextProvider } from 'react-i18next'; // Added
+import i18n from '../i18n'; // Added, assuming path from src/components to src/i18n.ts
 
 // Component to handle dynamic fee updates
 function DynamicFeeUpdater() {
@@ -90,22 +92,23 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     );
 
     return (
-        <ConnectionProvider endpoint={endpoint}>
-            <WalletProvider wallets={wallets} autoConnect>
-                <WalletModalProvider>
-                    {/* Wrap SettingsProvider with QueryClientProvider */}
-                    <QueryClientProvider client={queryClient}>
-                        <SettingsProvider>
-                            <AnchorProgramProvider>
-                                <DynamicFeeUpdater />
-                                {children}
-                                <Toaster position="bottom-center" />
-                                <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} className="app-tooltip-custom" />
-                            </AnchorProgramProvider>
-                        </SettingsProvider>
-                    </QueryClientProvider>
-                </WalletModalProvider>
-            </WalletProvider>
-        </ConnectionProvider>
+        <I18nextProvider i18n={i18n}>
+            <SettingsProvider>
+                <ConnectionProvider endpoint={endpoint}>
+                    <WalletProvider wallets={wallets} autoConnect>
+                        <WalletModalProvider>
+                            <QueryClientProvider client={queryClient}>
+                                <AnchorProgramProvider>
+                                    <DynamicFeeUpdater />
+                                    {children}
+                                    <Toaster position="bottom-center" />
+                                    <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} className="app-tooltip-custom" />
+                                </AnchorProgramProvider>
+                            </QueryClientProvider>
+                        </WalletModalProvider>
+                    </WalletProvider>
+                </ConnectionProvider>
+            </SettingsProvider>
+        </I18nextProvider>
     );
 } 

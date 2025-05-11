@@ -9,6 +9,7 @@ interface SkeletonTokenTableProps {
 const SkeletonTableRow: React.FC = () => {
     return (
         <tr className="border-b border-gray-700">
+            <td className="py-3 px-4 text-center"><SkeletonBlock className="h-4 w-6 mx-auto" /></td>{/* Rank # */}
             <td className="py-3 px-4"><SkeletonBlock className="h-4 w-12" /></td>{/* Symbol */}
             <td className="py-3 px-4"><SkeletonBlock className="h-4 w-20" /></td>{/* Value */}
             <td className="py-3 px-4"><SkeletonBlock className="h-4 w-10" /></td>{/* Actual % */}
@@ -74,6 +75,7 @@ export const SkeletonTokenTable: React.FC<SkeletonTokenTableProps> = ({ rowCount
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="bg-gray-600">
                         <tr>
+                            <th className="p-2 w-12 text-center text-gray-400">#</th>{/* Rank # Header */}
                             <th className="p-2 w-16 text-center text-gray-400">Symbol</th>
                             <th className="p-2 w-32 text-center text-gray-400">Pool Balance</th>
                             <th className="p-2 w-28 text-center text-gray-400">Actual %</th>

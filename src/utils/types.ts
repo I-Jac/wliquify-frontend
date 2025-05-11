@@ -169,6 +169,42 @@ export interface InitialSettings {
     isCustomRpc: boolean;
     customRpcInputValue: string;
     isCustomSlippage: boolean;
+    preferredLanguage: string;
+    preferredCurrency: string;
+    numberFormat: NumberFormatSettings;
+    preferredExplorer: string;
+}
+
+// Profile Settings Types
+export type LanguageOption = {
+    code: string; // e.g., 'en', 'es'
+    name: string; // e.g., 'English', 'Español'
+};
+
+export type CurrencyOption = {
+    code: string; // e.g., 'USD', 'EUR'
+    name: string; // e.g., 'US Dollar', 'Euro'
+    symbol: string; // e.g., '$', '€'
+};
+
+export type NumberFormatSettings = {
+    decimalSeparator: '.' | ',';
+    thousandSeparator: ',' | '.' | ' ' | ''; // Can be empty string for no separator
+};
+
+export type SolanaExplorerOption = {
+    name: string; // e.g., 'Solscan', 'SolanaFM', 'Explorer'
+    urlTemplate: string; // e.g., 'https://solscan.io/tx/{txId}?cluster={cluster}'
+    // Add other templates as needed (address, account, etc.)
+    addressUrlTemplate?: string; // e.g., 'https://solscan.io/account/{address}?cluster={cluster}'
+    tokenUrlTemplate?: string; // e.g., 'https://solscan.io/token/{token_address}?cluster={cluster}'
+};
+
+export interface ProfileSettings {
+    preferredLanguage: string; // language code, e.g., 'en'
+    preferredCurrency: string; // currency code, e.g., 'USD'
+    numberFormat: NumberFormatSettings;
+    preferredExplorer: string; // explorer name, e.g., 'Solscan'
 }
 
 // ... (if any other types exist below, keep them) 

@@ -379,7 +379,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     Deposit{getSortIndicator('depositFeeBonus')}
                                 </th>
                             )}
-                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center bg-gray-600 rounded-tr-md">Withdraw{getSortIndicator('withdrawFeeBonus')}</th>
+                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center bg-gray-600 rounded-tr-md" onClick={() => handleSort('withdrawFeeBonus')}>
+                                Withdraw{getSortIndicator('withdrawFeeBonus')}
+                            </th>
                         </tr>
                     </thead>
                     <tbody>

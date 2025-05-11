@@ -3,6 +3,7 @@
 import React, { Fragment } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { Dialog, Transition } from '@headlessui/react';
+import { useTranslation } from 'react-i18next';
 
 export const AlertModal: React.FC = () => {
     const {
@@ -10,6 +11,7 @@ export const AlertModal: React.FC = () => {
         alertModalMessage,
         closeAlertModal
     } = useSettings();
+    const { t } = useTranslation();
 
     if (!isAlertModalOpen) {
         return null;
@@ -46,7 +48,7 @@ export const AlertModal: React.FC = () => {
                                     as="h3"
                                     className="text-lg font-medium leading-6 text-white"
                                 >
-                                    Notification
+                                    {t('notificationTitle')}
                                 </Dialog.Title>
                                 <div className="mt-3">
                                     <p className="text-sm text-gray-300">
@@ -60,7 +62,7 @@ export const AlertModal: React.FC = () => {
                                         className="inline-flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 sm:text-sm"
                                         onClick={closeAlertModal}
                                     >
-                                        OK
+                                        {t('okButton')}
                                     </button>
                                 </div>
                             </Dialog.Panel>
