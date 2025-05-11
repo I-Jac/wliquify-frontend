@@ -1,4 +1,7 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // A simple SVG for an external link icon
 const ExternalLinkIcon = () => (
@@ -22,7 +25,14 @@ const ExternalLinkIcon = () => (
 );
 
 export const Footer: React.FC = () => {
-    const currentYear = new Date().getFullYear();
+    const { t } = useTranslation();
+    const [isMounted, setIsMounted] = useState(false);
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+    useEffect(() => {
+        setIsMounted(true);
+        setCurrentYear(new Date().getFullYear()); // Ensure year is set on client
+    }, []);
 
     const footerSections = [
         {
@@ -77,16 +87,12 @@ export const Footer: React.FC = () => {
                         ))}
                     </div>
                     <div className="text-left md:text-right text-sm text-gray-400 mt-8 md:mt-0 md:ml-8 shrink-0">
-                        <p>&copy; {currentYear} wLiquify. All rights reserved.</p>
-                        <p className="mt-1">
-                            Disclaimer: This is a software project. Use at your own risk.
-                        </p>
+                        <p>{isMounted ? t('copyright', { year: currentYear }) : `© ${new Date().getFullYear()} wLiquify. All rights reserved.`}</p>
+                        <p className="mt-1">{isMounted ? t('disclaimer') : 'Disclaimer: This is a software project. Use at your own risk.'}</p>
                     </div>
                 </div>
-                 <div className="py-8 text-center text-xs text-gray-500 border-t border-gray-700 mt-8">
-                    <p>
-                        wLiquify is not a financial advisor. All information provided is for educational and informational purposes only.
-                    </p>
+                <div className="py-8 text-center text-xs text-gray-500 border-t border-gray-700 mt-8">
+                    <p>{isMounted ? t('financialDisclaimer') : 'wLiquify is not a financial advisor. All information provided is for educational and informational purposes only.'}</p>
                 </div>
             </div>
         </footer>

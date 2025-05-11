@@ -140,9 +140,9 @@ export const Header: React.FC = () => {
                             className="ml-2 p-1 text-white rounded-md md:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                             aria-controls="mobile-menu"
                             aria-expanded={isMobileMenuOpen}
-                            title="Open menu"
+                            title={isMounted ? t('openMainMenu') : 'Open main menu'}
                         >
-                            <span className="sr-only">Open main menu</span>
+                            <span className="sr-only">{isMounted ? t('openMainMenu') : 'Open main menu'}</span>
                             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
                         </button>
 

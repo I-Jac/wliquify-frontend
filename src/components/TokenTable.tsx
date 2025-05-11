@@ -18,6 +18,7 @@ import {
     BPS_SCALE,
 } from '@/utils/constants';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 // Import the new components
 import { TokenRow } from './TokenRow';
@@ -67,6 +68,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
     isLoadingPublicData,
     hideDepositColumn = false,
 }) => {
+    const { t } = useTranslation();
     const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -360,27 +362,27 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     <thead className="sticky top-14 z-10 bg-gray-600">
                         <tr className="bg-gray-600 rounded-tl-md rounded-tr-md overflow-hidden">
                             {showRankColumn && (
-                                <th scope="col" className="p-2 text-center bg-gray-600 rounded-tl-md">#</th>
+                                <th scope="col" className="p-2 text-center bg-gray-600 rounded-tl-md">{t('tokenTable.columns.rank')}</th>
                             )}
                             <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
-                                Symbol{getSortIndicator('symbol')}
+                                {t('tokenTable.columns.symbol')}{getSortIndicator('symbol')}
                             </th>
                             <th className="p-2 w-48 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
-                                Pool Balance{getSortIndicator('value')}
+                                {t('tokenTable.columns.poolBalance')}{getSortIndicator('value')}
                             </th>
                             <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}>
-                                Actual %{getSortIndicator('actualPercent')}
+                                {t('tokenTable.columns.actualPercent')}{getSortIndicator('actualPercent')}
                             </th>
                             <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
-                                Target %{getSortIndicator('targetPercent')}
+                                {t('tokenTable.columns.targetPercent')}{getSortIndicator('targetPercent')}
                             </th>
                             {!hideDepositColumn && (
                                 <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('depositFeeBonus')}>
-                                    Deposit{getSortIndicator('depositFeeBonus')}
+                                    {t('tokenTable.columns.deposit')}{getSortIndicator('depositFeeBonus')}
                                 </th>
                             )}
-                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center bg-gray-600 rounded-tr-md" onClick={() => handleSort('withdrawFeeBonus')}>
-                                Withdraw{getSortIndicator('withdrawFeeBonus')}
+                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('withdrawFeeBonus')}>
+                                {t('tokenTable.columns.withdraw')}{getSortIndicator('withdrawFeeBonus')}
                             </th>
                         </tr>
                     </thead>
