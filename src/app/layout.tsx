@@ -6,6 +6,7 @@ import type { Viewport } from 'next' // Import Viewport type
 import { ClientProviders } from "@/components/ClientProviders"; // Import the new wrapper
 import { Header } from "@/components/Header"; // Import the Header component
 import { AlertModal } from "@/components/AlertModal"; // Import the AlertModal component
+import { Footer } from "@/components/Footer"; // Import the Footer component
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -43,9 +44,10 @@ export default function RootLayout({
             >
                 <ClientProviders>
                     <Header />
-                    <main className="pt-28">
+                    <main className="">
                         {children}
                     </main>
+                    <Footer />
                     <AlertModal />
                 </ClientProviders>
             </body>

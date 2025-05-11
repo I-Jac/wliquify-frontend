@@ -32,8 +32,8 @@ export default function Home() {
   const displayError = poolDataError;
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] relative">
-      <main className="flex flex-col items-center gap-8 w-full max-w-4xl">
+    <div className="grid grid-rows-[auto_1fr_auto] items-center justify-items-center min-h-screen p-4 sm:p-8 lg:p-16 pb-20 gap-16 font-[family-name:var(--font-geist-sans)] relative">
+      <main className="flex flex-col items-center gap-8 w-full max-w-4xl mx-auto">
         {displayError && <div className="text-red-500 bg-red-900/30 p-2 rounded">Error: {displayError}</div>}
         <PoolInfoDisplay
           poolConfig={poolConfig}

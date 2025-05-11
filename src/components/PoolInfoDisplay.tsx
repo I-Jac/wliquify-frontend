@@ -163,7 +163,7 @@ export const PoolInfoDisplay = ({
     if (showInitialSkeletons) {
         // Render full skeleton UI only on initial load when no data exists yet
         return (
-            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)]">
+            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
                 <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
                      Pool Information
                 </h2>
@@ -192,7 +192,7 @@ export const PoolInfoDisplay = ({
 
     // Render the main UI, potentially indicating refresh state via button disable
     return (
-        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-10 font-[family-name:var(--font-geist-mono)]">
+        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
             <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">Pool Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6 bg-gray-700 p-4 rounded">
                  {/* Show current (possibly stale) values during refresh, or skeleton if value is null (Uses props) */}
