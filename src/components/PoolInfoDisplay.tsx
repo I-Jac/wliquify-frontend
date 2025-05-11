@@ -160,6 +160,11 @@ export const PoolInfoDisplay = ({
     // Determine if we should show the "could not process" message (Uses props)
     const showProcessingError = !effectiveIsLoadingPublic && !error && processedTokenData === null;
 
+    // --- Data Formatting (Uses props) ---
+    const formattedWlqiSupply = formatRawAmountString(wLqiSupply, wLqiDecimals, true, 2);
+    const formattedWlqiValue = formatScaledBnToDollarString(wLqiValueScaled, USD_SCALE);
+    const formattedTvl = formatScaledBnToDollarString(totalPoolValueScaled, USD_SCALE);
+
     if (showInitialSkeletons) {
         // Render full skeleton UI only on initial load when no data exists yet
         return (
@@ -184,11 +189,6 @@ export const PoolInfoDisplay = ({
 
     if (error) return <div className="text-center p-4 text-red-500">Error: {error}</div>; // Use error prop
     if (showProcessingError) return <div className="text-center p-4">Pool data could not be fully processed.</div>;
-
-    // --- Data Formatting (Uses props) ---
-    const formattedWlqiSupply = formatRawAmountString(wLqiSupply, wLqiDecimals, true, 2);
-    const formattedWlqiValue = formatScaledBnToDollarString(wLqiValueScaled, USD_SCALE);
-    const formattedTvl = formatScaledBnToDollarString(totalPoolValueScaled, USD_SCALE);
 
     // Render the main UI, potentially indicating refresh state via button disable
     return (

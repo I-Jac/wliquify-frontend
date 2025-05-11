@@ -181,8 +181,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     if (sortDirection === 'desc') compareResult = -compareResult;
                     break;
                 case 'depositFeeBonus':
-                    compareResult = sortDirection === 'desc' 
-                        ? valuesA.depositFeeBonusSortValue.cmp(valuesB.depositFeeBonusSortValue) 
+                    compareResult = sortDirection === 'desc'
+                        ? valuesA.depositFeeBonusSortValue.cmp(valuesB.depositFeeBonusSortValue)
                         : valuesB.depositFeeBonusSortValue.cmp(valuesA.depositFeeBonusSortValue);
                     break;
                 case 'withdrawFeeBonus':
@@ -191,7 +191,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                         : valuesB.withdrawFeeBonusSortValue.cmp(valuesA.withdrawFeeBonusSortValue);
                     break;
             }
-            
+
             // Secondary sort by targetPercent descending if primary sort result is equal for ANY sortKey
             if (compareResult === 0) {
                 compareResult = valuesB.targetPercent.cmp(valuesA.targetPercent);
@@ -353,14 +353,14 @@ export const TokenTable = React.memo<TokenTableProps>(({
     };
 
     return (
-        <div className="overflow-x-auto">
+        <div className="">
             {/* --- Desktop Table (Hidden on Mobile) --- */}
             <div className="hidden md:block">
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
-                    <thead className="bg-gray-600">
-                        <tr className="bg-gray-600">
+                    <thead className="sticky top-14 z-10 bg-gray-600">
+                        <tr className="bg-gray-600 rounded-tl-md rounded-tr-md overflow-hidden">
                             {showRankColumn && (
-                                <th scope="col" className="p-2 text-center">#</th>
+                                <th scope="col" className="p-2 text-center bg-gray-600 rounded-tl-md">#</th>
                             )}
                             <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
                                 Symbol{getSortIndicator('symbol')}
@@ -379,9 +379,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     Deposit{getSortIndicator('depositFeeBonus')}
                                 </th>
                             )}
-                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('withdrawFeeBonus')}>
-                                Withdraw{getSortIndicator('withdrawFeeBonus')}
-                            </th>
+                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center bg-gray-600 rounded-tr-md">Withdraw{getSortIndicator('withdrawFeeBonus')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -420,7 +418,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
 
             {/* --- Mobile Card List (Visible on Mobile) --- */}
             <div className="block md:hidden space-y-3 px-2 py-2">
-                <MobileSortControls 
+                <MobileSortControls
                     currentSortKey={sortKey}
                     currentSortDirection={sortDirection}
                     handleSort={handleSort}
