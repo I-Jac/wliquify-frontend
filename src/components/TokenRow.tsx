@@ -15,7 +15,6 @@ import { calculateFees } from '@/utils/fees';
 import { TokenInputControls } from './TokenInputControls';
 import {
     USD_SCALE,
-    BTN_GRAY,
     BPS_SCALE,
     BTN_DELISTED_WITHDRAW,
     DELISTED_WITHDRAW_BONUS_BPS,
@@ -23,6 +22,7 @@ import {
 import { parseUnits } from 'ethers';
 import { safeConvertBnToNumber } from '@/utils/helpers';
 import { useTranslation } from 'react-i18next';
+import { PublicKey } from '@solana/web3.js';
 
 // --- TokenRow Props ---
 export interface TokenRowProps {
@@ -49,6 +49,8 @@ export interface TokenRowProps {
     totalTargetDominance: BN;
     targetRank: number | null;
     showRankColumn: boolean;
+    publicKey: PublicKey | null;
+    setVisible: (open: boolean) => void;
 }
 
 // --- TokenRow Component ---
@@ -74,6 +76,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     totalTargetDominance,
     targetRank,
     showRankColumn,
+    publicKey,
+    setVisible,
 }) => {
     const { t } = useTranslation();
     // Destructure token object inside the function
@@ -149,6 +153,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
         : undefined;
 
     const buttonStates = calculateButtonStates({
+        t,
+        publicKey,
         actionDisabled,
         isDepositing,
         isWithdrawing,
@@ -187,13 +193,34 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
         : '--.--';
 
     // Button callbacks
-    const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
-    const handleActualWithdraw = () => onWithdraw(mintAddress, currentWithdrawAmount, false);
-    const handleFullDelistedWithdraw = () => onWithdraw(mintAddress, "0", true);
+    const handleActualDeposit = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onDeposit(mintAddress, currentDepositAmount, decimals);
+    };
+
+    const handleActualWithdraw = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onWithdraw(mintAddress, currentWithdrawAmount, false);
+    };
+
+    const handleFullDelistedWithdraw = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onWithdraw(mintAddress, "0", true);
+    };
     let requiredWlqiForDelistedBn: BN | null = null;
     let requiredWlqiForDelistedFormatted: string | null = null;
     let userHasEnoughForDelisted = false;
     let delistedFullWithdrawBonusAmountString: string | null = null;
+    let delistedFullWithdrawBonusPercentString: string | null = null;
 
     if (isDelisted && vaultBalance && !vaultBalance.isZero() && decimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
         try {
@@ -202,6 +229,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                 const vaultBalanceUsd = T_usd_scaled.toNumber() / Math.pow(10, USD_SCALE);
                 const bonusAmount = vaultBalanceUsd * (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE);
                 delistedFullWithdrawBonusAmountString = bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                delistedFullWithdrawBonusPercentString = (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                 const bonusNumerator = new BN(100);
                 const bonusDenominator = new BN(105);
@@ -219,6 +247,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
             requiredWlqiForDelistedFormatted = null;
             userHasEnoughForDelisted = false;
             delistedFullWithdrawBonusAmountString = null;
+            delistedFullWithdrawBonusPercentString = null;
         }
     }
     const actualPercentBN = token.actualDominancePercent !== null && token.actualDominancePercent !== undefined
@@ -311,26 +340,36 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                     <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
                     {isDelisted && (
                         <div className="mt-1">
-                            <button 
-                                onClick={handleFullDelistedWithdraw} 
-                                disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())} 
-                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${!userHasEnoughForDelisted ? BTN_GRAY : BTN_DELISTED_WITHDRAW} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`} 
-                                title={actionDisabled ? t('tokenTable.actionInProgress') : 
-                                       (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.poolEmpty') : 
-                                       !requiredWlqiForDelistedFormatted ? t('tokenTable.calcError') : 
-                                       !userHasEnoughForDelisted ? t('tokenTable.needWlqi', { amount: requiredWlqiForDelistedFormatted }) : 
-                                       t('tokenTable.withdrawEntireBalance', { 
-                                           symbol, 
-                                           bonus: delistedFullWithdrawBonusAmountString ? ` (Est. Bonus: +$${delistedFullWithdrawBonusAmountString})` : '',
-                                           amount: requiredWlqiForDelistedFormatted 
-                                       })}
+                            <button
+                                onClick={handleFullDelistedWithdraw}
+                                disabled={actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn}
+                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                title={actionDisabled ? t('tokenTable.delistedWithdraw.tooltipActionInProgress') :
+                                       (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.tooltipPoolEmpty', { symbol }) :
+                                       !requiredWlqiForDelistedFormatted ? t('tokenTable.delistedWithdraw.tooltipCalcError') :
+                                       !userHasEnoughForDelisted ? t('tokenTable.tooltipNeedWlqi', { amount: requiredWlqiForDelistedFormatted }) :
+                                       (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                            t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalance', {
+                                                symbol,
+                                                bonusPercent: delistedFullWithdrawBonusPercentString,
+                                                bonusUsd: delistedFullWithdrawBonusAmountString,
+                                                amount: requiredWlqiForDelistedFormatted
+                                            }) :
+                                            t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalanceNoBonus', {
+                                                symbol,
+                                                amount: requiredWlqiForDelistedFormatted
+                                            })
+                                }
                             >
-                                {actionDisabled ? (isWithdrawing ? t('tokenTable.withdrawing') : '...') : 
-                                 (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.poolEmpty') : 
-                                 !userHasEnoughForDelisted ? t('tokenTable.insufficientWlqi') : 
-                                 delistedFullWithdrawBonusAmountString ? 
-                                    t('tokenTable.withdrawFullBalance', { bonus: ` = +$${delistedFullWithdrawBonusAmountString}` }) :
-                                    t('tokenTable.withdrawFullBalanceNoBonus')}
+                                {actionDisabled ? (isWithdrawing ? t('tokenTable.delistedWithdraw.withdrawing') : t('tokenTable.delistedWithdraw.actionInProgress')) :
+                                 (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.poolEmpty') :
+                                 !requiredWlqiForDelistedBn ? t('tokenTable.delistedWithdraw.calcError') :
+                                 (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                    t('tokenTable.delistedWithdraw.withdrawFullBalanceBonus', {
+                                        bonusPercent: delistedFullWithdrawBonusPercentString,
+                                        bonusUsd: delistedFullWithdrawBonusAmountString
+                                    }) :
+                                    t('tokenTable.delistedWithdraw.withdrawFullBalanceNoBonus')}
                             </button>
                         </div>
                     )}

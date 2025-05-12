@@ -87,12 +87,12 @@ export const Footer: React.FC = () => {
                         ))}
                     </div>
                     <div className="text-left md:text-right text-sm text-gray-400 mt-8 md:mt-0 md:ml-8 shrink-0">
-                        <p>{isMounted ? t('copyright', { year: currentYear }) : `© ${new Date().getFullYear()} wLiquify. All rights reserved.`}</p>
-                        <p className="mt-1">{isMounted ? t('disclaimer') : 'Disclaimer: This is a software project. Use at your own risk.'}</p>
+                        <p>{isMounted ? t('footer.copyright', { year: currentYear }) : `© ${new Date().getFullYear()} wLiquify. All rights reserved.`}</p>
+                        <p className="mt-1">{isMounted ? t('footer.disclaimer') : 'Disclaimer: This is a software project. Use at your own risk.'}</p>
                     </div>
                 </div>
                 <div className="py-8 text-center text-xs text-gray-500 border-t border-gray-700 mt-8">
-                    <p>{isMounted ? t('financialDisclaimer') : 'wLiquify is not a financial advisor. All information provided is for educational and informational purposes only.'}</p>
+                    <p>{isMounted ? t('footer.financialDisclaimer') : 'wLiquify is not a financial advisor. All information provided is for educational and informational purposes only.'}</p>
                 </div>
             </div>
         </footer>

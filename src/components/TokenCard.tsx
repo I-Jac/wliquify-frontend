@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import Image from 'next/image';
-// import { ProcessedTokenData } from '@/utils/types'; // Removed as it's implicitly covered by TokenRowProps
 import {
     calculateTokenValueUsdScaled,
     calculateTargetPercentageScaled,
@@ -15,18 +14,19 @@ import { calculateFees } from '@/utils/fees';
 import { TokenInputControls } from './TokenInputControls';
 import {
     USD_SCALE,
-    BTN_GRAY,
     BPS_SCALE,
     BTN_DELISTED_WITHDRAW,
     DELISTED_WITHDRAW_BONUS_BPS,
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
-import { TokenRowProps } from './TokenRow'; // Import TokenRowProps to base TokenCardProps on it
-import { safeConvertBnToNumber } from '@/utils/helpers'; // Import the new utility
+import { TokenRowProps } from './TokenRow';
+import { safeConvertBnToNumber } from '@/utils/helpers';
+import { useTranslation } from 'react-i18next';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from './WalletModalProvider';
 
 // --- TokenCard Props (Omit 'index' from TokenRowProps) ---
 export type TokenCardProps = Omit<TokenRowProps, 'index'>;
-// Reverted from interface to type alias as it has no new members
 
 // --- TokenCard Component ---
 export const TokenCard: React.FC<TokenCardProps> = React.memo(({
@@ -49,8 +49,11 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     handleSetTargetAmount,
     totalTargetDominance,
     targetRank,
-    showRankColumn, // Destructure showRankColumn
+    showRankColumn,
 }) => {
+    const { t } = useTranslation();
+    const { publicKey } = useWallet();
+    const { setVisible } = useWalletModal();
     // --- Re-use calculations and formatting logic from TokenRow ---
     const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
     const [currentIconSrc, setCurrentIconSrc] = useState(icon);
@@ -108,6 +111,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
 
     // --- Button State & Labels ---
     const buttonStates = calculateButtonStates({
+        t,
+        publicKey,
         actionDisabled,
         isDepositing,
         isWithdrawing,
@@ -149,13 +154,34 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         : null;
 
     // Button callbacks
-    const handleActualDeposit = () => onDeposit(mintAddress, currentDepositAmount, decimals);
-    const handleActualWithdraw = () => onWithdraw(mintAddress, currentWithdrawAmount, false);
-    const handleFullDelistedWithdraw = () => onWithdraw(mintAddress, "0", true);
+    const handleActualDeposit = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onDeposit(mintAddress, currentDepositAmount, decimals);
+    };
+
+    const handleActualWithdraw = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onWithdraw(mintAddress, currentWithdrawAmount, false);
+    };
+
+    const handleFullDelistedWithdraw = () => {
+        if (!publicKey) {
+            setVisible(true);
+            return;
+        }
+        onWithdraw(mintAddress, "0", true);
+    };
     let requiredWlqiForDelistedBn: BN | null = null;
     let requiredWlqiForDelistedFormatted: string | null = null;
     let userHasEnoughForDelisted = false;
     let delistedFullWithdrawBonusAmountString: string | null = null;
+    let delistedFullWithdrawBonusPercentString: string | null = null;
 
     if (isDelisted && vaultBalance && !vaultBalance.isZero() && decimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null) {
         try {
@@ -164,6 +190,7 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
                 const vaultBalanceUsd = T_usd_scaled.toNumber() / Math.pow(10, USD_SCALE);
                 const bonusAmount = vaultBalanceUsd * (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE);
                 delistedFullWithdrawBonusAmountString = bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                delistedFullWithdrawBonusPercentString = (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                 const bonusNumerator = new BN(100);
                 const bonusDenominator = new BN(105);
@@ -181,6 +208,7 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
             requiredWlqiForDelistedFormatted = null;
             userHasEnoughForDelisted = false;
             delistedFullWithdrawBonusAmountString = null;
+            delistedFullWithdrawBonusPercentString = null;
         }
     }
 
@@ -235,10 +263,10 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
             {/* --- Deposit Section --- */}
             {!hideDepositColumn && !isDelisted && (
                 <div className="mb-4 border-t border-gray-600 pt-3">
-                    <h4 className="text-sm font-semibold mb-2 text-gray-200">Deposit {displaySymbol}</h4>
+                    <h4 className="text-sm font-semibold mb-2 text-gray-200">{t('tokenCard.depositHeader', { symbol: displaySymbol })}</h4>
                     <TokenInputControls
                         mintAddress={mintAddress}
-                        symbol={symbol}
+                        symbol={displaySymbol}
                         action="deposit"
                         currentAmount={currentDepositAmount}
                         decimals={decimals}
@@ -260,10 +288,10 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
 
             {/* --- Withdraw Section --- */}
             <div className={`${!hideDepositColumn && !isDelisted ? 'border-t border-gray-600 pt-3' : '' }`}>
-                <h4 className="text-sm font-semibold mb-2 text-gray-200">Withdraw {displaySymbol}</h4>
+                <h4 className="text-sm font-semibold mb-2 text-gray-200">{t('tokenCard.withdrawHeader', { symbol: displaySymbol })}</h4>
                 <TokenInputControls
                     mintAddress={mintAddress}
-                    symbol={symbol}
+                    symbol={displaySymbol}
                     action="withdraw"
                     currentAmount={currentWithdrawAmount}
                     decimals={decimals}
@@ -282,17 +310,35 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
                 <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
                 {isDelisted && (
                     <div className="mt-2">
-                        <button onClick={handleFullDelistedWithdraw} disabled={actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())} className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${!userHasEnoughForDelisted ? BTN_GRAY : BTN_DELISTED_WITHDRAW} ${(actionDisabled || !userHasEnoughForDelisted || (!vaultBalance || vaultBalance.isZero())) ? 'cursor-not-allowed opacity-50' : ''}`} 
-                            title={actionDisabled ? "..." : 
-                                   (!vaultBalance || vaultBalance.isZero()) ? `Pool vault empty.` : 
-                                   !requiredWlqiForDelistedFormatted ? "Calc error." : 
-                                   !userHasEnoughForDelisted ? `Insufficient wLQI. Need ~${requiredWlqiForDelistedFormatted}` : 
-                                   `Withdraw entire ${symbol} balance with 5% bonus${delistedFullWithdrawBonusAmountString ? ` (Est. Bonus: +$${delistedFullWithdrawBonusAmountString})` : ''}. Requires ~${requiredWlqiForDelistedFormatted} wLQI.`}
+                        <button onClick={handleFullDelistedWithdraw}
+                            disabled={actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn}
+                            className={`w-full px-3 py-1.5 text-sm rounded text-white font-medium ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : ''}`}
+                            title={actionDisabled ? t('tokenTable.delistedWithdraw.tooltipActionInProgress') :
+                                   (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.tooltipPoolEmpty', { symbol }) :
+                                   !requiredWlqiForDelistedFormatted ? t('tokenTable.tooltipCalcError') :
+                                   !userHasEnoughForDelisted ? t('tokenTable.tooltipNeedWlqi', { amount: requiredWlqiForDelistedFormatted }) :
+                                   (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                        t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalance', {
+                                            symbol,
+                                            bonusPercent: delistedFullWithdrawBonusPercentString,
+                                            bonusUsd: delistedFullWithdrawBonusAmountString,
+                                            amount: requiredWlqiForDelistedFormatted
+                                        }) :
+                                        t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalanceNoBonus', {
+                                            symbol,
+                                            amount: requiredWlqiForDelistedFormatted
+                                        })
+                            }
                         >
-                            {actionDisabled ? (isWithdrawing ? 'Withdrawing...' : '...') : 
-                             (!vaultBalance || vaultBalance.isZero()) ? "Pool Empty" : 
-                             !userHasEnoughForDelisted ? "Insufficient wLQI" : 
-                             `Withdraw Full Balance (5% Bonus${delistedFullWithdrawBonusAmountString ? ` = +$${delistedFullWithdrawBonusAmountString}` : ''})`}
+                            {actionDisabled ? (isWithdrawing ? t('tokenTable.delistedWithdraw.withdrawing') : t('tokenTable.delistedWithdraw.actionInProgress')) :
+                             (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.poolEmpty') :
+                             !requiredWlqiForDelistedBn ? t('tokenTable.delistedWithdraw.calcError') :
+                             (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                t('tokenTable.delistedWithdraw.withdrawFullBalanceBonus', {
+                                    bonusPercent: delistedFullWithdrawBonusPercentString,
+                                    bonusUsd: delistedFullWithdrawBonusAmountString
+                                }) :
+                                t('tokenTable.delistedWithdraw.withdrawFullBalanceNoBonus')}
                         </button>
                     </div>
                 )}

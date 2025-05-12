@@ -1,8 +1,12 @@
 import { BN } from '@coral-xyz/anchor';
 import { BTN_GREEN, BTN_RED, BTN_GRAY } from './constants';
 import { formatFeeString, formatDelistedWithdrawFeeString } from './fees';
+import { PublicKey } from '@solana/web3.js';
+import { TFunction } from 'i18next';
 
 interface ButtonStateProps {
+    t: TFunction;
+    publicKey: PublicKey | null;
     actionDisabled: boolean;
     isDepositing: boolean;
     isWithdrawing: boolean;
@@ -32,6 +36,8 @@ interface ButtonState {
 }
 
 export const calculateButtonStates = ({
+    t,
+    publicKey,
     actionDisabled,
     isDepositing,
     isWithdrawing,
@@ -48,20 +54,22 @@ export const calculateButtonStates = ({
     depositInputValueUsd,
     withdrawInputValueUsd,
 }: ButtonStateProps): ButtonState => {
+    const isConnected = !!publicKey;
+
     // Initialize default states
-    let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted || depositInsufficientBalance;
+    let depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted || (isConnected && depositInsufficientBalance);
     let withdrawButtonDisabled = actionDisabled
         || !isWithdrawInputFilled
-        || withdrawInsufficientBalance
-        || withdrawalExceedsLiquidity
+        || (isConnected && withdrawInsufficientBalance)
+        || (isConnected && withdrawalExceedsLiquidity)
         || (isDelisted && (!vaultBalance || vaultBalance.isZero()));
 
     let depositBtnClass = BTN_GRAY;
     let withdrawBtnClass = BTN_GRAY;
-    let depositLabel = isDepositing ? 'Depositing...' : 'Deposit';
-    let withdrawLabel = isWithdrawing ? 'Withdrawing...' : 'Withdraw';
-    let depositTitle = 'Enter amount to deposit';
-    let withdrawTitle = 'Enter wLQI amount to withdraw';
+    let depositLabel = isDepositing ? t('buttonState.depositing') : t('buttonState.deposit');
+    let withdrawLabel = isWithdrawing ? t('buttonState.withdrawing') : t('buttonState.withdraw');
+    let depositTitle = t('buttonState.depositDefaultTitle');
+    let withdrawTitle = t('buttonState.withdrawDefaultTitle');
 
     // Determine button colors and incorporate fee strings
     if (!actionDisabled) {
@@ -71,59 +79,84 @@ export const calculateButtonStates = ({
             depositBtnClass = BTN_RED;
         }
 
-        // Only set withdraw color if not disabled by liquidity/balance issues
-        if (!withdrawalExceedsLiquidity && !withdrawInsufficientBalance && !(isDelisted && (!vaultBalance || vaultBalance.isZero()))) {
+        // Only set withdraw color if not disabled by liquidity/balance issues (or if not connected)
+        const withdrawLogicEnabled = !isConnected || (!withdrawalExceedsLiquidity && !withdrawInsufficientBalance && !(isDelisted && (!vaultBalance || vaultBalance.isZero())));
+        if (withdrawLogicEnabled) {
             if (isDelisted) {
                 withdrawBtnClass = BTN_GREEN; // Delisted withdraw always shows green if possible
             } else if (estimatedWithdrawFeeBps === 0) {
                 withdrawBtnClass = BTN_GREEN;
-            } else if (estimatedWithdrawFeeBps > 0) { // Note: This could be < 0 for a bonus
+            } else if (estimatedWithdrawFeeBps > 0) { 
                 withdrawBtnClass = BTN_RED;
-            }
-            // If estimatedWithdrawFeeBps < 0 (bonus), it should be green
+            } 
             else if (estimatedWithdrawFeeBps < 0) { 
                 withdrawBtnClass = BTN_GREEN;
             }
         }
 
-        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(estimatedDepositFeeBps, true, isDepositInputFilled, depositInputValueUsd);
-        depositLabel = `Deposit ${depositFeeString}`;
+        const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(t, estimatedDepositFeeBps, true, isDepositInputFilled, depositInputValueUsd);
+        depositLabel = t('buttonState.depositWithFee', { feeString: depositFeeString });
         depositTitle = depositTitleBase;
 
+        // Always calculate base withdraw label/title based on fees
         if (isDelisted) {
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString(isWithdrawInputFilled, withdrawInputValueUsd);
-            withdrawLabel = `Withdraw Amount ${withdrawFeeString}`;
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString(t, isWithdrawInputFilled, withdrawInputValueUsd);
+            withdrawLabel = t('buttonState.withdrawDelistedAmount', { feeString: withdrawFeeString });
             withdrawTitle = withdrawTitleBase;
         } else {
-            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(estimatedWithdrawFeeBps, false, isWithdrawInputFilled, withdrawInputValueUsd);
-            withdrawLabel = `Withdraw ${withdrawFeeString}`;
+            const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(t, estimatedWithdrawFeeBps, false, isWithdrawInputFilled, withdrawInputValueUsd);
+            withdrawLabel = t('buttonState.withdrawWithFee', { feeString: withdrawFeeString });
             withdrawTitle = withdrawTitleBase;
         }
     }
 
-    // Apply overrides for insufficient balance/liquidity AFTER fee strings are calculated
-    if (depositInsufficientBalance) {
-        depositLabel = `Insufficient ${symbol}`;
-        depositTitle = `Deposit amount exceeds your ${symbol} balance`;
-        depositButtonDisabled = true; // Ensure disabled
-        depositBtnClass = BTN_GRAY;
+    // Apply overrides for insufficient balance/liquidity ONLY IF CONNECTED
+    if (isConnected) {
+        if (depositInsufficientBalance) {
+            depositLabel = t('buttonState.insufficientToken', { symbol: symbol });
+            depositTitle = t('buttonState.insufficientTokenTitle', { symbol: symbol });
+            depositButtonDisabled = true;
+            depositBtnClass = BTN_GRAY;
+        }
+
+        if (withdrawInsufficientBalance) {
+            withdrawLabel = t('buttonState.insufficientWlqi');
+            withdrawTitle = t('buttonState.insufficientWlqiTitle');
+            withdrawButtonDisabled = true;
+            withdrawBtnClass = BTN_GRAY;
+        } else if (withdrawalExceedsLiquidity) {
+            withdrawLabel = t('buttonState.insufficientPoolToken', { symbol: symbol });
+            withdrawTitle = t('buttonState.insufficientPoolTokenTitle', { symbol: symbol });
+            withdrawButtonDisabled = true;
+            withdrawBtnClass = BTN_GRAY;
+        }
     }
 
-    if (withdrawInsufficientBalance) {
-        withdrawLabel = "Insufficient wLQI";
-        withdrawTitle = "Withdrawal amount exceeds your wLQI balance";
-        withdrawButtonDisabled = true; // Ensure disabled
+    // Delisted Pool Empty check applies regardless of connection
+    if (isDelisted && (!vaultBalance || vaultBalance.isZero())) {
+        withdrawLabel = t('buttonState.poolEmpty');
+        withdrawTitle = t('buttonState.poolEmptyTitle');
+        withdrawButtonDisabled = true;
         withdrawBtnClass = BTN_GRAY;
-    } else if (withdrawalExceedsLiquidity) {
-        withdrawLabel = `Insufficient Pool ${symbol}`;
-        withdrawTitle = `Pool lacks sufficient ${symbol} for withdrawal`;
-        withdrawButtonDisabled = true; // Ensure disabled
-        withdrawBtnClass = BTN_GRAY;
-    } else if (isDelisted && (!vaultBalance || vaultBalance.isZero())) {
-        withdrawLabel = "Pool Empty";
-        withdrawTitle = "No balance of this delisted token in the pool to withdraw.";
-        withdrawButtonDisabled = true; // Ensure disabled
-        withdrawBtnClass = BTN_GRAY;
+    }
+
+    // If not connected, ensure button isn't disabled for balance/liquidity reasons
+    if (!isConnected) {
+         depositButtonDisabled = actionDisabled || !isDepositInputFilled || isDelisted; 
+         withdrawButtonDisabled = actionDisabled || !isWithdrawInputFilled || (isDelisted && (!vaultBalance || vaultBalance.isZero()));
+         // Re-calculate withdrawBtnClass if not connected, ignoring balance/liquidity issues
+         if (!actionDisabled) {
+             if (isDelisted) {
+                 withdrawBtnClass = BTN_GREEN;
+             } else if (estimatedWithdrawFeeBps === 0) {
+                 withdrawBtnClass = BTN_GREEN;
+             } else if (estimatedWithdrawFeeBps > 0) { 
+                 withdrawBtnClass = BTN_RED;
+             } 
+             else if (estimatedWithdrawFeeBps < 0) { 
+                 withdrawBtnClass = BTN_GREEN;
+             }
+         }
     }
 
     return {

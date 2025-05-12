@@ -6,9 +6,6 @@ import {
     WalletProvider,
 } from "@solana/wallet-adapter-react";
 import {
-    WalletModalProvider,
-} from "@solana/wallet-adapter-react-ui";
-import {
     PhantomWalletAdapter,
     SolflareWalletAdapter,
     CoinbaseWalletAdapter,
@@ -25,6 +22,7 @@ import { Tooltip } from 'react-tooltip'; // Added import
 import 'react-tooltip/dist/react-tooltip.css'; // Added CSS import
 import { I18nextProvider } from 'react-i18next'; // Added
 import i18n from '../i18n'; // Added, assuming path from src/components to src/i18n.ts
+import { WalletModalProvider } from './WalletModalProvider'; // Import our custom WalletModalProvider
 
 // Component to handle dynamic fee updates
 function DynamicFeeUpdater() {

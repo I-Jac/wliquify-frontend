@@ -19,6 +19,8 @@ import {
 } from '@/utils/constants';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from './WalletModalProvider';
 
 // Import the new components
 import { TokenRow } from './TokenRow';
@@ -69,6 +71,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
     hideDepositColumn = false,
 }) => {
     const { t } = useTranslation();
+    const { publicKey } = useWallet();
+    const { setVisible } = useWalletModal();
     const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -346,7 +350,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
         return <SkeletonTokenTable />;
     }
     if (!tokenData || sortedTokenData.length === 0) {
-        return <div className="text-center text-gray-400 italic p-4">No token data available.</div>;
+        return <div className="text-center text-gray-400 italic p-4">{t('tokenTable.noData')}</div>;
     }
 
     const getSortIndicator = (key: SortableKey): string => {
@@ -413,6 +417,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     handleSetAmount={handleSetAmount}
                                     handleSetTargetAmount={handleSetTargetAmount}
                                     totalTargetDominance={totalTargetDominance}
+                                    publicKey={publicKey}
+                                    setVisible={setVisible}
                                 />
                             );
                         })}
@@ -453,6 +459,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             handleSetAmount={handleSetAmount}
                             handleSetTargetAmount={handleSetTargetAmount}
                             totalTargetDominance={totalTargetDominance}
+                            publicKey={publicKey}
+                            setVisible={setVisible}
                         />
                     );
                 })}

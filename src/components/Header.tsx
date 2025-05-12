@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { WalletButton } from './WalletButton';
 import { SettingsModal } from './SettingsModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { FeeLevel } from '@/utils/types';
@@ -50,7 +50,7 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
         // This is usually an Esc key press or click outside.
         else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
             if (isSettingsDirty) {
-                openAlertModal(t('attemptCloseDirtyMessage'));
+                openAlertModal(t('notifications.attemptCloseDirtyMessage'));
             } else {
                 closeSettingsModal();
             }
@@ -140,9 +140,9 @@ export const Header: React.FC = () => {
                             className="ml-2 p-1 text-white rounded-md md:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                             aria-controls="mobile-menu"
                             aria-expanded={isMobileMenuOpen}
-                            title={isMounted ? t('openMainMenu') : 'Open main menu'}
+                            title={isMounted ? t('header.openMainMenu') : 'Open main menu'}
                         >
-                            <span className="sr-only">{isMounted ? t('openMainMenu') : 'Open main menu'}</span>
+                            <span className="sr-only">{isMounted ? t('header.openMainMenu') : 'Open main menu'}</span>
                             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
                         </button>
 
@@ -185,10 +185,10 @@ export const Header: React.FC = () => {
                                 {feeLevel && (
                                     <div 
                                         className="hidden sm:flex items-center bg-gray-700 text-gray-300 text-xs px-2.5 py-1.5 rounded-md"
-                                        title={t('transactionPriorityTitle', { feeLevel: t(`feeLevel${feeLevel}`)})}
+                                        title={t('settings.transactionPriorityTitle', { feeLevel: t(`settings.feeLevel${feeLevel}`)})}
                                     >
-                                        <span>{t('headerPriorityLabel')}</span>
-                                        <span className="text-white font-semibold ml-1.5">{t(`feeLevel${feeLevel}`)}</span>
+                                        <span>{t('header.priorityLabel')}</span>
+                                        <span className="text-white font-semibold ml-1.5">{t(`settings.feeLevel${feeLevel}`)}</span>
                                         {(priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (() => {
                                             // Ensure tempFeeLevel is a valid key for dynamicFees
                                             let tempFeeLevel: Exclude<FeeLevel, 'Custom'> = feeLevel as Exclude<FeeLevel, 'Custom'>;
@@ -205,15 +205,15 @@ export const Header: React.FC = () => {
                                                 }
                                             }
                                             const displayedSol = (priorityFee * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
-                                            const translatedFeeLevel = t(`feeLevel${feeLevel}`);
+                                            const translatedFeeLevel = t(`settings.feeLevel${feeLevel}`);
                                             
                                             return (
                                                 <span 
                                                     className={`${isSelectedLevelCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
                                                     data-tooltip-id="app-tooltip"
-                                                    data-tooltip-content={isSelectedLevelCapped ? t('tooltipFeeCapped', { feeLevel: translatedFeeLevel }) : t('tooltipFeeNormal')}
+                                                    data-tooltip-content={isSelectedLevelCapped ? t('settings.tooltipFeeCapped', { feeLevel: translatedFeeLevel }) : t('settings.tooltipFeeNormal')}
                                                 >
-                                                    {t('headerApproximateFee', { value: displayedSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
+                                                    {t('header.approximateFee', { value: displayedSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
                                                 </span>
                                             );
                                         })()}
@@ -234,7 +234,7 @@ export const Header: React.FC = () => {
                                             />
                                             <Popover.Button 
                                                 ref={settingsButtonRef}
-                                                className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8"
+                                                className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8 cursor-pointer"
                                                 title="Settings"
                                             >
                                                 <SolidCogIcon className="h-5 w-5" />
@@ -255,7 +255,7 @@ export const Header: React.FC = () => {
                                                     className="fixed inset-0 z-40 bg-black/30" 
                                                     onClick={() => {
                                                         if (isSettingsDirty) {
-                                                            openAlertModal(t('attemptCloseDirtyMessage'));
+                                                            openAlertModal(t('notifications.attemptCloseDirtyMessage'));
                                                         } else {
                                                             closeSettingsModal(); 
                                                         }
@@ -287,15 +287,16 @@ export const Header: React.FC = () => {
                                     )}
                                 </Popover>
                                 
-                                <WalletMultiButton 
+                                <WalletButton 
                                     style={{
                                         backgroundColor: '#1D4ED8',
-                                        fontSize: '0.875rem', 
+                                        fontSize: '0.875rem',
                                         lineHeight: '1.25rem',
                                         fontWeight: '600',
-                                        borderRadius: '0.375rem', 
-                                        height: 'auto', 
+                                        borderRadius: '0.375rem',
+                                        height: 'auto',
                                         padding: '0.375rem 0.75rem',
+                                        color: 'white',
                                     }}
                                 />
                             </>

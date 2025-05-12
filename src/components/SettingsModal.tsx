@@ -337,13 +337,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             console.log("[PerformSave] Setting SlippageBps to context:", slippageNum);
             setContextSlippageBps(slippageNum);
         } else {
-            openAlertModal(t('invalidSlippageAlert'));
+            openAlertModal(t('notifications.invalidSlippageAlert'));
             return false; 
         }
 
         // Validate and set Max Priority Fee Cap
         if (isNaN(maxPriorityFeeCapSolNum) || maxPriorityFeeCapSolNum < 0) {
-            openAlertModal(t('invalidMaxCapAlert'));
+            openAlertModal(t('notifications.invalidMaxCapAlert'));
             return false;
         }
         console.log("[PerformSave] Setting MaxPriorityFeeCapSol to context:", maxPriorityFeeCapSolNum);
@@ -355,7 +355,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             if (localCustomRpcInputValue.trim() && localCustomRpcInputValue.trim() !== 'https://') {
                 finalRpcToSave = localCustomRpcInputValue.trim();
             } else {
-                openAlertModal(t('invalidCustomRpcAlert'));
+                openAlertModal(t('notifications.invalidCustomRpcAlert'));
                 return false;
             }
         } else {
@@ -395,7 +395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         if (rpcHasChanged) {
             console.log("[PerformSave] Setting RPC Endpoint to context:", finalRpcToSave);
             setContextRpcEndpoint(finalRpcToSave);
-            openAlertModal(t('rpcUpdateAlert'));
+            openAlertModal(t('notifications.rpcUpdateAlert'));
         }
         
         // Save Profile Settings to context
@@ -433,7 +433,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         }
 
         if (isSettingsDirty) {
-            openAlertModal(t('unsavedChangesAlert'));
+            openAlertModal(t('notifications.unsavedChangesAlert'));
             return; // Prevent switching if dirty and clicking a different tab
         }
         setActiveTab(tab); // Only switch if not dirty or clicking the same tab (which is handled above)
@@ -510,7 +510,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         <Fragment>
             <div id="settings-modal-container">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">{t('settings')}</h2>
+                    <h2 className="text-xl font-bold">{t('settings.title')}</h2>
                     {/* <button 
                         onClick={handleXCloseButtonClick} 
                         className="text-gray-400 hover:text-white text-2xl"
@@ -530,7 +530,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('profile')}
                     >
-                        {t('profile')}
+                        {t('settings.profileTab')}
                     </button>
                     <button
                         className={`px-3 py-2 rounded-t-md text-sm font-medium transition-colors
@@ -542,7 +542,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('connection')}
                     >
-                        {t('connection')}
+                        {t('settings.connectionTab')}
                     </button>
                     <button
                         className={`px-3 py-2 rounded-t-md text-sm font-medium transition-colors
@@ -554,7 +554,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('transaction')}
                     >
-                        {t('transaction')}
+                        {t('settings.transactionTab')}
                     </button>
                 </div>
 
@@ -563,7 +563,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         <div className="space-y-6">
                             {/* Language Setting */}
                             <div>
-                                <label htmlFor="language-select" className="block text-sm font-medium text-gray-300 mb-1">{t('languageLabel')}</label>
+                                <label htmlFor="language-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.languageLabel')}</label>
                                 <select 
                                     id="language-select"
                                     value={localPreferredLanguage}
@@ -578,7 +578,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
                             {/* Preferred Currency Setting */}
                             <div>
-                                <label htmlFor="currency-select" className="block text-sm font-medium text-gray-300 mb-1">{t('preferredCurrencyLabel')}</label>
+                                <label htmlFor="currency-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.preferredCurrencyLabel')}</label>
                                 <select 
                                     id="currency-select"
                                     value={localPreferredCurrency}
@@ -593,32 +593,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
                             {/* Number Format Setting */}
                             <div className="space-y-3">
-                                <p className="block text-sm font-medium text-gray-300">{t('numberFormatLabel')}</p>
+                                <p className="block text-sm font-medium text-gray-300">{t('settings.numberFormatting')}</p>
                                 <div className="flex items-center space-x-4">
                                     <div>
-                                        <label htmlFor="decimal-separator" className="block text-xs text-gray-400 mb-1">{t('decimalSeparatorLabel')}</label>
+                                        <label htmlFor="decimal-separator" className="block text-xs text-gray-400 mb-1">{t('settings.decimalSeparatorLabel')}</label>
                                         <select 
                                             id="decimal-separator"
                                             value={localNumberFormat.decimalSeparator}
                                             onChange={(e) => setLocalNumberFormat({ ...localNumberFormat, decimalSeparator: e.target.value as '.' | ',' })}
                                             className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
                                         >
-                                            <option value=".">{t('dotOption')}</option>
-                                            <option value=",">{t('commaOption')}</option>
+                                            <option value=".">{t('settings.dotOption')}</option>
+                                            <option value=",">{t('settings.commaOption')}</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label htmlFor="thousand-separator" className="block text-xs text-gray-400 mb-1">{t('thousandSeparatorLabel')}</label>
+                                        <label htmlFor="thousand-separator" className="block text-xs text-gray-400 mb-1">{t('settings.thousandSeparatorLabel')}</label>
                                         <select 
                                             id="thousand-separator"
                                             value={localNumberFormat.thousandSeparator}
                                             onChange={(e) => setLocalNumberFormat({ ...localNumberFormat, thousandSeparator: e.target.value as ',' | '.' | ' ' | '' })}
                                             className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
                                         >
-                                            <option value=",">{t('commaOption')}</option>
-                                            <option value=".">{t('dotOption')}</option>
-                                            <option value=" ">{t('spaceOption')}</option>
-                                            <option value="">{t('noneOption')}</option>
+                                            <option value=",">{t('settings.commaOption')}</option>
+                                            <option value=".">{t('settings.dotOption')}</option>
+                                            <option value=" ">{t('settings.spaceOption')}</option>
+                                            <option value="">{t('settings.noneOption')}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -626,7 +626,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
                             {/* Preferred Explorer Setting */}
                             <div>
-                                <label htmlFor="explorer-select" className="block text-sm font-medium text-gray-300 mb-1">{t('preferredExplorerLabel')}</label>
+                                <label htmlFor="explorer-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.preferredExplorerLabel')}</label>
                                 <select 
                                     id="explorer-select"
                                     value={localPreferredExplorer}
@@ -642,7 +642,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                     )}
                     {activeTab === 'connection' && (
                         <div className="space-y-4">
-                            <p className="text-sm font-semibold text-gray-200">{t('customRpcUrl')}</p>
+                            <p className="text-sm font-semibold text-gray-200">{t('settings.customRpcUrl')}</p>
                             {PREDEFINED_RPCS.map((rpc) => (
                                 <label key={rpc.url} className="flex items-center justify-between cursor-pointer p-2 rounded-md hover:bg-gray-700/50">
                                     <div className="flex items-center space-x-3">
@@ -657,7 +657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                         <span className="text-sm text-gray-300">{rpc.name}</span>
                                     </div>
                                     <div className="text-xs text-gray-400 w-20 text-right">
-                                        {pingTimes[rpc.url] === 'pinging' && <span className="animate-pulse">{t('pinging')}</span>}
+                                        {pingTimes[rpc.url] === 'pinging' && <span className="animate-pulse">{t('settings.pinging')}</span>}
                                         {typeof pingTimes[rpc.url] === 'number' && (
                                             <span className={
                                                 (pingTimes[rpc.url] as number) <= 100 ? 'text-green-400' :
@@ -667,7 +667,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                                 {pingTimes[rpc.url]}ms
                                             </span>
                                         )}
-                                        {pingTimes[rpc.url] === null && <span className="text-red-400">{t('error')}</span>}
+                                        {pingTimes[rpc.url] === null && <span className="text-red-400">{t('global.error')}</span>}
                                     </div>
                                 </label>
                             ))}
@@ -681,11 +681,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                         onChange={handleLocalCustomRpcSelect}
                                         className="form-radio h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
                                     />
-                                    <span className="text-sm text-gray-300">{t('customRpcUrl')}</span>
+                                    <span className="text-sm text-gray-300">{t('settings.customRpcUrl')}</span>
                                 </div>
                                 {localIsCustomRpc && pingTimes[localCustomRpcInputValue] !== undefined && (
                                     <div className="text-xs text-gray-400 w-20 text-right">
-                                        {pingTimes[localCustomRpcInputValue] === 'pinging' && <span className="animate-pulse">{t('pinging')}</span>}
+                                        {pingTimes[localCustomRpcInputValue] === 'pinging' && <span className="animate-pulse">{t('settings.pinging')}</span>}
                                         {typeof pingTimes[localCustomRpcInputValue] === 'number' && (
                                             <span className={
                                                 (pingTimes[localCustomRpcInputValue] as number) <= 100 ? 'text-green-400' :
@@ -695,7 +695,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                                 {pingTimes[localCustomRpcInputValue]}ms
                                             </span>
                                         )}
-                                        {pingTimes[localCustomRpcInputValue] === null && <span className="text-red-400">{t('error')}</span>}
+                                        {pingTimes[localCustomRpcInputValue] === null && <span className="text-red-400">{t('global.error')}</span>}
                                     </div>
                                 )}
                             </label>
@@ -710,9 +710,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                             setLocalCustomRpcInputValue(e.target.value)
                                         }}
                                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
-                                        placeholder={t('enterCustomRpcUrl')}
+                                        placeholder={t('settings.enterCustomRpcUrl')}
                                     />
-                                    <p className="text-xs text-gray-400">{t('enterCustomRpcUrl')}</p>
+                                    <p className="text-xs text-gray-400">{t('settings.enterCustomRpcUrl')}</p>
                                 </div>
                             )}
                         </div>
@@ -722,11 +722,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         <>
                             <div className="space-y-4 mb-6 p-4 border border-gray-700 rounded-md">
                                 <div>
-                                    <label htmlFor="priorityFee" className="block text-sm font-medium text-gray-300 mb-1">{t('priorityFeeLabel')}</label>
+                                    <label htmlFor="priorityFee" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.priorityFeeLabel')}</label>
                                     <div className="grid grid-cols-3 gap-2">
                                         {(['Normal', 'Fast', 'Turbo'] as FeeLevel[]).map((level) => {
                                             const feeInSol = dynamicFees[level as Exclude<FeeLevel, 'Custom'>];
-                                            const translatedLevel = t(`feeLevel${level}`);
+                                            const translatedLevel = t(`settings.feeLevel${level}`);
                                             
                                             const isSelected = localFeeLevel === level;
                                             const maxCapNum = parseFloat(localMaxPriorityFeeCapSol);
@@ -738,12 +738,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
                                             let finalTooltipContent = '';
                                             if (isCappedAndSelected) {
-                                                finalTooltipContent = t('feeLevelTooltipCappedInSettings', {
+                                                finalTooltipContent = t('settings.feeLevelTooltipCappedInSettings', {
                                                     feeLevel: translatedLevel,
                                                     maxCapValue: maxCapNum.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 9 })
                                                 });
                                             } else if (feeInSol !== undefined) {
-                                                finalTooltipContent = t('feeLevelTooltip', {
+                                                finalTooltipContent = t('settings.feeLevelTooltip', {
                                                     feeLevel: translatedLevel,
                                                     value: feeInSol.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 9 })
                                                 });
@@ -765,7 +765,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                                     <span>{translatedLevel}</span>
                                                     {feeInSol !== undefined && (
                                                         <span className={`text-xs mt-0.5 ${isCappedAndSelected ? 'text-red-400 font-semibold' : 'opacity-80'}`}>
-                                                            {t('headerApproximateFee', { value: feeInSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
+                                                            {t('header.approximateFee', { value: feeInSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
                                                         </span>
                                                     )}
                                                 </button>
@@ -776,7 +776,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                 
                                 <div>
                                     <label htmlFor="maxPriorityFeeCapSol" className="block text-sm font-medium text-gray-300 mb-1">
-                                        {t('maxCapLabel')}
+                                        {t('settings.maxCapLabel')}
                                     </label>
                                     <input
                                         type="number"
@@ -789,15 +789,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                                             setLocalMaxPriorityFeeCapSol(e.target.value);
                                         }}
                                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
-                                        placeholder={t('enterMaxCapPlaceholder')}
+                                        placeholder={t('settings.enterMaxCapPlaceholder')}
                                     />
-                                    <p className="text-xs text-gray-400 mt-1">{t('maxCapDescription')}</p>
+                                    <p className="text-xs text-gray-400 mt-1">{t('settings.maxCapDescription')}</p>
                                 </div>
                             </div>
                             
                             <div className="space-y-2 p-4 border border-gray-700 rounded-md">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('slippageTolerance')}</label>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('settings.slippageTolerance')}</label>
                                     <div className="flex items-center space-x-2 mb-2">
                                         {PREDEFINED_SLIPPAGE_OPTIONS.map((option) => (
                                             <button
@@ -840,7 +840,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         onClick={handleMainButtonClick}
                         className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500"
                     >
-                        {isSettingsDirty ? t('saveChanges') : t('close')}
+                        {isSettingsDirty ? t('settings.saveChanges') : t('global.close')}
                     </button>
                 </div>
             </div>
