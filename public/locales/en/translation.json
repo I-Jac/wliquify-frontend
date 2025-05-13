@@ -1,53 +1,10 @@
 {
   "global": {
-    "language": "Language",
     "error": "Error",
-    "close": "Close",
-    "balance": "Balance: {{value}} {{symbol}}"
+    "close": "Close"
   },
-  "settings": {
-    "title": "Settings",
-    "saveChanges": "Save Changes",
-    "generalTab": "General",
-    "profileTab": "Profile",
-    "connectionTab": "Connection",
-    "transactionTab": "Transaction",
-    "numberFormatting": "Number Formatting",
-    "decimalSeparatorLabel": "Decimal Separator",
-    "thousandSeparatorLabel": "Thousand Separator",
-    "commaOption": "Comma (,)",
-    "dotOption": "Dot (.)",
-    "spaceOption": "Space ( )",
-    "noneOption": "None",
-    "languageLabel": "Language",
-    "preferredCurrencyLabel": "Preferred Currency",
-    "preferredExplorerLabel": "Preferred Explorer",
-    "customRpcUrl": "Custom RPC URL",
-    "enterCustomRpcUrl": "Enter Custom RPC URL",
-    "urlCannotBeEmpty": "URL cannot be empty",
-    "enterValidUrl": "Enter valid URL",
-    "pinging": "Pinging...",
-    "currentRpcLatency": "Current RPC Latency",
-    "priorityFeeLabel": "Priority Fee",
-    "manual": "Manual",
-    "low": "Low",
-    "medium": "Medium",
-    "high": "High",
-    "veryHigh": "Very High",
-    "feeLevelFast": "Fast",
-    "feeLevelNormal": "Normal",
-    "feeLevelTurbo": "Turbo",
-    "feeLevelTooltip": "{{feeLevel}}: ~{{value}} SOL",
-    "feeLevelTooltipCappedInSettings": "{{feeLevel}} selected, but capped by Max Fee of ~{{maxCapValue}} SOL.",
-    "transactionPriorityTitle": "Transaction Priority: {{feeLevel}}",
-    "slippageTolerance": "Slippage Tolerance",
-    "maxCapLabel": "Max Cap (SOL)",
-    "maxCapDescription": "Max SOL to spend on priority fees per transaction.",
-    "enterMaxCapPlaceholder": "e.g., 0.001",
-    "tooltipFeeCapped": "Selected priority fee ({{feeLevel}}) is above your Max Cap. Effective fee is capped, potentially reducing priority. Check Settings.",
-    "tooltipFeeNormal": "Effective priority fee based on current settings."
-  },
-  "notifications": {
+
+  "alertModal": {
     "title": "Notification",
     "unsavedChangesTitle": "Unsaved Changes",
     "unsavedChangesMessage": "You have unsaved changes. Are you sure you want to close? Your changes will be lost.",
@@ -60,136 +17,432 @@
     "rpcUpdateAlert": "RPC endpoint updated. A page refresh may be needed for it to take full effect.",
     "unsavedChangesAlert": "You have unsaved changes. Please save or revert them before switching tabs.",
     "okButton": "OK",
-    "closeButton": "Close"
+    "closeButton": "Close",
+    "tooltips": {
+      "unsavedChanges": "Appears when you have unsaved changes and try to navigate away",
+      "invalidCustomRpc": "Appears when the entered RPC URL is not valid",
+      "invalidMaxCap": "Appears when the entered max priority fee is invalid",
+      "invalidSlippage": "Appears when the entered slippage tolerance is invalid",
+      "rpcUpdate": "Appears when RPC endpoint is successfully updated",
+      "okButton": "Confirm the action and proceed",
+      "closeButton": "Cancel the action and return"
+    }
   },
+
+  "toast": {
+    "error": "Error",
+    "success": "Success",
+    "info": "Info",
+    "warning": "Warning",
+    "tokenDataInvalid": "Token data invalid for target calculation.",
+    "cannotDepositToTarget": "Cannot deposit to reach target, token already at or above.",
+    "internalPrecisionError": "Internal error: Precision scale factor is zero.",
+    "lessThanMinTransfer": "Target deposit amount is less than minimum transferable unit.",
+    "negativeTargetAmount": "Calculated target amount is invalid (negative).",
+    "requiredAmountExceedsBalance": "Required amount exceeds balance. Setting to max.",
+    "noPoolBalanceDelisted": "No pool balance to withdraw for this delisted token.",
+    "cannotCalcDelistedValue": "Cannot calculate value of delisted token balance.",
+    "wlqiDecimalsMissing": "wLQI decimals not available.",
+    "requiredWlqiExceedsBalance": "Required wLQI withdraw amount exceeds your balance. Setting to max.",
+    "cannotWithdrawToTarget": "Cannot withdraw to reach target, token already at or below.",
+    "invalidTargetDominance": "Invalid target dominance for calculation.",
+    "calculatedTargetTooSmall": "Calculated target amount is too small.",
+    "failedToCalculateTarget": "Failed to calculate target {{action}} amount.",
+    "tooltips": {
+      "error": "Shown for critical errors that prevent an action",
+      "success": "Shown when an action completes successfully",
+      "info": "Shown for important information that doesn't require action",
+      "warning": "Shown for potential issues that should be addressed"
+    }
+  },
+
+  "notifications": {
+    "processingDeposit": "Processing deposit...",
+    "processingWithdrawal": "Processing withdrawal...",
+    "depositSuccess": "Deposit successful!",
+    "withdrawalSuccess": "Withdrawal successful!",
+    "successViewOnExplorer": "View on Solscan",
+    "depositError": "Deposit failed: {{errorMessage}}",
+    "withdrawalError": "Withdrawal failed: {{errorMessage}}",
+    "unknownError": "Unknown error",
+    "unknownProgramError": "An unknown program error occurred (Code: {{code}})."
+  },
+  
+  "poolInteractions": {
+    "insufficientSol": "Insufficient SOL balance for transaction fees. Need ~{{amount}} SOL.",
+    "couldNotVerifySol": "Could not verify SOL balance.",
+    "priceFeedNotFound": "Price feed account not found or configured for {{action}} token {{mint}} in PoolConfig.",
+    "programWalletPoolConfigMissing": "Program, wallet, or pool config not available.",
+    "enterValidAmount": "Please enter a valid amount.",
+    "walletNoSign": "Wallet does not support signing transactions.",
+    "tokenDecimalsMissing": "Token decimals not available.",
+    "wlqiDecimalsMissing": "wLQI decimals not available for withdrawal processing.",
+    "confirming": "Confirming {{action}}... Tx: {{txid}}...",
+    "processingDeposit": "Processing deposit...",
+    "processingWithdrawal": "Processing withdrawal...",
+    "success": "{{action}} successful!",
+    "viewOnSolscan": "View on Solscan",
+    "failed": "{{action}} failed: {{errorMessage}}",
+    "poolDataLoading": "Pool data loading...",
+    "depositsDisabledDelisted": "Deposits disabled for delisted tokens."
+  },
+
   "header": {
     "openMainMenu": "Open main menu",
+    "closeMobileMenu": "Close menu",
     "priorityLabel": "Priority:",
-    "approximateFee": "~{{value}} SOL"
+    "approximateFee": "~{{value}} SOL",
+    "tooltips": {
+      "priorityLabel": "Transaction priority affects confirmation speed and fee",
+      "approximateFee": "Estimated fee for the current transaction priority"
+    },
+
+    "settings": {
+      "buttonTitle": "Settings",
+      "language": "Language",
+      "error": "Error",
+      "close": "Close",
+      "title": "Settings",
+      "saveChanges": "Save Changes",
+      "generalTab": "General",
+      "profileTab": "Profile",
+      "connectionTab": "Connection",
+      "transactionTab": "Transaction",
+      "numberFormatting": "Number Formatting",
+      "decimalSeparatorLabel": "Decimal Separator",
+      "thousandSeparatorLabel": "Thousand Separator",
+      "commaOption": "Comma (,)",
+      "dotOption": "Dot (.)",
+      "spaceOption": "Space ( )",
+      "noneOption": "None",
+      "languageLabel": "Language",
+      "preferredCurrencyLabel": "Preferred Currency",
+      "preferredExplorerLabel": "Preferred Explorer",
+      "customRpcUrl": "Custom RPC URL",
+      "enterCustomRpcUrl": "Enter Custom RPC URL",
+      "urlCannotBeEmpty": "URL cannot be empty",
+      "enterValidUrl": "Enter valid URL",
+      "pinging": "Pinging...",
+      "currentRpcLatency": "Current RPC Latency",
+      "priorityFeeLabel": "Priority Fee",
+      "manual": "Manual",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "veryHigh": "Very High",
+      "feeLevelFast": "Fast",
+      "feeLevelNormal": "Normal",
+      "feeLevelTurbo": "Turbo",
+      "slippageTolerance": "Slippage Tolerance",
+      "maxCapLabel": "Max Cap (SOL)",
+      "maxCapDescription": "Max SOL to spend on priority fees per transaction.",
+      "enterMaxCapPlaceholder": "e.g., 0.001",
+      "tooltips": {
+        "numberFormatting": "Customize how numbers are displayed throughout the application",
+        "decimalSeparator": "Choose how decimal points are displayed in numbers",
+        "thousandSeparator": "Choose how thousands are separated in numbers",
+        "preferredCurrency": "Select your preferred currency for displaying values",
+        "preferredExplorer": "Choose your preferred blockchain explorer for viewing transactions",
+        "customRpcUrl": "Set a custom RPC endpoint for better performance or reliability",
+        "rpcLatency": "Current response time of the RPC endpoint",
+        "slippageTolerance": "Maximum acceptable price difference between expected and actual transaction price",
+        "maxCap": "Maximum amount of SOL you're willing to spend on priority fees per transaction",
+        "feeCapped": "Selected priority fee ({{feeLevel}}) is above your Max Cap. Effective fee is capped, potentially reducing priority. Check Settings.",
+        "feeNormal": "Effective priority fee based on current settings.",
+        "feeLevel": "{{feeLevel}}: ~{{value}} SOL",
+        "feeLevelCapped": "{{feeLevel}} selected, but capped by Max Fee of ~{{maxCapValue}} SOL.",
+        "transactionPriority": "Transaction Priority: {{feeLevel}}"
+      }
+    },
+
+    "walletModal": {
+      "connectWallet": "Connect a wallet on Solana to continue",
+      "needWallet": "You need a wallet on Solana to continue",
+      "detected": "Detected",
+      "connecting": "Connecting...",
+      "connectionError": "Connection Error: Please try again.",
+      "moreOptions": "More options",
+      "lessOptions": "Less options",
+      "viewOptions": "View options",
+      "hideOptions": "Hide options",
+      "selectWallet": "Select Wallet",
+      "copyAddress": "Copy Address",
+      "copied": "Copied!",
+      "changeWallet": "Change Wallet",
+      "disconnect": "Disconnect",
+      "downloadExtension": "Download Extension",
+      "tooltips": {
+        "connectWallet": "Connect your Solana wallet to interact with the protocol",
+        "detected": "Wallet detected and ready to connect",
+        "connecting": "Establishing connection to your wallet",
+        "copyAddress": "Copy your wallet address to clipboard",
+        "changeWallet": "Switch to a different wallet",
+        "disconnect": "Disconnect your current wallet"
+      }
+    }
   },
+
+  "main": {
+    "poolInfoDisplay": {
+      "title": "Pool Information",
+      "wlqiTokenValue": "wLQI Token Value",
+      "wlqiTotalSupply": "wLQI Total Supply",
+      "totalPoolValue": "Total Pool Value (TVL)",
+      "top30Tokens": "Top 30 Tokens",
+      "delistedTokens": "Delisted Tokens (Not In Top 30)",
+      "tooltips": {
+        "wlqiTokenValue": "Current value of wLQI token based on the underlying assets in the pool",
+        "wlqiTotalSupply": "Total number of wLQI tokens in circulation",
+        "totalPoolValue": "Total value of all assets in the pool, including both whitelisted and delisted tokens",
+        "top30Tokens": "Tokens that are currently in the top 30 by market cap and actively managed in the pool",
+        "delistedTokens": "Tokens that have fallen out of the top 30 and are available for withdrawal with bonus"
+      },
+
+      "tokenTable": {
+        "columns": {
+          "rank": "Rank",
+          "symbol": "Symbol",
+          "poolBalance": "Pool Balance",
+          "actualPercent": "Actual %",
+          "targetPercent": "Target %",
+          "deposit": "Deposit",
+          "withdraw": "Withdraw"
+        },
+        "noData": "No token data available.",
+        "connectWallet": "Connect Wallet",
+        "tooltips": {
+          "symbol": "Token symbol and identifier",
+          "poolBalance": "Current amount of this token held in the pool",
+          "actualPercent": "Current percentage of this token in the pool",
+          "targetPercent": "Target percentage for this token in the pool",
+          "deposit": "Add this token to the pool",
+          "withdraw": "Remove this token from the pool",
+          "noData": "No token data is currently available",
+          "connectWallet": "Connect your wallet to view and interact with tokens"
+        },
+
+        "buttonState": {
+          "depositing": "Depositing...",
+          "deposit": "Deposit",
+          "withdrawing": "Withdrawing...",
+          "withdraw": "Withdraw",
+          "depositDefaultTitle": "Enter amount to deposit",
+          "withdrawDefaultTitle": "Enter wLQI amount to withdraw",
+          "depositWithFee": "Deposit {{feeString}}",
+          "withdrawDelistedAmount": "Withdraw Amount {{feeString}}",
+          "withdrawWithFee": "Withdraw {{feeString}}",
+          "insufficientToken": "Insufficient {{symbol}}",
+          "insufficientWlqi": "Insufficient wLQI",
+          "insufficientPoolToken": "Insufficient Pool {{symbol}}",
+          "poolEmpty": "Pool Empty",
+          "tooltips": {
+            "insufficientToken": "Deposit amount exceeds your {{symbol}} balance",
+            "insufficientWlqi": "Withdrawal amount exceeds your wLQI balance",
+            "insufficientPoolToken": "Pool lacks sufficient {{symbol}} for withdrawal",
+            "poolEmpty": "No balance of this delisted token in the pool to withdraw",
+            "depositing": "Transaction to deposit tokens is in progress",
+            "withdrawing": "Transaction to withdraw tokens is in progress",
+            "depositDefaultTitle": "Enter the amount of tokens you want to deposit",
+            "withdrawDefaultTitle": "Enter the amount of wLQI you want to burn for withdrawal",
+            "depositWithFee": "Deposit with the specified fee structure",
+            "withdrawDelistedAmount": "Withdraw a delisted token with the specified fee structure",
+            "withdrawWithFee": "Withdraw with the specified fee structure"
+          }
+        },
+
+        "whitelisted": {
+          "deposit": {
+            "bonus": {
+              "withValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
+              "onlyPercent": "(~{{bonusPercent}}% Bonus)",
+              "titleWithValue": "Est. Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "titleOnlyPercent": "Est. Bonus: ~{{bonusPercent}}%",
+              "max": "(max {{bonusPercent}}% Bonus)",
+              "titleMax": "Up to {{bonusPercent}}% bonus",
+              "tooltips": {
+                "withValue": "Estimated bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+                "onlyPercent": "Estimated bonus: ~{{bonusPercent}}%",
+                "max": "Maximum bonus: {{bonusPercent}}%"
+              }
+            },
+            "fee": {
+              "zeroPercent": "(0.00%)",
+              "zeroTitle": "Est. Total Fee: 0.00%",
+              "minTitle": "Minimum fee applied (0.00%)",
+              "withValue": "(~{{displayPercent}}% Fee ≈ -${{feeAmount}})",
+              "onlyPercent": "(~{{displayPercent}}% Fee)",
+              "titleWithValue": "Est. Total Fee: ~{{displayPercent}}% (-${{feeAmount}})",
+              "titleOnlyPercent": "Est. Total Fee: ~{{displayPercent}}%",
+              "min": "(min {{displayPercent}}% Fee)",
+              "titleMin": "Minimum {{displayPercent}}% fee",
+              "tooltips": {
+                "zeroPercent": "No fee applied (0.00%)",
+                "minTitle": "Minimum fee applied (0.00%)",
+                "withValue": "Estimated fee: ~{{displayPercent}}% (-${{feeAmount}})",
+                "onlyPercent": "Estimated fee: ~{{displayPercent}}%",
+                "min": "Minimum fee: {{displayPercent}}%"
+              }
+            }
+          },
+          "withdraw": {
+            "bonus": {
+              "withValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
+              "onlyPercent": "(~{{bonusPercent}}% Bonus)",
+              "titleWithValue": "Est. Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "titleOnlyPercent": "Est. Bonus: ~{{bonusPercent}}%",
+              "max": "(max {{bonusPercent}}% Bonus)",
+              "titleMax": "Up to {{bonusPercent}}% bonus",
+              "tooltips": {
+                "withValue": "Estimated bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+                "onlyPercent": "Estimated bonus: ~{{bonusPercent}}%",
+                "max": "Maximum bonus: {{bonusPercent}}%"
+              }
+            },
+            "fee": {
+              "zeroPercent": "(0.00%)",
+              "zeroTitle": "Est. Total Fee: 0.00%",
+              "minTitle": "Minimum fee applied (0.00%)",
+              "withValue": "(~{{displayPercent}}% Fee ≈ -${{feeAmount}})",
+              "onlyPercent": "(~{{displayPercent}}% Fee)",
+              "titleWithValue": "Est. Total Fee: ~{{displayPercent}}% (-${{feeAmount}})",
+              "titleOnlyPercent": "Est. Total Fee: ~{{displayPercent}}%",
+              "min": "(min {{displayPercent}}% Fee)",
+              "titleMin": "min {{displayPercent}}% fee",
+              "tooltips": {
+                "zeroPercent": "No fee applied (0.00%)",
+                "minTitle": "Minimum fee applied (0.00%)",
+                "withValue": "Estimated fee: ~{{displayPercent}}% (-${{feeAmount}})",
+                "onlyPercent": "Estimated fee: ~{{displayPercent}}%",
+                "min": "Minimum fee: {{displayPercent}}%"
+              }
+            }
+          }
+        },
+
+        "delisted": {
+          "badge": "Delisted",
+          "withdrawFullBalanceBonus": "Withdraw Full Balance (+{{bonusPercent}}% Bonus ≈ +${{bonusUsd}})",
+          "poolEmpty": "Pool Empty",
+          "actionInProgress": "Action in progress...",
+          "calcError": "Calculation Error",
+          "needWlqi": "Need ≈ {{amount}} wLQI",
+          "bonus": {
+            "withValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
+            "onlyPercent": "(~{{bonusPercent}}% Bonus)",
+            "titleWithValue": "Delisted Asset Withdraw Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+            "titleOnlyPercent": "Delisted Asset Withdraw Bonus: ~{{bonusPercent}}%",
+            "max": "(max {{bonusPercent}}% Bonus)",
+            "titleMax": "Delisted Asset Withdraw Bonus: {{bonusPercent}}%",
+            "tooltips": {
+              "withValue": "Delisted token withdrawal bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "onlyPercent": "Delisted token withdrawal bonus: ~{{bonusPercent}}%",
+              "max": "Maximum delisted token withdrawal bonus: {{bonusPercent}}%"
+            }
+          },
+          "tooltips": {
+            "withdrawEntireBalance": "Withdraw entire {{symbol}} balance (+{{bonusPercent}}% bonus ≈ +${{bonusUsd}}). Requires ≈ {{amount}} wLQI.",
+            "withdrawEntireBalanceNoBonus": "Withdraw entire {{symbol}} balance. Requires ≈ {{amount}} wLQI.",
+            "needWlqi": "Insufficient wLQI. Need ≈ {{amount}}.",
+            "poolEmpty": "Pool has no {{symbol}} to withdraw.",
+            "actionInProgress": "Another transaction is in progress.",
+            "calcError": "Cannot calculate required wLQI amount."
+          }
+        },
+
+        "tokenRow": {
+          "tooltips": {
+            "poolBalance": "Current pool balance for this token",
+            "actualPercent": "Current percentage in the pool",
+            "targetPercent": "Target percentage for this token"
+          }
+        },
+
+        "tokenCard": {
+          "depositHeader": "Deposit {{symbol}}",
+          "withdrawHeader": "Withdraw {{symbol}}",
+          "rankDisplay": "Rank: {{rank}}",
+          "tooltips": {
+            "deposit": "Deposit information and controls for this token",
+            "withdraw": "Withdrawal information and controls for this token",
+            "depositHeader": "Deposit interface for {{symbol}} token",
+            "withdrawHeader": "Withdrawal interface for {{symbol}} token"
+          }
+        },
+
+        "tokenInputControls": {
+          "amount": {
+            "placeholder": "Amount ({{symbol}})",
+            "balance": "Balance: {{value}} {{symbol}}",
+            "tooltips": {
+              "amount": "Enter the amount to deposit/withdraw in {{symbol}}",
+              "balance": "Your current {{symbol}} balance available for this action",
+              "placeholder": "Enter the amount in {{symbol}} tokens"
+            }
+          },
+          "actions": {
+            "half": "Half",
+            "max": "Max",
+            "toTarget": "To Target",
+            "tooltips": {
+              "half": "Set amount to 50% of your available {{symbol}} balance",
+              "max": "Set amount to your full available {{symbol}} balance",
+              "toTarget": "Set amount to reach the target percentage for {{symbol}} in the pool"
+            }
+          }
+        },
+        "mobileSortControls": {
+          "buttonLabelPrefix": "Sort: ",
+          "defaultSortLabel": "Default (Target % Desc)",
+          "options": {
+            "symbolAsc": "Symbol: Z-A",
+            "symbolDesc": "Symbol: A-Z",
+            "valueAsc": "Pool Balance: Low to High",
+            "valueDesc": "Pool Balance: High to Low",
+            "actualPercentAsc": "Actual %: Low to High",
+            "actualPercentDesc": "Actual %: High to Low",
+            "targetPercentAsc": "Target %: Low to High",
+            "targetPercentDesc": "Target %: High to Low",
+            "depositFeeBonusAsc": "Deposit: Best to Worst",
+            "depositFeeBonusDesc": "Deposit: Worst to Best",
+            "withdrawFeeBonusAsc": "Withdraw: Best to Worst",
+            "withdrawFeeBonusDesc": "Withdraw: Worst to Best"
+          }
+        }
+      }
+    }
+  },
+
   "footer": {
     "copyright": "© {{year}} wLiquify. All rights reserved.",
     "disclaimer": "Disclaimer: This is a software project. Use at your own risk.",
-    "financialDisclaimer": "wLiquify is not a financial advisor. All information provided is for educational and informational purposes only."
-  },
-  "poolInfo": {
-    "title": "Pool Information",
-    "wlqiTokenValue": "wLQI Token Value",
-    "wlqiTotalSupply": "wLQI Total Supply",
-    "totalPoolValue": "Total Pool Value (TVL)"
-  },
-  "tokenTable": {
-    "top30Tokens": "Top 30 Tokens",
-    "delistedTokens": "Delisted Tokens (Not In Top 30)",
-    "inputControls": {
-      "amountPlaceholder": "Amount ({{symbol}})",
-      "half": "Half",
-      "max": "Max",
-      "toTarget": "To Target"
+    "financialDisclaimer": "wLiquify is not a financial advisor. All information provided is for educational and informational purposes only.",
+    "sections": {
+      "resources": {
+        "title": "Resources",
+        "links": {
+          "docs": "Docs",
+          "github": "GitHub"
+        }
+      },
+      "legal": {
+        "title": "Legal",
+        "links": {
+          "terms": "Terms of Service",
+          "privacy": "Privacy Policy"
+        }
+      },
+      "community": {
+        "title": "Community",
+        "links": {
+          "twitter": "Twitter / X",
+          "discord": "Discord"
+        }
+      }
     },
-    "delistedWithdraw": {
-      "withdrawFullBalanceBonus": "Withdraw Full Balance (+{{bonusPercent}}% Bonus ≈ +${{bonusUsd}})",
-      "poolEmpty": "Pool Empty",
-      "actionInProgress": "Action in progress...",
-      "calcError": "Calculation Error",
-      "needWlqi": "Need ≈ {{amount}} wLQI",
-      "tooltipWithdrawEntireBalance": "Withdraw entire {{symbol}} balance (+{{bonusPercent}}% bonus ≈ +${{bonusUsd}}). Requires ≈ {{amount}} wLQI.",
-      "tooltipWithdrawEntireBalanceNoBonus": "Withdraw entire {{symbol}} balance. Requires ≈ {{amount}} wLQI.",
-      "tooltipNeedWlqi": "Insufficient wLQI. Need ≈ {{amount}}.",
-      "tooltipPoolEmpty": "Pool has no {{symbol}} to withdraw.",
-      "tooltipActionInProgress": "Another transaction is in progress.",
-      "tooltipCalcError": "Cannot calculate required wLQI amount."
-    },
-    "noData": "No token data available.",
-    "columns": {
-      "rank": "#",
-      "symbol": "Symbol",
-      "poolBalance": "Pool Balance",
-      "actualPercent": "Actual %",
-      "targetPercent": "Target %",
-      "deposit": "Deposit",
-      "withdraw": "Withdraw"
-    },
-    "connectWallet": "Connect Wallet",
-    "tooltipConnectWallet": "Connect your wallet to proceed."
-  },
-  "tokenCard": {
-    "poolBalanceLabel": "Pool Balance:",
-    "actualPercentLabel": "Actual %:",
-    "targetPercentLabel": "Target %:",
-    "depositHeader": "Deposit {{symbol}}",
-    "withdrawHeader": "Withdraw {{symbol}}"
-  },
-  "walletModal": {
-    "connectWallet": "Connect a wallet on Solana to continue",
-    "needWallet": "You need a wallet on Solana to continue",
-    "detected": "Detected",
-    "connecting": "Connecting...",
-    "moreOptions": "More options",
-    "lessOptions": "Less options",
-    "viewOptions": "View options",
-    "hideOptions": "Hide options"
-  },
-  "walletButton": {
-    "selectWallet": "Select Wallet",
-    "copyAddress": "Copy Address",
-    "copied": "Copied!",
-    "changeWallet": "Change Wallet",
-    "disconnect": "Disconnect",
-    "downloadExtension": "Download Extension"
-  },
-  "buttonState": {
-    "depositing": "Depositing...",
-    "deposit": "Deposit",
-    "withdrawing": "Withdrawing...",
-    "withdraw": "Withdraw",
-    "depositDefaultTitle": "Enter amount to deposit",
-    "withdrawDefaultTitle": "Enter wLQI amount to withdraw",
-    "depositWithFee": "Deposit {{feeString}}",
-    "withdrawDelistedAmount": "Withdraw Amount {{feeString}}",
-    "withdrawWithFee": "Withdraw {{feeString}}",
-    "insufficientToken": "Insufficient {{symbol}}",
-    "insufficientTokenTitle": "Deposit amount exceeds your {{symbol}} balance",
-    "insufficientWlqi": "Insufficient wLQI",
-    "insufficientWlqiTitle": "Withdrawal amount exceeds your wLQI balance",
-    "insufficientPoolToken": "Insufficient Pool {{symbol}}",
-    "insufficientPoolTokenTitle": "Pool lacks sufficient {{symbol}} for withdrawal",
-    "poolEmpty": "Pool Empty",
-    "poolEmptyTitle": "No balance of this delisted token in the pool to withdraw."
-  },
-  "fees": {
-    "depositBonusWithValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
-    "depositBonusOnlyPercent": "(~{{bonusPercent}}% Bonus)",
-    "depositBonusTitleWithValue": "Est. Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "depositBonusTitleOnlyPercent": "Est. Bonus: ~{{bonusPercent}}%",
-    "depositBonusMax": "(max {{bonusPercent}}% Bonus)",
-    "depositBonusTitleMax": "Up to {{bonusPercent}}% bonus",
-    "zeroFeePercent": "(0.00%)",
-    "zeroFeeTitle": "Est. Total Fee: 0.00%",
-    "depositFeeWithValue": "(~{{displayPercent}}% Fee ≈ -${{feeAmount}})",
-    "depositFeeOnlyPercent": "(~{{displayPercent}}% Fee)",
-    "depositFeeTitleWithValue": "Est. Total Fee: ~{{displayPercent}}% (-${{feeAmount}})",
-    "depositFeeTitleOnlyPercent": "Est. Total Fee: ~{{displayPercent}}%",
-    "depositFeeMin": "(min {{displayPercent}}% Fee)",
-    "depositFeeTitleMin": "Minimum {{displayPercent}}% fee",
-    "withdrawBonusWithValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
-    "withdrawBonusOnlyPercent": "(~{{bonusPercent}}% Bonus)",
-    "withdrawBonusTitleWithValue": "Est. Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "withdrawBonusTitleOnlyPercent": "Est. Bonus: ~{{bonusPercent}}%",
-    "withdrawBonusMax": "(max {{bonusPercent}}% Bonus)",
-    "withdrawBonusTitleMax": "Up to {{bonusPercent}}% bonus",
-    "withdrawMinFeeTitle": "Minimum fee applied (0.00%)",
-    "withdrawFeeWithValue": "(~{{displayPercent}}% Fee ≈ -${{feeAmount}})",
-    "withdrawFeeOnlyPercent": "(~{{displayPercent}}% Fee)",
-    "withdrawFeeTitleWithValue": "Est. Total Fee: ~{{displayPercent}}% (-${{feeAmount}})",
-    "withdrawFeeTitleOnlyPercent": "Est. Total Fee: ~{{displayPercent}}%",
-    "withdrawFeeMin": "(min {{displayPercent}}% Fee)",
-    "withdrawFeeTitleMin": "min {{displayPercent}}% fee",
-    "delistedBonusWithValue": "(~{{bonusPercent}}% Bonus ≈ +${{bonusAmount}})",
-    "delistedBonusOnlyPercent": "(~{{bonusPercent}}% Bonus)",
-    "delistedBonusTitleWithValue": "Delisted Asset Withdraw Bonus: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "delistedBonusTitleOnlyPercent": "Delisted Asset Withdraw Bonus: ~{{bonusPercent}}%",
-    "delistedBonusMax": "(max {{bonusPercent}}% Bonus)",
-    "delistedBonusTitleMax": "Delisted Asset Withdraw Bonus: {{bonusPercent}}%"
+    "tooltips": {
+      "copyright": "Copyright information for wLiquify",
+      "disclaimer": "Important notice about the experimental nature of this software",
+      "financialDisclaimer": "Important notice about the non-financial advisory nature of this platform"
+    }
   }
 }

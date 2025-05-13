@@ -29,9 +29,9 @@ const CustomButton: FC<CustomButtonProps> = ({ children, startIcon, endIcon, isc
 
     return (
         <button {...props} style={finalStyle}>
-            {startIcon && <span style={{ display: 'flex', alignItems: 'center', marginRight: '0.5rem' }}>{startIcon}</span>}
-            <span style={{ display: 'flex', alignItems: 'center' }}>{children}</span>
-            {endIcon && <span style={{ display: 'flex', alignItems: 'center', marginLeft: '0.5rem' }}>{endIcon}</span>}
+            {startIcon && <span style={{ display: 'flex', alignItems: 'center', marginRight: '0.5rem', flexShrink: 0 }}>{startIcon}</span>}
+            <span style={{ display: 'flex', alignItems: 'center', flexShrink: 1, minWidth: 0 }}>{children}</span>
+            {endIcon && <span style={{ display: 'flex', alignItems: 'center', marginLeft: '0.5rem', flexShrink: 0 }}>{endIcon}</span>}
         </button>
     );
 };
@@ -111,7 +111,7 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer flex items-center gap-2"
                 endIcon={<ArrowIcon isOpen={visible} />}
             >
-                {t('walletButton.selectWallet')}
+                {t('header.walletModal.selectWallet')}
             </CustomButton>
         );
     }
@@ -138,13 +138,13 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
                             onClick={handleDownloadWallet}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                         >
-                            {t('walletButton.downloadExtension')}
+                            {t('header.walletModal.downloadExtension')}
                         </button>
                         <button
                             onClick={openModal}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                         >
-                            {t('walletButton.changeWallet')}
+                            {t('header.walletModal.changeWallet')}
                         </button>
                         <button
                             onClick={() => {
@@ -153,7 +153,7 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
                             }}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                         >
-                            {t('walletButton.disconnect')}
+                            {t('header.walletModal.disconnect')}
                         </button>
                     </div>
                 )}
@@ -166,15 +166,13 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
             <CustomButton
                 {...mainButtonProps}
                 onClick={toggleDropdown}
-                className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center gap-3 cursor-pointer"
+                className="bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-md flex items-center cursor-pointer px-2 sm:px-4"
+                startIcon={<WalletIcon wallet={wallet} />}
                 endIcon={<ArrowIcon isOpen={dropdownOpen} />}
             >
-                <div className="flex items-center gap-3">
-                    <WalletIcon wallet={wallet} />
-                    <span className="text-sm">
-                        {base58.slice(0, 4) + '...' + base58.slice(-4)}
-                    </span>
-                </div>
+                <span className="text-sm block max-[380px]:hidden whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0">
+                    {base58.slice(0, 4) + '...' + base58.slice(-4)}
+                </span>
             </CustomButton>
             {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50">
@@ -182,19 +180,19 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
                         onClick={handleCopyAddress}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                     >
-                        {copied ? t('wallet.copied') : t('walletButton.copyAddress')}
+                        {copied ? t('header.walletModal.copied') : t('header.walletModal.copyAddress')}
                     </button>
                     <button
                         onClick={openModal}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                     >
-                        {t('walletButton.changeWallet')}
+                        {t('header.walletModal.changeWallet')}
                     </button>
                     <button
                         onClick={() => disconnect()}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                     >
-                        {t('walletButton.disconnect')}
+                        {t('header.walletModal.disconnect')}
                     </button>
                 </div>
             )}

@@ -227,71 +227,74 @@ export const formatFeeString = (t: TFunction, estimatedBps: number, isDepositAct
     let title: string;
     const locale = 'en-US';
     const currencyOpts = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    const baseKey = 'main.poolInfoDisplay.tokenTable.whitelisted';
 
     if (isDepositAction) {
+        const actionKey = `${baseKey}.deposit`;
         if (estimatedBps < 0) {
             const bonusPercent = (Math.abs(estimatedBps) / BPS_SCALE * 100).toLocaleString(locale, currencyOpts);
             const bonusAmount = inputValueUsd ? (inputValueUsd * Math.abs(estimatedBps) / BPS_SCALE).toLocaleString(locale, currencyOpts) : '';
             if (isInputFilled) {
                 feeString = bonusAmount
-                    ? t('fees.depositBonusWithValue', { bonusPercent, bonusAmount })
-                    : t('fees.depositBonusOnlyPercent', { bonusPercent });
+                    ? t(`${actionKey}.bonus.withValue`, { bonusPercent, bonusAmount })
+                    : t(`${actionKey}.bonus.onlyPercent`, { bonusPercent });
                 title = bonusAmount
-                    ? t('fees.depositBonusTitleWithValue', { bonusPercent, bonusAmount })
-                    : t('fees.depositBonusTitleOnlyPercent', { bonusPercent });
+                    ? t(`${actionKey}.bonus.titleWithValue`, { bonusPercent, bonusAmount })
+                    : t(`${actionKey}.bonus.titleOnlyPercent`, { bonusPercent });
             } else {
-                feeString = t('fees.depositBonusMax', { bonusPercent });
-                title = t('fees.depositBonusTitleMax', { bonusPercent });
+                feeString = t(`${actionKey}.bonus.max`, { bonusPercent });
+                title = t(`${actionKey}.bonus.titleMax`, { bonusPercent });
             }
         } else if (estimatedBps === 0) {
-            feeString = t('fees.zeroFeePercent');
-            title = t('fees.zeroFeeTitle');
+            feeString = t(`${actionKey}.fee.zeroPercent`);
+            title = t(`${actionKey}.fee.zeroTitle`);
         } else {
             const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString(locale, currencyOpts);
             const feeAmount = inputValueUsd ? (inputValueUsd * estimatedBps / BPS_SCALE).toLocaleString(locale, currencyOpts) : '';
             if (isInputFilled) {
                 feeString = feeAmount
-                    ? t('fees.depositFeeWithValue', { displayPercent, feeAmount })
-                    : t('fees.depositFeeOnlyPercent', { displayPercent });
+                    ? t(`${actionKey}.fee.withValue`, { displayPercent, feeAmount })
+                    : t(`${actionKey}.fee.onlyPercent`, { displayPercent });
                 title = feeAmount
-                    ? t('fees.depositFeeTitleWithValue', { displayPercent, feeAmount })
-                    : t('fees.depositFeeTitleOnlyPercent', { displayPercent });
+                    ? t(`${actionKey}.fee.titleWithValue`, { displayPercent, feeAmount })
+                    : t(`${actionKey}.fee.titleOnlyPercent`, { displayPercent });
             } else {
-                feeString = t('fees.depositFeeMin', { displayPercent });
-                title = t('fees.depositFeeTitleMin', { displayPercent });
+                feeString = t(`${actionKey}.fee.min`, { displayPercent });
+                title = t(`${actionKey}.fee.titleMin`, { displayPercent });
             }
         }
-    } else {
+    } else { // Withdraw Action
+        const actionKey = `${baseKey}.withdraw`;
         if (estimatedBps < 0) {
             const bonusPercent = (Math.abs(estimatedBps) / BPS_SCALE * 100).toLocaleString(locale, currencyOpts);
             const bonusAmount = inputValueUsd ? (inputValueUsd * Math.abs(estimatedBps) / BPS_SCALE).toLocaleString(locale, currencyOpts) : '';
             if (isInputFilled) {
                 feeString = bonusAmount
-                    ? t('fees.withdrawBonusWithValue', { bonusPercent, bonusAmount })
-                    : t('fees.withdrawBonusOnlyPercent', { bonusPercent });
+                    ? t(`${actionKey}.bonus.withValue`, { bonusPercent, bonusAmount })
+                    : t(`${actionKey}.bonus.onlyPercent`, { bonusPercent });
                 title = bonusAmount
-                    ? t('fees.withdrawBonusTitleWithValue', { bonusPercent, bonusAmount })
-                    : t('fees.withdrawBonusTitleOnlyPercent', { bonusPercent });
+                    ? t(`${actionKey}.bonus.titleWithValue`, { bonusPercent, bonusAmount })
+                    : t(`${actionKey}.bonus.titleOnlyPercent`, { bonusPercent });
             } else {
-                feeString = t('fees.withdrawBonusMax', { bonusPercent });
-                title = t('fees.withdrawBonusTitleMax', { bonusPercent });
+                feeString = t(`${actionKey}.bonus.max`, { bonusPercent });
+                title = t(`${actionKey}.bonus.titleMax`, { bonusPercent });
             }
         } else if (estimatedBps === 0) {
-            feeString = t('fees.zeroFeePercent');
-            title = t('fees.withdrawMinFeeTitle');
+            feeString = t(`${actionKey}.fee.zeroPercent`); // Assuming withdraw also has zeroPercent under fee
+            title = t(`${actionKey}.fee.minTitle`); // Special title for withdraw 0% fee
         } else {
             const displayPercent = (estimatedBps / BPS_SCALE * 100).toLocaleString(locale, currencyOpts);
             const feeAmount = inputValueUsd ? (inputValueUsd * estimatedBps / BPS_SCALE).toLocaleString(locale, currencyOpts) : '';
             if (isInputFilled) {
                 feeString = feeAmount
-                    ? t('fees.withdrawFeeWithValue', { displayPercent, feeAmount })
-                    : t('fees.withdrawFeeOnlyPercent', { displayPercent });
+                    ? t(`${actionKey}.fee.withValue`, { displayPercent, feeAmount })
+                    : t(`${actionKey}.fee.onlyPercent`, { displayPercent });
                 title = feeAmount
-                    ? t('fees.withdrawFeeTitleWithValue', { displayPercent, feeAmount })
-                    : t('fees.withdrawFeeTitleOnlyPercent', { displayPercent });
+                    ? t(`${actionKey}.fee.titleWithValue`, { displayPercent, feeAmount })
+                    : t(`${actionKey}.fee.titleOnlyPercent`, { displayPercent });
             } else {
-                feeString = t('fees.withdrawFeeMin', { displayPercent });
-                title = t('fees.withdrawFeeTitleMin', { displayPercent });
+                feeString = t(`${actionKey}.fee.min`, { displayPercent });
+                title = t(`${actionKey}.fee.titleMin`, { displayPercent });
             }
         }
     }
@@ -305,17 +308,18 @@ export const formatDelistedWithdrawFeeString = (t: TFunction, isInputFilled: boo
     const bonusAmount = inputValueUsd ? (inputValueUsd * Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE).toLocaleString(locale, currencyOpts) : '';
     let feeString: string;
     let title: string;
+    const baseKey = 'main.poolInfoDisplay.tokenTable.delisted.bonus';
 
     if (isInputFilled) {
         feeString = bonusAmount
-            ? t('fees.delistedBonusWithValue', { bonusPercent, bonusAmount })
-            : t('fees.delistedBonusOnlyPercent', { bonusPercent });
+            ? t(`${baseKey}.withValue`, { bonusPercent, bonusAmount })
+            : t(`${baseKey}.onlyPercent`, { bonusPercent });
         title = bonusAmount
-            ? t('fees.delistedBonusTitleWithValue', { bonusPercent, bonusAmount })
-            : t('fees.delistedBonusTitleOnlyPercent', { bonusPercent });
+            ? t(`${baseKey}.titleWithValue`, { bonusPercent, bonusAmount })
+            : t(`${baseKey}.titleOnlyPercent`, { bonusPercent });
     } else {
-        feeString = t('fees.delistedBonusMax', { bonusPercent });
-        title = t('fees.delistedBonusTitleMax', { bonusPercent });
+        feeString = t(`${baseKey}.max`, { bonusPercent });
+        title = t(`${baseKey}.titleMax`, { bonusPercent });
     }
 
     return { feeString, title };

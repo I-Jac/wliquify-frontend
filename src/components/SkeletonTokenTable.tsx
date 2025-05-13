@@ -83,13 +83,13 @@ export const SkeletonTokenTable: React.FC<SkeletonTokenTableProps> = ({ rowCount
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="bg-gray-600">
                         <tr>
-                            <th className="p-2 w-12 text-center text-gray-400">{isMounted ? t('tokenTable.columns.rank') : '#'}</th>
-                            <th className="p-2 w-16 text-center text-gray-400">{isMounted ? t('tokenTable.columns.symbol') : 'Symbol'}</th>
-                            <th className="p-2 w-32 text-center text-gray-400">{isMounted ? t('tokenTable.columns.poolBalance') : 'Pool Balance'}</th>
-                            <th className="p-2 w-28 text-center text-gray-400">{isMounted ? t('tokenTable.columns.actualPercent') : 'Actual %'}</th>
-                            <th className="p-2 w-28 text-center text-gray-400">{isMounted ? t('tokenTable.columns.targetPercent') : 'Target %'}</th>
-                            <th className="p-2 w-40 text-center text-gray-400">{isMounted ? t('tokenTable.columns.deposit') : 'Deposit'}</th>
-                            <th className="p-2 w-40 text-center text-gray-400">{isMounted ? t('tokenTable.columns.withdraw') : 'Withdraw'}</th>
+                            <th className="p-2 w-12 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.rank') : 'Rank'}</th>
+                            <th className="p-2 w-16 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.symbol') : 'Symbol'}</th>
+                            <th className="p-2 w-32 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.poolBalance') : 'Pool Balance'}</th>
+                            <th className="p-2 w-28 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.actualPercent') : 'Actual %'}</th>
+                            <th className="p-2 w-28 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.targetPercent') : 'Target %'}</th>
+                            <th className="p-2 w-40 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.deposit') : 'Deposit'}</th>
+                            <th className="p-2 w-40 text-center text-gray-400">{isMounted ? t('main.poolInfoDisplay.tokenTable.columns.withdraw') : 'Withdraw'}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">

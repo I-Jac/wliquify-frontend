@@ -66,10 +66,10 @@ export const calculateButtonStates = ({
 
     let depositBtnClass = BTN_GRAY;
     let withdrawBtnClass = BTN_GRAY;
-    let depositLabel = isDepositing ? t('buttonState.depositing') : t('buttonState.deposit');
-    let withdrawLabel = isWithdrawing ? t('buttonState.withdrawing') : t('buttonState.withdraw');
-    let depositTitle = t('buttonState.depositDefaultTitle');
-    let withdrawTitle = t('buttonState.withdrawDefaultTitle');
+    let depositLabel = isDepositing ? t('main.poolInfoDisplay.tokenTable.buttonState.depositing') : t('main.poolInfoDisplay.tokenTable.buttonState.deposit');
+    let withdrawLabel = isWithdrawing ? t('main.poolInfoDisplay.tokenTable.buttonState.withdrawing') : t('main.poolInfoDisplay.tokenTable.buttonState.withdraw');
+    let depositTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.depositDefaultTitle');
+    let withdrawTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.withdrawDefaultTitle');
 
     // Determine button colors and incorporate fee strings
     if (!actionDisabled) {
@@ -95,17 +95,17 @@ export const calculateButtonStates = ({
         }
 
         const { feeString: depositFeeString, title: depositTitleBase } = formatFeeString(t, estimatedDepositFeeBps, true, isDepositInputFilled, depositInputValueUsd);
-        depositLabel = t('buttonState.depositWithFee', { feeString: depositFeeString });
+        depositLabel = t('main.poolInfoDisplay.tokenTable.buttonState.depositWithFee', { feeString: depositFeeString });
         depositTitle = depositTitleBase;
 
         // Always calculate base withdraw label/title based on fees
         if (isDelisted) {
             const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatDelistedWithdrawFeeString(t, isWithdrawInputFilled, withdrawInputValueUsd);
-            withdrawLabel = t('buttonState.withdrawDelistedAmount', { feeString: withdrawFeeString });
+            withdrawLabel = t('main.poolInfoDisplay.tokenTable.buttonState.withdrawDelistedAmount', { feeString: withdrawFeeString });
             withdrawTitle = withdrawTitleBase;
         } else {
             const { feeString: withdrawFeeString, title: withdrawTitleBase } = formatFeeString(t, estimatedWithdrawFeeBps, false, isWithdrawInputFilled, withdrawInputValueUsd);
-            withdrawLabel = t('buttonState.withdrawWithFee', { feeString: withdrawFeeString });
+            withdrawLabel = t('main.poolInfoDisplay.tokenTable.buttonState.withdrawWithFee', { feeString: withdrawFeeString });
             withdrawTitle = withdrawTitleBase;
         }
     }
@@ -113,20 +113,20 @@ export const calculateButtonStates = ({
     // Apply overrides for insufficient balance/liquidity ONLY IF CONNECTED
     if (isConnected) {
         if (depositInsufficientBalance) {
-            depositLabel = t('buttonState.insufficientToken', { symbol: symbol });
-            depositTitle = t('buttonState.insufficientTokenTitle', { symbol: symbol });
+            depositLabel = t('main.poolInfoDisplay.tokenTable.buttonState.insufficientToken', { symbol: symbol });
+            depositTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.insufficientToken', { symbol: symbol });
             depositButtonDisabled = true;
             depositBtnClass = BTN_GRAY;
         }
 
         if (withdrawInsufficientBalance) {
-            withdrawLabel = t('buttonState.insufficientWlqi');
-            withdrawTitle = t('buttonState.insufficientWlqiTitle');
+            withdrawLabel = t('main.poolInfoDisplay.tokenTable.buttonState.insufficientWlqi');
+            withdrawTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.insufficientWlqi');
             withdrawButtonDisabled = true;
             withdrawBtnClass = BTN_GRAY;
         } else if (withdrawalExceedsLiquidity) {
-            withdrawLabel = t('buttonState.insufficientPoolToken', { symbol: symbol });
-            withdrawTitle = t('buttonState.insufficientPoolTokenTitle', { symbol: symbol });
+            withdrawLabel = t('main.poolInfoDisplay.tokenTable.buttonState.insufficientPoolToken', { symbol: symbol });
+            withdrawTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.insufficientPoolToken', { symbol: symbol });
             withdrawButtonDisabled = true;
             withdrawBtnClass = BTN_GRAY;
         }
@@ -134,8 +134,8 @@ export const calculateButtonStates = ({
 
     // Delisted Pool Empty check applies regardless of connection
     if (isDelisted && (!vaultBalance || vaultBalance.isZero())) {
-        withdrawLabel = t('buttonState.poolEmpty');
-        withdrawTitle = t('buttonState.poolEmptyTitle');
+        withdrawLabel = t('main.poolInfoDisplay.tokenTable.buttonState.poolEmpty');
+        withdrawTitle = t('main.poolInfoDisplay.tokenTable.buttonState.tooltips.poolEmpty');
         withdrawButtonDisabled = true;
         withdrawBtnClass = BTN_GRAY;
     }

@@ -1,4 +1,5 @@
 import { Connection } from '@solana/web3.js';
+import { showToast } from './notifications';
 
 export async function getRpcLatency(url: string): Promise<number | null> {
     try {
@@ -9,7 +10,9 @@ export async function getRpcLatency(url: string): Promise<number | null> {
         const latency = endTime - startTime;
         return latency;
     } catch (error) {
-        console.error(`[getRpcLatency] Ping failed for ${url}:`, error instanceof Error ? error.message : String(error));
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[getRpcLatency] Ping failed for ${url}:`, errorMessage);
+        showToast(`Failed to connect to RPC: ${errorMessage}`, 'error');
         return null; 
     }
 } 

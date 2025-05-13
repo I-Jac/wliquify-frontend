@@ -1,6 +1,7 @@
 import { Program } from '@coral-xyz/anchor';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { Connection } from '@solana/web3.js';
+import i18next from 'i18next';
 
 interface HandleTransactionErrorParams {
     error: unknown;
@@ -17,7 +18,8 @@ export async function handleTransactionError({
     connection,
     txid 
 }: HandleTransactionErrorParams): Promise<string> {
-    let errorMessage = 'Unknown error';
+    const t = i18next.t.bind(i18next);
+    let errorMessage = t('notifications.unknownError');
 
     // If we have a connection and txid but no logs, try to fetch them
     if (connection && txid && !errorLogs) {
@@ -88,7 +90,7 @@ export async function handleTransactionError({
             if (programError && programError.msg) {
                 errorMessage = programError.msg;
             } else {
-                errorMessage = `An unknown program error occurred (Code: ${customErrorCode}).`;
+                errorMessage = t('notifications.unknownProgramError', { code: customErrorCode });
             }
         }
     } else if (!errorLogs) {

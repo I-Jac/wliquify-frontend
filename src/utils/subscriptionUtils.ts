@@ -1,4 +1,5 @@
 import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
+import { showToast } from './notifications';
 
 /**
  * Throttles a function to limit execution rate
@@ -27,6 +28,7 @@ export const cleanupSubscriptions = async (connection: Connection, subscriptionI
                 await connection.removeAccountChangeListener(subId);
             } catch (err) {
                 console.error(`Error removing subscription ${subId}:`, err);
+                showToast('Failed to cleanup subscription', 'error');
             }
         })
     );
@@ -54,6 +56,7 @@ export const setupSubscription = (
         );
     } catch (e) {
         console.error(`Failed to subscribe to ${accountName} (${account.toBase58()}):`, e);
+        showToast(`Failed to subscribe to ${accountName}`, 'error');
         return null;
     }
 };
@@ -79,6 +82,7 @@ export const setupUserTokenSubscription = (
         );
     } catch (error) {
         console.error(`Failed to subscribe to user ATA ${userAta.toBase58()}:`, error);
+        showToast('Failed to subscribe to token balance updates', 'error');
         return null;
     }
 }; 

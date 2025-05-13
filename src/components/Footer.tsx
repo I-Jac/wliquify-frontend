@@ -36,24 +36,27 @@ export const Footer: React.FC = () => {
 
     const footerSections = [
         {
-            title: 'Resources',
+            id: 'resources',
+            titleKey: 'footer.sections.resources.title',
             links: [
-                { name: 'Docs', href: '#', external: true }, // Replace # with actual links
-                { name: 'GitHub', href: '#', external: true },
+                { id: 'docs', nameKey: 'footer.sections.resources.links.docs', href: '#', external: true }, 
+                { id: 'github', nameKey: 'footer.sections.resources.links.github', href: '#', external: true },
             ],
         },
         {
-            title: 'Legal',
+            id: 'legal',
+            titleKey: 'footer.sections.legal.title',
             links: [
-                { name: 'Terms of Service', href: '#', external: false },
-                { name: 'Privacy Policy', href: '#', external: false },
+                { id: 'terms', nameKey: 'footer.sections.legal.links.terms', href: '#', external: false },
+                { id: 'privacy', nameKey: 'footer.sections.legal.links.privacy', href: '#', external: false },
             ],
         },
         {
-            title: 'Community',
+            id: 'community',
+            titleKey: 'footer.sections.community.title',
             links: [
-                { name: 'Twitter / X', href: '#', external: true },
-                { name: 'Discord', href: '#', external: true },
+                { id: 'twitter', nameKey: 'footer.sections.community.links.twitter', href: '#', external: true },
+                { id: 'discord', nameKey: 'footer.sections.community.links.discord', href: '#', external: true },
             ],
         },
     ];
@@ -64,20 +67,20 @@ export const Footer: React.FC = () => {
                 <div className="py-12 md:flex md:items-start md:justify-between">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 md:gap-12 mb-8 md:mb-0 flex-1">
                         {footerSections.map((section) => (
-                            <div key={section.title}>
+                            <div key={section.id}>
                                 <h3 className="text-sm font-semibold uppercase text-gray-400 tracking-wider">
-                                    {section.title}
+                                    {isMounted ? t(section.titleKey) : section.id.charAt(0).toUpperCase() + section.id.slice(1)} 
                                 </h3>
                                 <ul role="list" className="mt-4 space-y-2">
                                     {section.links.map((link) => (
-                                        <li key={link.name}>
+                                        <li key={link.id}>
                                             <a
                                                 href={link.href}
                                                 className="text-base text-gray-300 hover:text-white flex items-center"
                                                 target={link.external ? '_blank' : undefined}
                                                 rel={link.external ? 'noopener noreferrer' : undefined}
                                             >
-                                                {link.name}
+                                                {isMounted ? t(link.nameKey) : link.id.charAt(0).toUpperCase() + link.id.slice(1)}
                                                 {link.external && <ExternalLinkIcon />}
                                             </a>
                                         </li>

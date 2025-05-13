@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits } from 'ethers';
 import { ProcessedTokenData } from '@/utils/types';
@@ -47,7 +47,7 @@ interface TokenTableProps {
 }
 
 // Define type for sortable keys
-export type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent' | 'depositFeeBonus' | 'withdrawFeeBonus';
+export type SortableKey = 'symbol' | 'value' | 'actualPercent' | 'targetPercent' | 'depositFeeBonus' | 'withdrawFeeBonus' | 'rank';
 
 // Fallback for sorting if fee/bonus cannot be estimated
 const FEE_SORT_FALLBACK = new BN(1_000_000_000); // A very large fee
@@ -75,6 +75,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
     const { setVisible } = useWalletModal();
     const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const mobileTokenListRef = useRef<HTMLDivElement>(null);
 
     const totalTargetDominance = useMemo(() => {
         if (!tokenData) return new BN(0);
@@ -110,6 +111,21 @@ export const TokenTable = React.memo<TokenTableProps>(({
             setSortDirection(prevDirection => (sortKey === key && prevDirection === 'desc') ? 'asc' : 'desc');
         }
     }, [sortKey]); // Added sortKey to dependencies of useCallback
+
+    const handleMobileSortApplied = useCallback((shouldScroll: boolean) => {
+        if (shouldScroll) {
+            setTimeout(() => {
+                if (mobileTokenListRef.current) {
+                    mobileTokenListRef.current.scrollTop = 0;
+                    // As a fallback, try scrolling the window to the top of this element too,
+                    // considering the sticky header's height (56px or 3.5rem for top-14)
+                    const headerHeight = 56; 
+                    const elementTop = mobileTokenListRef.current.getBoundingClientRect().top + window.scrollY;
+                    window.scrollTo({ top: elementTop - headerHeight, behavior: 'smooth' });
+                }
+            }, 0); // Delay slightly
+        }
+    }, []);
 
     const sortedTokenData = useMemo(() => {
         if (!tokenData) return [];
@@ -157,6 +173,9 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 actualPercent: actualPercent,
                 depositFeeBonusSortValue,
                 withdrawFeeBonusSortValue,
+                // Add rank for sorting
+                rank: rankedTokenMap.get(tokenItem.mintAddress) ?? Infinity, // Delisted tokens won't be in map, sort last
+                isDelisted: tokenItem.isDelisted,
             };
         };
 
@@ -174,6 +193,23 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     //             ▲ (asc state) means Z-A (negated compareResult)
                     if (sortDirection === 'asc') compareResult = -compareResult;
                     break;
+                case 'rank':
+                    // Handle delisted tokens specifically: they always come after ranked tokens
+                    if (valuesA.isDelisted && !valuesB.isDelisted) {
+                        compareResult = 1; // A (delisted) comes after B (not delisted)
+                    } else if (!valuesA.isDelisted && valuesB.isDelisted) {
+                        compareResult = -1; // A (not delisted) comes before B (delisted)
+                    } else if (valuesA.isDelisted && valuesB.isDelisted) {
+                        // If both are delisted, sort by symbol as a secondary stable sort
+                        compareResult = String(valuesA.symbol).localeCompare(String(valuesB.symbol));
+                    } else {
+                        // Both are not delisted, compare by rank
+                        compareResult = valuesA.rank - valuesB.rank;
+                    }
+                    // For Rank: ▼ (desc state) means higher rank (e.g., 30) first
+                    //           ▲ (asc state) means lower rank (e.g., 1) first
+                    if (sortDirection === 'desc') compareResult = -compareResult;
+                    break;
                 case 'value':
                     compareResult = valuesA.value.cmp(valuesB.value);
                     if (sortDirection === 'desc') compareResult = -compareResult;
@@ -187,14 +223,22 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     if (sortDirection === 'desc') compareResult = -compareResult;
                     break;
                 case 'depositFeeBonus':
-                    compareResult = sortDirection === 'desc'
-                        ? valuesA.depositFeeBonusSortValue.cmp(valuesB.depositFeeBonusSortValue)
-                        : valuesB.depositFeeBonusSortValue.cmp(valuesA.depositFeeBonusSortValue);
+                    // User wants 'desc' (▼) to mean "Best to Worst", which is ASCENDING sort of feeBonusSortValue (numerically smallest first)
+                    // User wants 'asc' (▲) to mean "Worst to Best", which is DESCENDING sort of feeBonusSortValue (numerically largest first)
+                    if (sortDirection === 'desc') { 
+                        compareResult = valuesA.depositFeeBonusSortValue.cmp(valuesB.depositFeeBonusSortValue);
+                    } else { // sortDirection === 'asc'
+                        compareResult = valuesB.depositFeeBonusSortValue.cmp(valuesA.depositFeeBonusSortValue);
+                    }
                     break;
                 case 'withdrawFeeBonus':
-                    compareResult = sortDirection === 'desc'
-                        ? valuesA.withdrawFeeBonusSortValue.cmp(valuesB.withdrawFeeBonusSortValue)
-                        : valuesB.withdrawFeeBonusSortValue.cmp(valuesA.withdrawFeeBonusSortValue);
+                    // User wants 'desc' (▼) to mean "Best to Worst", which is ASCENDING sort of feeBonusSortValue
+                    // User wants 'asc' (▲) to mean "Worst to Best", which is DESCENDING sort of feeBonusSortValue
+                    if (sortDirection === 'desc') {
+                        compareResult = valuesA.withdrawFeeBonusSortValue.cmp(valuesB.withdrawFeeBonusSortValue);
+                    } else { // sortDirection === 'asc'
+                        compareResult = valuesB.withdrawFeeBonusSortValue.cmp(valuesA.withdrawFeeBonusSortValue);
+                    }
                     break;
             }
 
@@ -241,14 +285,16 @@ export const TokenTable = React.memo<TokenTableProps>(({
         console.log(`Calculating target amount for ${mintAddress}, action: ${action}`);
         const currentToken = tokenData?.find(t => t.mintAddress === mintAddress);
         if (!currentToken || currentToken.decimals === null || currentToken.targetDominance.isNeg()) {
-            toast.error("Token data invalid for target calculation."); return;
+            toast(t('main.poolInfoDisplay.tokenTable.toast.tokenDataInvalid'));
+            return;
         }
         let isTokenDataInvalid = false;
         if ((action === 'deposit' || !currentToken.isDelisted) && currentToken.targetDominance.isZero()) {
             isTokenDataInvalid = true;
         }
         if (isTokenDataInvalid) {
-            toast.error("Token data invalid for target calculation."); return;
+            toast(t('main.poolInfoDisplay.tokenTable.toast.tokenDataInvalid'));
+            return;
         }
         const T = currentToken.vaultBalance !== null && currentToken.decimals !== null
             ? calculateTokenValueUsdScaled(currentToken.vaultBalance, currentToken.decimals, currentToken.priceData) ?? new BN(0)
@@ -260,23 +306,27 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 const target_value_in_pool = P!.mul(currentToken.targetDominance).div(totalTargetDominance);
                 const one_minus_target_dom_fraction_numer = totalTargetDominance.sub(currentToken.targetDominance);
                 if (target_value_in_pool.lte(T)) {
-                    toast.error("Cannot deposit to reach target, token already at or above."); return;
+                    toast(t('main.poolInfoDisplay.tokenTable.toast.cannotDepositToTarget'));
+                    return;
                 }
                 const valueDiff = target_value_in_pool.sub(T);
                 const V_usd_scaled = valueDiff.mul(totalTargetDominance).div(one_minus_target_dom_fraction_numer);
                 const tokenAmountScaledBn = usdToTokenAmount(V_usd_scaled, currentToken.decimals, currentToken.priceData);
                 if (PRECISION_SCALE_FACTOR.isZero()) {
-                    toast.error("Internal error: Precision scale factor is zero."); return;
+                    toast(t('main.poolInfoDisplay.tokenTable.toast.internalPrecisionError'));
+                    return;
                 }
                 const finalAmountBn = tokenAmountScaledBn.div(PRECISION_SCALE_FACTOR);
                 if (finalAmountBn.isZero() && tokenAmountScaledBn.gtn(0)) {
-                    toast.error("Target deposit amount is less than minimum transferable unit."); return;
+                    toast(t('main.poolInfoDisplay.tokenTable.toast.lessThanMinTransfer'));
+                    return;
                 }
                 if (finalAmountBn.isNeg()) {
-                    toast.error("Calculated target amount is invalid (negative)."); return;
+                    toast(t('main.poolInfoDisplay.tokenTable.toast.negativeTargetAmount'));
+                    return;
                 }
                 if (currentToken.userBalance && finalAmountBn.gt(currentToken.userBalance)) {
-                    toast("Required amount exceeds balance. Setting to max.", { icon: '⚠️' });
+                    toast(t('main.poolInfoDisplay.tokenTable.toast.requiredAmountExceedsBalance'), { icon: '⚠️' });
                     amountToSet = formatUnits(currentToken.userBalance.toString(), currentToken.decimals);
                 } else {
                     amountToSet = formatUnits(finalAmountBn.toString(), currentToken.decimals);
@@ -284,24 +334,28 @@ export const TokenTable = React.memo<TokenTableProps>(({
             } else {
                 if (currentToken.isDelisted) {
                     if (!currentToken.vaultBalance || currentToken.vaultBalance.isZero() || currentToken.vaultBalance.isNeg() || currentToken.decimals === null) {
-                        toast.error("No pool balance to withdraw for this delisted token."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.noPoolBalanceDelisted'));
+                        return;
                     }
                     const T_usd_scaled = calculateTokenValueUsdScaled(currentToken.vaultBalance, currentToken.decimals, currentToken.priceData);
                     if (!T_usd_scaled || T_usd_scaled.isZero() || T_usd_scaled.isNeg()) {
-                        toast.error("Cannot calculate value of delisted token balance."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.cannotCalcDelistedValue'));
+                        return;
                     }
                     const bonusNumerator = new BN(100);
                     const bonusDenominator = new BN(105);
                     const T_usd_scaled_adjusted = T_usd_scaled.mul(bonusNumerator).div(bonusDenominator);
                     const requiredWlqiAmountBn = usdToWlqiAmount(T_usd_scaled_adjusted, wLqiValueScaled, wLqiDecimals);
                     if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
-                        toast.error("Calculated wLQI amount is zero or negative."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.wlqiDecimalsMissing'));
+                        return;
                     }
                     if (wLqiDecimals === null) {
-                        toast.error("wLQI decimals not available."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.wlqiDecimalsMissing'));
+                        return;
                     }
                     if (userWlqiBalance && requiredWlqiAmountBn.gt(userWlqiBalance)) {
-                        toast("Required wLQI withdraw amount exceeds your balance. Setting to max.", { icon: '⚠️' });
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.requiredWlqiExceedsBalance'), { icon: '⚠️' });
                         amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
                     } else {
                         const finalWlqiAmountBn = requiredWlqiAmountBn.add(new BN(1));
@@ -311,22 +365,26 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     const target_value_in_pool = P!.mul(currentToken.targetDominance).div(totalTargetDominance);
                     const one_minus_target_dom_fraction_numer = totalTargetDominance.sub(currentToken.targetDominance);
                     if (T.lte(target_value_in_pool)) {
-                        toast.error("Cannot withdraw to reach target, token already at or below."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.cannotWithdrawToTarget'));
+                        return;
                     }
                     if (one_minus_target_dom_fraction_numer.isZero() || one_minus_target_dom_fraction_numer.isNeg()) {
-                        toast.error("Invalid target dominance for calculation."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.invalidTargetDominance'));
+                        return;
                     }
                     const valueDiff = T.sub(target_value_in_pool);
                     const V_usd_scaled = valueDiff.mul(totalTargetDominance).div(one_minus_target_dom_fraction_numer);
                     const wLqiAmountBn = usdToWlqiAmount(V_usd_scaled, wLqiValueScaled, wLqiDecimals);
                     if (wLqiAmountBn.isZero() || wLqiAmountBn.isNeg()) {
-                        toast.error("Calculated wLQI amount is zero or negative."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.wlqiDecimalsMissing'));
+                        return;
                     }
                     if (wLqiDecimals === null) {
-                        toast.error("wLQI decimals not available."); return;
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.wlqiDecimalsMissing'));
+                        return;
                     }
                     if (userWlqiBalance && wLqiAmountBn.gt(userWlqiBalance)) {
-                        toast("Required wLQI withdraw amount exceeds balance. Setting to max.", { icon: '⚠️' });
+                        toast(t('main.poolInfoDisplay.tokenTable.toast.requiredWlqiExceedsBalance'), { icon: '⚠️' });
                         amountToSet = formatUnits(userWlqiBalance.toString(), wLqiDecimals);
                     } else {
                         amountToSet = formatUnits(wLqiAmountBn.toString(), wLqiDecimals);
@@ -337,12 +395,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 amountToSet = amountToSet.substring(0, amountToSet.length - 2);
             }
             if (parseFloat(amountToSet) <= 0) {
-                toast.error("Calculated target amount is too small."); return;
+                toast(t('main.poolInfoDisplay.tokenTable.toast.calculatedTargetTooSmall'));
+                return;
             }
             handleAmountChange(mintAddress, action, amountToSet, action === 'deposit' ? currentToken?.decimals ?? null : wLqiDecimals);
         } catch (error) {
             console.error(`Error calculating target amount for ${action}:`, error);
-            toast.error(`Failed to calculate target ${action} amount.`);
+            toast(t('main.poolInfoDisplay.tokenTable.toast.failedToCalculateTarget'));
         }
     }, [tokenData, totalPoolValueScaled, totalTargetDominance, wLqiValueScaled, wLqiDecimals, handleAmountChange, userWlqiBalance]);
 
@@ -365,28 +424,70 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
                     <thead className="sticky top-14 z-10 bg-gray-600">
                         <tr className="bg-gray-600 rounded-tl-md rounded-tr-md overflow-hidden">
-                            {showRankColumn && (
-                                <th scope="col" className="p-2 text-center bg-gray-600 rounded-tl-md">{t('tokenTable.columns.rank')}</th>
-                            )}
-                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('symbol')}>
-                                {t('tokenTable.columns.symbol')}{getSortIndicator('symbol')}
+                            <th className={`p-2 text-left sticky top-0 bg-gray-700 z-10 ${showRankColumn ? 'table-cell' : 'hidden'}`}>
+                                <button 
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full text-left flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('rank')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.rank')}
+                                    {getSortIndicator('rank')}
+                                </button>
                             </th>
-                            <th className="p-2 w-48 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('value')}>
-                                {t('tokenTable.columns.poolBalance')}{getSortIndicator('value')}
+                            <th className="p-2 text-left sticky top-0 bg-gray-700 z-10">
+                                <button 
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full text-left flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('symbol')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.symbol')}
+                                    {getSortIndicator('symbol')}
+                                </button>
                             </th>
-                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('actualPercent')}>
-                                {t('tokenTable.columns.actualPercent')}{getSortIndicator('actualPercent')}
+                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
+                                <button 
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('value')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.poolBalance')}
+                                    {getSortIndicator('value')}
+                                </button>
                             </th>
-                            <th className="p-2 w-28 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('targetPercent')}>
-                                {t('tokenTable.columns.targetPercent')}{getSortIndicator('targetPercent')}
+                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
+                                <button 
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('actualPercent')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.actualPercent')}
+                                    {getSortIndicator('actualPercent')}
+                                </button>
+                            </th>
+                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
+                                <button 
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('targetPercent')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.targetPercent')}
+                                    {getSortIndicator('targetPercent')}
+                                </button>
                             </th>
                             {!hideDepositColumn && (
-                                <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('depositFeeBonus')}>
-                                    {t('tokenTable.columns.deposit')}{getSortIndicator('depositFeeBonus')}
+                                <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
+                                    <button
+                                        className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
+                                        onClick={() => handleSort('depositFeeBonus')}
+                                    >
+                                        {t('main.poolInfoDisplay.tokenTable.columns.deposit')}
+                                        {getSortIndicator('depositFeeBonus')}
+                                    </button>
                                 </th>
                             )}
-                            <th className="p-2 w-40 cursor-pointer hover:bg-gray-500 text-center" onClick={() => handleSort('withdrawFeeBonus')}>
-                                {t('tokenTable.columns.withdraw')}{getSortIndicator('withdrawFeeBonus')}
+                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
+                                <button
+                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
+                                    onClick={() => handleSort('withdrawFeeBonus')}
+                                >
+                                    {t('main.poolInfoDisplay.tokenTable.columns.withdraw')}
+                                    {getSortIndicator('withdrawFeeBonus')}
+                                </button>
                             </th>
                         </tr>
                     </thead>
@@ -427,12 +528,13 @@ export const TokenTable = React.memo<TokenTableProps>(({
             </div>
 
             {/* --- Mobile Card List (Visible on Mobile) --- */}
-            <div className="block md:hidden space-y-3 px-2 py-2">
+            <div className="block md:hidden space-y-3 px-2 py-2" ref={mobileTokenListRef}>
                 <MobileSortControls
                     currentSortKey={sortKey}
                     currentSortDirection={sortDirection}
                     handleSort={handleSort}
                     hideDepositColumn={hideDepositColumn}
+                    onSortApplied={handleMobileSortApplied}
                 />
                 {sortedTokenData.map((tokenItem) => {
                     const targetRank = tokenItem.isDelisted ? null : rankedTokenMap.get(tokenItem.mintAddress) ?? null;

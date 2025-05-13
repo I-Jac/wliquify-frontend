@@ -10,6 +10,9 @@ import {
 } from '@/utils/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { getRpcLatency } from '@/utils/networkUtils';
+import { ProfileSettingsTab } from './settings/ProfileSettingsTab';
+import { ConnectionSettingsTab } from './settings/ConnectionSettingsTab';
+import { TransactionSettingsTab } from './settings/TransactionSettingsTab';
 
 interface SettingsModalProps {
     closePanel?: () => void;
@@ -73,13 +76,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     const [localNumberFormat, setLocalNumberFormat] = useState<NumberFormatSettings>(contextNumberFormat);
     const [localPreferredExplorer, setLocalPreferredExplorer] = useState(contextPreferredExplorer);
 
-    // Other states (ping, active tab, mounted ref)
-    const [pingTimes, setPingTimes] = useState<{ [url: string]: number | null | 'pinging' }>({});
+    // Other states (active tab, mounted ref)
     type ActiveTabType = 'profile' | 'connection' | 'transaction';
     const [activeTab, setActiveTab] = useState<ActiveTabType>('profile');
     const componentIsMountedRef = useRef(true);
     const initialSettingsRef = useRef<InitialSettings | null>(null);
-    const pingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref to store interval ID
 
     // Effect to initialize/reset local states and initialSettingsRef ONCE on MOUNT
     // or when the modal is effectively re-initialized (e.g. by closing and reopening)
@@ -247,67 +248,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
     // Ping effect & Fetch dynamic fees effect
     useEffect(() => {
-        const clearExistingInterval = () => {
-            if (pingIntervalRef.current) {
-                clearInterval(pingIntervalRef.current);
-                pingIntervalRef.current = null;
-            }
-        };
+        // Ping logic moved to ConnectionSettingsTab.tsx
+        // Fetch dynamic fees logic can remain if it's general or move if specific to transaction tab
 
-        const performPing = async (url: string) => {
-            if (!url || !url.startsWith('http')) { // Basic validation
-                if (componentIsMountedRef.current) {
-                    setPingTimes(prev => ({ ...prev, [url]: null }));
-                }
-                return;
-            }
-            if (componentIsMountedRef.current) {
-                setPingTimes(prev => ({ ...prev, [url]: 'pinging' }));
-            }
-            try {
-                const latency = await getRpcLatency(url);
-                if (componentIsMountedRef.current) {
-                    setPingTimes(prev => ({ ...prev, [url]: latency }));
-                }
-            } catch (error) {
-                console.error(`Error pinging ${url}:`, error);
-                if (componentIsMountedRef.current) {
-                    setPingTimes(prev => ({ ...prev, [url]: null }));
-                }
-            }
-        };
+        // const clearExistingInterval = () => { ... }; // Removed
+        // const performPing = async (url: string) => { ... }; // Removed
+        // const pingAllRelevantRpcs = () => { ... }; // Removed
 
-        const pingAllRelevantRpcs = () => {
-            if (!componentIsMountedRef.current) return;
+        // if (isSettingsModalOpen && activeTab === 'connection') { ... } // Removed
+        // else if (isSettingsModalOpen && activeTab === 'profile') { ... } // Removed
+        // else { ... } // Removed
 
-            PREDEFINED_RPCS.forEach((rpc) => {
-                // Only start a new ping if not already pinging or successfully pinged recently (to avoid spamming on interval)
-                // For simplicity in this interval, let's just re-ping.
-                // A more complex logic could avoid re-pinging if a successful ping was recent.
-                performPing(rpc.url);
-            });
-
-            if (localIsCustomRpc && localCustomRpcInputValue) {
-                performPing(localCustomRpcInputValue);
-            }
-        };
-
-        if (isSettingsModalOpen && activeTab === 'connection') {
-            clearExistingInterval(); // Clear previous interval if any
-            pingAllRelevantRpcs(); // Initial ping when tab/modal becomes active
-            pingIntervalRef.current = setInterval(pingAllRelevantRpcs, 5000); // Ping every 5 seconds
-        } else if (isSettingsModalOpen && activeTab === 'profile') {
-            // No pinging needed for profile tab, clear interval if it was running
-            clearExistingInterval();
-        } else {
-            clearExistingInterval(); // Clear interval if modal is closed or not on connection/profile tab
-        }
-
-        // Cleanup on component unmount or when dependencies change triggering effect re-run
-        return () => {
-            clearExistingInterval();
-        };
-    }, [isSettingsModalOpen, activeTab, localIsCustomRpc, localCustomRpcInputValue]); // Add localIsCustomRpc and localCustomRpcInputValue
+        // return () => { // Removed
+        //    clearExistingInterval(); // Removed
+        // }; // Removed
+    }, [isSettingsModalOpen, activeTab]); // Simplified dependencies
 
     const performSave = () => {
         console.log("[PerformSave] Starting. Local states:", {
@@ -337,13 +292,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             console.log("[PerformSave] Setting SlippageBps to context:", slippageNum);
             setContextSlippageBps(slippageNum);
         } else {
-            openAlertModal(t('notifications.invalidSlippageAlert'));
+            openAlertModal(t('alertModal.invalidSlippageAlert'));
             return false; 
         }
 
         // Validate and set Max Priority Fee Cap
         if (isNaN(maxPriorityFeeCapSolNum) || maxPriorityFeeCapSolNum < 0) {
-            openAlertModal(t('notifications.invalidMaxCapAlert'));
+            openAlertModal(t('alertModal.invalidMaxCapAlert'));
             return false;
         }
         console.log("[PerformSave] Setting MaxPriorityFeeCapSol to context:", maxPriorityFeeCapSolNum);
@@ -355,7 +310,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             if (localCustomRpcInputValue.trim() && localCustomRpcInputValue.trim() !== 'https://') {
                 finalRpcToSave = localCustomRpcInputValue.trim();
             } else {
-                openAlertModal(t('notifications.invalidCustomRpcAlert'));
+                openAlertModal(t('alertModal.invalidCustomRpcAlert'));
                 return false;
             }
         } else {
@@ -395,7 +350,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         if (rpcHasChanged) {
             console.log("[PerformSave] Setting RPC Endpoint to context:", finalRpcToSave);
             setContextRpcEndpoint(finalRpcToSave);
-            openAlertModal(t('notifications.rpcUpdateAlert'));
+            openAlertModal(t('alertModal.rpcUpdateAlert'));
         }
         
         // Save Profile Settings to context
@@ -433,7 +388,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         }
 
         if (isSettingsDirty) {
-            openAlertModal(t('notifications.unsavedChangesAlert'));
+            openAlertModal(t('alertModal.unsavedChangesAlert'));
             return; // Prevent switching if dirty and clicking a different tab
         }
         setActiveTab(tab); // Only switch if not dirty or clicking the same tab (which is handled above)
@@ -457,60 +412,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         }
     };
     
-    const handleLocalRpcSelection = (url: string) => {
-        console.log("[handleLocalRpcSelection] Called with URL:", url);
-        setLocalSelectedRpcUrl(url);
-        setLocalIsCustomRpc(false);
-        if (!localCustomRpcInputValue || localCustomRpcInputValue === 'https://') {
-            setLocalCustomRpcInputValue('https://');
-        }
-    };
+    // const handlePredefinedSlippageClick = (bpsValue: number) => { ... }; // Moved to TransactionSettingsTab
 
-    const handleLocalCustomRpcSelect = () => {
-        console.log("[handleLocalCustomRpcSelect] Called");
-        setLocalIsCustomRpc(true);
-    };
+    // const handleCustomSlippageInputFocus = () => { ... }; // Moved to TransactionSettingsTab
 
-    const handlePredefinedSlippageClick = (bpsValue: number) => {
-        console.log("[handlePredefinedSlippageClick] Called with BPS:", bpsValue);
-        setLocalSlippageBps(bpsValue.toString());
-        setLocalSlippageInput(""); // Clear input when predefined is clicked
-        setLocalIsCustomSlippageActive(false); // Set mode to predefined
-    };
-
-    const handleCustomSlippageInputFocus = () => {
-        console.log("[handleCustomSlippageInputFocus] Called");
-        setLocalIsCustomSlippageActive(true);
-        // If the input is empty when focused, and we have a valid non-custom BPS,
-        // we could pre-fill it. However, Jupiter's behavior is to keep it empty
-        // or retain the previous custom value, letting the user type afresh.
-        // So, no explicit pre-fill here on focus based on current localSlippageBps.
-        // If localSlippageInput already has a value (from previous custom input), it will be retained.
-    };
-
-    const handleCustomSlippageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        console.log("[handleCustomSlippageInputChange] Called with value:", e.target.value);
-        setLocalIsCustomSlippageActive(true); // Ensure custom mode is active when typing
-        const inputValue = e.target.value;
-        setLocalSlippageInput(inputValue);
-        // Allow empty input or valid float, then convert to BPS
-        if (inputValue.trim() === '' || isNaN(parseFloat(inputValue))) {
-            // If input is empty or not a number, maybe set BPS to a default or invalid marker, or just wait for valid input
-            // For now, let's only update BPS if it's a valid number to avoid errors during parsing in performSave
-            // Or, we could set localSlippageBps to an empty string or a specific invalid marker if needed for validation display
-        } else {
-            const percentage = parseFloat(inputValue);
-            if (!isNaN(percentage) && percentage >= 0) {
-                setLocalSlippageBps(Math.round(percentage * 100).toString()); // Convert % to BPS
-            }
-        }
-    };
+    // const handleCustomSlippageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => { ... }; // Moved to TransactionSettingsTab
 
     return (
         <Fragment>
             <div id="settings-modal-container">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">{t('settings.title')}</h2>
+                    <h2 className="text-xl font-bold">{t('header.settings.title')}</h2>
                     {/* <button 
                         onClick={handleXCloseButtonClick} 
                         className="text-gray-400 hover:text-white text-2xl"
@@ -530,7 +442,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('profile')}
                     >
-                        {t('settings.profileTab')}
+                        {t('header.settings.profileTab')}
                     </button>
                     <button
                         className={`px-3 py-2 rounded-t-md text-sm font-medium transition-colors
@@ -542,7 +454,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('connection')}
                     >
-                        {t('settings.connectionTab')}
+                        {t('header.settings.connectionTab')}
                     </button>
                     <button
                         className={`px-3 py-2 rounded-t-md text-sm font-medium transition-colors
@@ -554,284 +466,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                             }`}
                         onClick={() => handleTabChange('transaction')}
                     >
-                        {t('settings.transactionTab')}
+                        {t('header.settings.transactionTab')}
                     </button>
                 </div>
 
                 <div className="space-y-5 min-h-[250px]">
                     {activeTab === 'profile' && (
-                        <div className="space-y-6">
-                            {/* Language Setting */}
-                            <div>
-                                <label htmlFor="language-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.languageLabel')}</label>
-                                <select 
-                                    id="language-select"
-                                    value={localPreferredLanguage}
-                                    onChange={(e) => setLocalPreferredLanguage(e.target.value)}
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
-                                >
-                                    {availableLanguages.map(lang => (
-                                        <option key={lang.code} value={lang.code}>{lang.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Preferred Currency Setting */}
-                            <div>
-                                <label htmlFor="currency-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.preferredCurrencyLabel')}</label>
-                                <select 
-                                    id="currency-select"
-                                    value={localPreferredCurrency}
-                                    onChange={(e) => setLocalPreferredCurrency(e.target.value)}
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
-                                >
-                                    {availableCurrencies.map(curr => (
-                                        <option key={curr.code} value={curr.code}>{curr.name} ({curr.symbol})</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Number Format Setting */}
-                            <div className="space-y-3">
-                                <p className="block text-sm font-medium text-gray-300">{t('settings.numberFormatting')}</p>
-                                <div className="flex items-center space-x-4">
-                                    <div>
-                                        <label htmlFor="decimal-separator" className="block text-xs text-gray-400 mb-1">{t('settings.decimalSeparatorLabel')}</label>
-                                        <select 
-                                            id="decimal-separator"
-                                            value={localNumberFormat.decimalSeparator}
-                                            onChange={(e) => setLocalNumberFormat({ ...localNumberFormat, decimalSeparator: e.target.value as '.' | ',' })}
-                                            className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
-                                        >
-                                            <option value=".">{t('settings.dotOption')}</option>
-                                            <option value=",">{t('settings.commaOption')}</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="thousand-separator" className="block text-xs text-gray-400 mb-1">{t('settings.thousandSeparatorLabel')}</label>
-                                        <select 
-                                            id="thousand-separator"
-                                            value={localNumberFormat.thousandSeparator}
-                                            onChange={(e) => setLocalNumberFormat({ ...localNumberFormat, thousandSeparator: e.target.value as ',' | '.' | ' ' | '' })}
-                                            className="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
-                                        >
-                                            <option value=",">{t('settings.commaOption')}</option>
-                                            <option value=".">{t('settings.dotOption')}</option>
-                                            <option value=" ">{t('settings.spaceOption')}</option>
-                                            <option value="">{t('settings.noneOption')}</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Preferred Explorer Setting */}
-                            <div>
-                                <label htmlFor="explorer-select" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.preferredExplorerLabel')}</label>
-                                <select 
-                                    id="explorer-select"
-                                    value={localPreferredExplorer}
-                                    onChange={(e) => setLocalPreferredExplorer(e.target.value)}
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-cyan-500 focus:border-cyan-500"
-                                >
-                                    {Object.values(explorerOptions).map(explorer => (
-                                        <option key={explorer.name} value={explorer.name}>{explorer.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                        <ProfileSettingsTab
+                            localPreferredLanguage={localPreferredLanguage}
+                            setLocalPreferredLanguage={setLocalPreferredLanguage}
+                            localPreferredCurrency={localPreferredCurrency}
+                            setLocalPreferredCurrency={setLocalPreferredCurrency}
+                            localNumberFormat={localNumberFormat}
+                            setLocalNumberFormat={setLocalNumberFormat}
+                            localPreferredExplorer={localPreferredExplorer}
+                            setLocalPreferredExplorer={setLocalPreferredExplorer}
+                            explorerOptions={explorerOptions}
+                            availableLanguages={availableLanguages}
+                            availableCurrencies={availableCurrencies}
+                        />
                     )}
                     {activeTab === 'connection' && (
-                        <div className="space-y-4">
-                            <p className="text-sm font-semibold text-gray-200">{t('settings.customRpcUrl')}</p>
-                            {PREDEFINED_RPCS.map((rpc) => (
-                                <label key={rpc.url} className="flex items-center justify-between cursor-pointer p-2 rounded-md hover:bg-gray-700/50">
-                                    <div className="flex items-center space-x-3">
-                                        <input
-                                            type="radio"
-                                            name="rpcEndpoint"
-                                            value={rpc.url}
-                                            checked={!localIsCustomRpc && localSelectedRpcUrl === rpc.url}
-                                            onChange={() => handleLocalRpcSelection(rpc.url)}
-                                            className="form-radio h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
-                                        />
-                                        <span className="text-sm text-gray-300">{rpc.name}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-400 w-20 text-right">
-                                        {pingTimes[rpc.url] === 'pinging' && <span className="animate-pulse">{t('settings.pinging')}</span>}
-                                        {typeof pingTimes[rpc.url] === 'number' && (
-                                            <span className={
-                                                (pingTimes[rpc.url] as number) <= 100 ? 'text-green-400' :
-                                                (pingTimes[rpc.url] as number) <= 200 ? 'text-yellow-400' :
-                                                'text-red-400'
-                                            }>
-                                                {pingTimes[rpc.url]}ms
-                                            </span>
-                                        )}
-                                        {pingTimes[rpc.url] === null && <span className="text-red-400">{t('global.error')}</span>}
-                                    </div>
-                                </label>
-                            ))}
-                            <label className="flex items-center justify-between cursor-pointer p-2 rounded-md hover:bg-gray-700/50">
-                                <div className="flex items-center space-x-3">
-                                    <input
-                                        type="radio"
-                                        name="rpcEndpoint"
-                                        value="custom"
-                                        checked={localIsCustomRpc}
-                                        onChange={handleLocalCustomRpcSelect}
-                                        className="form-radio h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
-                                    />
-                                    <span className="text-sm text-gray-300">{t('settings.customRpcUrl')}</span>
-                                </div>
-                                {localIsCustomRpc && pingTimes[localCustomRpcInputValue] !== undefined && (
-                                    <div className="text-xs text-gray-400 w-20 text-right">
-                                        {pingTimes[localCustomRpcInputValue] === 'pinging' && <span className="animate-pulse">{t('settings.pinging')}</span>}
-                                        {typeof pingTimes[localCustomRpcInputValue] === 'number' && (
-                                            <span className={
-                                                (pingTimes[localCustomRpcInputValue] as number) <= 100 ? 'text-green-400' :
-                                                (pingTimes[localCustomRpcInputValue] as number) <= 200 ? 'text-yellow-400' :
-                                                'text-red-400'
-                                            }>
-                                                {pingTimes[localCustomRpcInputValue]}ms
-                                            </span>
-                                        )}
-                                        {pingTimes[localCustomRpcInputValue] === null && <span className="text-red-400">{t('global.error')}</span>}
-                                    </div>
-                                )}
-                            </label>
-                            {localIsCustomRpc && (
-                                <div className="pl-8 mt-2 space-y-2">
-                                    <input
-                                        type="text"
-                                        id="customRpcEndpointInput"
-                                        value={localCustomRpcInputValue}
-                                        onChange={(e) => {
-                                            console.log("[CustomRPCInput] Changed. Setting localCustomRpcInputValue to:", e.target.value);
-                                            setLocalCustomRpcInputValue(e.target.value)
-                                        }}
-                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
-                                        placeholder={t('settings.enterCustomRpcUrl')}
-                                    />
-                                    <p className="text-xs text-gray-400">{t('settings.enterCustomRpcUrl')}</p>
-                                </div>
-                            )}
-                        </div>
+                        <ConnectionSettingsTab
+                            localSelectedRpcUrl={localSelectedRpcUrl}
+                            setLocalSelectedRpcUrl={setLocalSelectedRpcUrl}
+                            localIsCustomRpc={localIsCustomRpc}
+                            setLocalIsCustomRpc={setLocalIsCustomRpc}
+                            localCustomRpcInputValue={localCustomRpcInputValue}
+                            setLocalCustomRpcInputValue={setLocalCustomRpcInputValue}
+                            isSettingsModalOpen={isSettingsModalOpen} // Pass this to control pinging within the tab
+                        />
                     )}
-
                     {activeTab === 'transaction' && (
-                        <>
-                            <div className="space-y-4 mb-6 p-4 border border-gray-700 rounded-md">
-                                <div>
-                                    <label htmlFor="priorityFee" className="block text-sm font-medium text-gray-300 mb-1">{t('settings.priorityFeeLabel')}</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {(['Normal', 'Fast', 'Turbo'] as FeeLevel[]).map((level) => {
-                                            const feeInSol = dynamicFees[level as Exclude<FeeLevel, 'Custom'>];
-                                            const translatedLevel = t(`settings.feeLevel${level}`);
-                                            
-                                            const isSelected = localFeeLevel === level;
-                                            const maxCapNum = parseFloat(localMaxPriorityFeeCapSol);
-                                            let isCappedAndSelected = false;
-
-                                            if (isSelected && feeInSol !== undefined && !isNaN(maxCapNum) && maxCapNum >= 0 && feeInSol > maxCapNum) {
-                                                isCappedAndSelected = true;
-                                            }
-
-                                            let finalTooltipContent = '';
-                                            if (isCappedAndSelected) {
-                                                finalTooltipContent = t('settings.feeLevelTooltipCappedInSettings', {
-                                                    feeLevel: translatedLevel,
-                                                    maxCapValue: maxCapNum.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 9 })
-                                                });
-                                            } else if (feeInSol !== undefined) {
-                                                finalTooltipContent = t('settings.feeLevelTooltip', {
-                                                    feeLevel: translatedLevel,
-                                                    value: feeInSol.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 9 })
-                                                });
-                                            } else {
-                                                finalTooltipContent = translatedLevel; // Fallback if feeInSol is undefined
-                                            }
-
-                                            return (
-                                                <button
-                                                    key={level}
-                                                    type="button"
-                                                    onClick={() => setLocalFeeLevel(level)}
-                                                    className={`py-2 px-3 text-xs sm:text-sm rounded-md transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex flex-col items-center justify-center
-                                                        ${localFeeLevel === level ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'}
-                                                    `}
-                                                    data-tooltip-id="app-tooltip"
-                                                    data-tooltip-content={finalTooltipContent}
-                                                >
-                                                    <span>{translatedLevel}</span>
-                                                    {feeInSol !== undefined && (
-                                                        <span className={`text-xs mt-0.5 ${isCappedAndSelected ? 'text-red-400 font-semibold' : 'opacity-80'}`}>
-                                                            {t('header.approximateFee', { value: feeInSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label htmlFor="maxPriorityFeeCapSol" className="block text-sm font-medium text-gray-300 mb-1">
-                                        {t('settings.maxCapLabel')}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="maxPriorityFeeCapSol"
-                                        min="0"
-                                        step="0.0001"
-                                        value={localMaxPriorityFeeCapSol}
-                                        onChange={(e) => {
-                                            console.log("[MaxCapInput] Changed. Setting localMaxPriorityFeeCapSol to:", e.target.value);
-                                            setLocalMaxPriorityFeeCapSol(e.target.value);
-                                        }}
-                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500 text-white"
-                                        placeholder={t('settings.enterMaxCapPlaceholder')}
-                                    />
-                                    <p className="text-xs text-gray-400 mt-1">{t('settings.maxCapDescription')}</p>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-2 p-4 border border-gray-700 rounded-md">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">{t('settings.slippageTolerance')}</label>
-                                    <div className="flex items-center space-x-2 mb-2">
-                                        {PREDEFINED_SLIPPAGE_OPTIONS.map((option) => (
-                                            <button
-                                                key={option.bps}
-                                                type="button"
-                                                onClick={() => handlePredefinedSlippageClick(option.bps)}
-                                                className={`px-3 py-1.5 rounded-md text-xs font-medium border
-                                                    ${!localIsCustomSlippageActive && parseInt(localSlippageBps, 10) === option.bps
-                                                        ? 'bg-cyan-600 border-cyan-500 text-white' 
-                                                        : 'bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300'
-                                                    }`}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                        <div className={`flex items-center bg-gray-750 border border-gray-600 rounded px-3 ml-2 w-24 
-                                            ${localIsCustomSlippageActive ? 'ring-2 ring-cyan-500' : ''}`}
-                                        >
-                                            <input
-                                                type="text" 
-                                                inputMode="decimal"
-                                                id="customSlippageInput"
-                                                value={localSlippageInput}
-                                                onFocus={handleCustomSlippageInputFocus}
-                                                onChange={handleCustomSlippageInputChange}
-                                                className="flex-grow py-1.5 bg-transparent focus:outline-none text-white text-xs w-full text-right pr-1"
-                                                placeholder="0.00" 
-                                            />
-                                            <span className="text-gray-400 text-xs">%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
+                        <TransactionSettingsTab
+                            localFeeLevel={localFeeLevel}
+                            setLocalFeeLevel={setLocalFeeLevel}
+                            dynamicFees={dynamicFees} // Pass dynamicFees from context
+                            localMaxPriorityFeeCapSol={localMaxPriorityFeeCapSol}
+                            setLocalMaxPriorityFeeCapSol={setLocalMaxPriorityFeeCapSol}
+                            localSlippageBps={localSlippageBps}
+                            setLocalSlippageBps={setLocalSlippageBps}
+                            localSlippageInput={localSlippageInput}
+                            setLocalSlippageInput={setLocalSlippageInput}
+                            localIsCustomSlippageActive={localIsCustomSlippageActive}
+                            setLocalIsCustomSlippageActive={setLocalIsCustomSlippageActive}
+                        />
                     )}
                 </div>
 
@@ -840,7 +519,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         onClick={handleMainButtonClick}
                         className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500"
                     >
-                        {isSettingsDirty ? t('settings.saveChanges') : t('global.close')}
+                        {isSettingsDirty ? t('header.settings.saveChanges') : t('global.close')}
                     </button>
                 </div>
             </div>

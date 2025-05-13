@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { SortableKey } from './TokenTable'; // Assuming SortableKey is exported from TokenTable or a types file
+import { useTranslation } from 'react-i18next';
 
 interface MobileSortControlsProps {
     currentSortKey: SortableKey | null;
     currentSortDirection: 'asc' | 'desc';
     handleSort: (key: SortableKey, explicitDirection?: 'asc' | 'desc') => void;
     hideDepositColumn: boolean;
+    onSortApplied?: (shouldScroll: boolean) => void;
 }
 
 // Define a type for our sort options
 type SortOption = {
-    label: string;
+    translationKeySuffix: string; // Changed from label to translationKeySuffix
     key: SortableKey;
     direction: 'asc' | 'desc';
 };
@@ -22,30 +24,34 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
     currentSortDirection,
     handleSort,
     hideDepositColumn,
+    onSortApplied,
 }) => {
+    const { t } = useTranslation(); // Added useTranslation hook
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    const baseSortKeyPath = 'main.poolInfoDisplay.tokenTable.mobileSortControls.options';
+
     const sortOptions: SortOption[] = [
-        { label: 'Symbol: A-Z', key: 'symbol', direction: 'desc' },
-        { label: 'Symbol: Z-A', key: 'symbol', direction: 'asc' },
-        { label: 'Pool Balance: High to Low', key: 'value', direction: 'desc' },
-        { label: 'Pool Balance: Low to High', key: 'value', direction: 'asc' },
-        { label: 'Actual %: High to Low', key: 'actualPercent', direction: 'desc' },
-        { label: 'Actual %: Low to High', key: 'actualPercent', direction: 'asc' },
-        { label: 'Target %: High to Low', key: 'targetPercent', direction: 'desc' },
-        { label: 'Target %: Low to High', key: 'targetPercent', direction: 'asc' },
+        { translationKeySuffix: 'symbolDesc', key: 'symbol', direction: 'desc' },
+        { translationKeySuffix: 'symbolAsc', key: 'symbol', direction: 'asc' },
+        { translationKeySuffix: 'valueDesc', key: 'value', direction: 'desc' },
+        { translationKeySuffix: 'valueAsc', key: 'value', direction: 'asc' },
+        { translationKeySuffix: 'actualPercentDesc', key: 'actualPercent', direction: 'desc' },
+        { translationKeySuffix: 'actualPercentAsc', key: 'actualPercent', direction: 'asc' },
+        { translationKeySuffix: 'targetPercentDesc', key: 'targetPercent', direction: 'desc' },
+        { translationKeySuffix: 'targetPercentAsc', key: 'targetPercent', direction: 'asc' },
     ];
 
     if (!hideDepositColumn) {
         sortOptions.push(
-            { label: 'Deposit: Best to Worst', key: 'depositFeeBonus', direction: 'asc' }, // Lower BPS is better (asc)
-            { label: 'Deposit: Worst to Best', key: 'depositFeeBonus', direction: 'desc' } // Higher BPS is worse (desc)
+            { translationKeySuffix: 'depositFeeBonusAsc', key: 'depositFeeBonus', direction: 'desc' },
+            { translationKeySuffix: 'depositFeeBonusDesc', key: 'depositFeeBonus', direction: 'asc' }
         );
     }
     sortOptions.push(
-        { label: 'Withdraw: Best to Worst', key: 'withdrawFeeBonus', direction: 'asc' }, // Lower BPS is better (asc)
-        { label: 'Withdraw: Worst to Best', key: 'withdrawFeeBonus', direction: 'desc' } // Higher BPS is worse (desc)
+        { translationKeySuffix: 'withdrawFeeBonusAsc', key: 'withdrawFeeBonus', direction: 'desc' },
+        { translationKeySuffix: 'withdrawFeeBonusDesc', key: 'withdrawFeeBonus', direction: 'asc' }
     );
     
     // Correcting fee/bonus sort direction interpretation:
@@ -73,8 +79,10 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
     // The labels seem correct with 'asc' for "Best to Worst" and 'desc' for "Worst to Best".
 
     const handleOptionClick = (option: SortOption) => {
+        const shouldScroll = option.key !== currentSortKey;
         handleSort(option.key, option.direction);
         setIsOpen(false);
+        onSortApplied?.(shouldScroll);
     };
 
     const toggleDropdown = () => setIsOpen(!isOpen);
@@ -97,13 +105,19 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
     }, [isOpen]); // Re-run effect if isOpen changes
 
     return (
-        <div className="relative mb-4" ref={dropdownRef}>
+        <div className="sticky top-14 z-20 bg-gray-800 px-2 py-2 -mx-2 mb-4" ref={dropdownRef}>
             <button
                 onClick={toggleDropdown}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-white bg-gray-700 hover:bg-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-white bg-gray-700 hover:bg-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 cursor-pointer"
             >
                 <span>
-                    Sort: {sortOptions.find(opt => opt.key === currentSortKey && opt.direction === currentSortDirection)?.label || 'Default (Target % Desc)'}
+                    {t('main.poolInfoDisplay.tokenTable.mobileSortControls.buttonLabelPrefix')}
+                    {(() => {
+                        const selectedOption = sortOptions.find(opt => opt.key === currentSortKey && opt.direction === currentSortDirection);
+                        return selectedOption
+                            ? t(`${baseSortKeyPath}.${selectedOption.translationKeySuffix}`)
+                            : t('main.poolInfoDisplay.tokenTable.mobileSortControls.defaultSortLabel');
+                    })()}
                 </span>
                 {/* Heroicon: chevron-down / chevron-up */}
                 <svg className={`w-5 h-5 transform transition-transform ${isOpen ? '-rotate-180' : 'rotate-0'}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -115,11 +129,11 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
                 <div className="absolute z-10 mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-lg py-1">
                     {sortOptions.map((option) => (
                         <button
-                            key={option.label}
+                            key={`${option.key}-${option.direction}`}
                             onClick={() => handleOptionClick(option)}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-600 ${currentSortKey === option.key && currentSortDirection === option.direction ? 'bg-blue-600 text-white' : 'text-gray-200'}`}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-600 cursor-pointer ${currentSortKey === option.key && currentSortDirection === option.direction ? 'bg-blue-600 text-white' : 'text-gray-200'}`}
                         >
-                            {option.label}
+                            {t(`${baseSortKeyPath}.${option.translationKeySuffix}`)}
                         </button>
                     ))}
                 </div>

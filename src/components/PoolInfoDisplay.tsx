@@ -132,8 +132,8 @@ export const PoolInfoDisplay = ({
         onClearInput: handleClearInput
     });
 
-    const disabledDeposit = useCallback(async () => { alert('Pool data loading...'); }, []);
-    const disabledWithdraw = useCallback(async () => { alert('Pool data loading...'); }, []);
+    const disabledDeposit = useCallback(async () => { alert(t('main.poolInfoDisplay.poolDataLoading')); }, [t]);
+    const disabledWithdraw = useCallback(async () => { alert(t('main.poolInfoDisplay.poolDataLoading')); }, [t]);
     // Check dependencies using props and wallet
     const interactionsReady = !!program && !!wallet.publicKey && !!poolConfig && !!poolConfigPda && !!oracleData;
 
@@ -177,7 +177,7 @@ export const PoolInfoDisplay = ({
         return (
             <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
                 <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
-                     {isMounted ? t('poolInfo.title') : 'Pool Information'}
+                     {isMounted ? t('main.poolInfoDisplay.title') : 'Pool Information'}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6 bg-gray-700 p-4 rounded">
                     <div><SkeletonBlock className="h-6 w-3/4 mx-auto mb-1" /> <SkeletonBlock className="h-6 w-1/2 mx-auto" /></div>
@@ -186,7 +186,7 @@ export const PoolInfoDisplay = ({
                 </div>
                 <div className="mt-6 border-t border-gray-600 pt-4">
                      <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">
-                     {isMounted ? t('tokenTable.top30Tokens') : 'Top 30 Tokens'}
+                     {isMounted ? t('main.poolInfoDisplay.top30Tokens') : 'Top 30 Tokens'}
                      </h3>
                     <SkeletonTokenTable rowCount={5} />
                 </div>
@@ -201,32 +201,32 @@ export const PoolInfoDisplay = ({
     return (
         <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
             <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
-                {isMounted ? t('poolInfo.title') : 'Pool Information'}
+                {isMounted ? t('main.poolInfoDisplay.title') : 'Pool Information'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6 bg-gray-700 p-4 rounded">
                  {/* Show current (possibly stale) values during refresh, or skeleton if value is null (Uses props) */}
                 <div>
                     <h4 className="text-lg font-semibold text-purple-400">
-                        {isMounted ? t('poolInfo.wlqiTokenValue') : 'wLQI Token Value'}
+                        {isMounted ? t('main.poolInfoDisplay.wlqiTokenValue') : 'wLQI Token Value'}
                     </h4>
                     <div className="text-xl font-bold">{formattedWlqiValue ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div>
                 </div>
                 <div>
                     <h4 className="text-lg font-semibold text-green-400">
-                        {isMounted ? t('poolInfo.wlqiTotalSupply') : 'wLQI Total Supply'}
+                        {isMounted ? t('main.poolInfoDisplay.wlqiTotalSupply') : 'wLQI Total Supply'}
                     </h4>
                     <div className="text-xl font-bold">{formattedWlqiSupply ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div>
                 </div>
                 <div>
                     <h4 className="text-lg font-semibold text-yellow-400">
-                        {isMounted ? t('poolInfo.totalPoolValue') : 'Total Pool Value (TVL)'}
+                        {isMounted ? t('main.poolInfoDisplay.totalPoolValue') : 'Total Pool Value (TVL)'}
                     </h4>
                     <div className="text-xl font-bold">{formattedTvl ?? <SkeletonBlock className="h-6 w-1/2 mx-auto"/>}</div>
                 </div>
             </div>
             <div className="mt-6 border-t border-gray-600 pt-4">
                 <h3 className="text-lg font-semibold text-center text-yellow-400 mb-3">
-                    {isMounted ? t('tokenTable.top30Tokens') : 'Top 30 Tokens'}
+                    {isMounted ? t('main.poolInfoDisplay.top30Tokens') : 'Top 30 Tokens'}
                 </h3>
                  {/* Pass activeTokens which comes from processedTokenData prop */}
                  {activeTokens.length > 0 ? (
@@ -257,7 +257,7 @@ export const PoolInfoDisplay = ({
             {delistedTokens.length > 0 && (
                 <div className="mt-8 border-t border-dashed border-gray-500 pt-4">
                     <h3 className="text-lg font-semibold text-center text-gray-400 mb-3">
-                        {isMounted ? t('tokenTable.delistedTokens') : 'Delisted Tokens (Not In Top 30)'}
+                        {isMounted ? t('main.poolInfoDisplay.delistedTokens') : 'Delisted Tokens (Not In Top 30)'}
                     </h3>
                      <TokenTable
                          tokenData={delistedTokens}
@@ -265,7 +265,7 @@ export const PoolInfoDisplay = ({
                          wLqiValueScaled={wLqiValueScaled} // from prop
                          wLqiDecimals={wLqiDecimals} // from prop
                          userWlqiBalance={userWlqiBalance} // from prop
-                         onDeposit={async () => { alert('Deposits disabled for delisted tokens.')}}
+                         onDeposit={async () => { alert(t('poolInteractions.depositsDisabledDelisted')); }}
                          onWithdraw={interactionsReady ? actualHandleWithdraw : disabledWithdraw}
                          isDepositing={false} // Correct
                          isWithdrawing={isWithdrawing} // Correct

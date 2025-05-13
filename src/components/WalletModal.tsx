@@ -36,10 +36,10 @@ const WalletListItem: FC<WalletListItemProps> = ({ handleClick, tabIndex, wallet
                 <WalletIcon wallet={wallet} className="mr-3" />
                 <span className="flex-grow text-left text-base">{wallet.adapter.name}</span>
                 {wallet.readyState === WalletReadyState.Installed && (
-                    <span className="text-gray-400 ml-3 text-xs">{t('walletModal.detected')}</span>
+                    <span className="text-gray-400 ml-3 text-xs">{t('header.walletModal.detected')}</span>
                 )}
                 {isConnecting && (
-                    <span className="text-gray-400 ml-3 text-xs">{t('walletModal.connecting')}</span>
+                    <span className="text-gray-400 ml-3 text-xs">{t('header.walletModal.connecting')}</span>
                 )}
             </button>
         </li>
@@ -111,7 +111,7 @@ export const WalletModal: FC<WalletModalProps> = ({ className = '', container = 
                 handleClose(event);
             } catch (err) {
                 console.error('Wallet connection error:', err);
-                setError(t('walletModal.connectionError'));
+                setError(t('header.walletModal.connectionError'));
             }
         },
         [select, handleClose, t]
@@ -197,7 +197,7 @@ export const WalletModal: FC<WalletModalProps> = ({ className = '', container = 
                         {listedWallets.length ? (
                             <>
                                 <h1 className="text-xl font-semibold text-white mb-4">
-                                    {t('walletModal.connectWallet')}
+                                    {t('header.walletModal.connectWallet')}
                                 </h1>
                                 <ul className="space-y-2">
                                     {listedWallets.map((wallet) => (
@@ -230,7 +230,7 @@ export const WalletModal: FC<WalletModalProps> = ({ className = '', container = 
                                         onClick={handleCollapseClick}
                                         tabIndex={0}
                                     >
-                                        <span>{expanded ? t('walletModal.lessOptions') : t('walletModal.moreOptions')}</span>
+                                        <span>{expanded ? t('header.walletModal.lessOptions') : t('header.walletModal.moreOptions')}</span>
                                         <svg
                                             width="13"
                                             height="7"
@@ -248,7 +248,7 @@ export const WalletModal: FC<WalletModalProps> = ({ className = '', container = 
                         ) : (
                             <>
                                 <h1 className="text-xl font-semibold text-white mb-4">
-                                    {t('walletModal.needWallet')}
+                                    {t('header.walletModal.needWallet')}
                                 </h1>
                                 <div className="flex justify-center mb-6">
                                     <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
@@ -262,7 +262,7 @@ export const WalletModal: FC<WalletModalProps> = ({ className = '', container = 
                                             onClick={handleCollapseClick}
                                             tabIndex={0}
                                         >
-                                            <span>{expanded ? t('walletModal.hideOptions') : t('walletModal.viewOptions')}</span>
+                                            <span>{expanded ? t('header.walletModal.hideOptions') : t('header.walletModal.viewOptions')}</span>
                                             <svg
                                                 width="13"
                                                 height="7"

@@ -1,195 +1,448 @@
 {
   "global": {
-    "language": "Idioma",
     "error": "Error",
-    "close": "Cerrar",
-    "balance": "Balance: {{value}} {{symbol}}"
+    "close": "Cerrar"
   },
-  "settings": {
-    "title": "Configuración",
-    "saveChanges": "Guardar Cambios",
-    "generalTab": "General",
-    "profileTab": "Perfil",
-    "connectionTab": "Conexión",
-    "transactionTab": "Transacción",
-    "numberFormatting": "Formato de Números",
-    "decimalSeparatorLabel": "Separador Decimal",
-    "thousandSeparatorLabel": "Separador de Miles",
-    "commaOption": "Coma (,)",
-    "dotOption": "Punto (.)",
-    "spaceOption": "Espacio ( )",
-    "noneOption": "Ninguno",
-    "languageLabel": "Idioma",
-    "preferredCurrencyLabel": "Moneda Preferida",
-    "preferredExplorerLabel": "Explorador de Solana Preferido",
-    "customRpcUrl": "URL de RPC Personalizada",
-    "enterCustomRpcUrl": "Introduce URL de RPC Personalizada",
-    "urlCannotBeEmpty": "La URL no puede estar vacía",
-    "enterValidUrl": "Introduce una URL válida",
-    "pinging": "Haciendo ping...",
-    "currentRpcLatency": "Latencia RPC Actual",
-    "priorityFeeLabel": "Tarifa de Prioridad",
-    "manual": "Manual",
-    "low": "Bajo",
-    "medium": "Medio",
-    "high": "Alto",
-    "veryHigh": "Muy Alto",
-    "feeLevelFast": "Rápido",
-    "feeLevelNormal": "Normal",
-    "feeLevelTurbo": "Turbo",
-    "feeLevelTooltip": "{{feeLevel}}: ~{{value}} SOL",
-    "feeLevelTooltipCappedInSettings": "{{feeLevel}} seleccionada, pero limitada por Tarifa Máx. de ~{{maxCapValue}} SOL.",
-    "transactionPriorityTitle": "Prioridad de Transacción: {{feeLevel}}",
-    "slippageTolerance": "Tolerancia de Deslizamiento",
-    "maxCapLabel": "Tope Máximo (SOL)",
-    "maxCapDescription": "SOL máximo a gastar en tarifas de prioridad por transacción.",
-    "enterMaxCapPlaceholder": "ej., 0.001",
-    "tooltipFeeCapped": "La tarifa de prioridad seleccionada ({{feeLevel}}) está por encima de tu Límite Máximo. La tarifa efectiva está limitada, lo que podría reducir la prioridad. Revisa la Configuración.",
-    "tooltipFeeNormal": "Tarifa de prioridad efectiva basada en la configuración actual."
-  },
-  "notifications": {
+
+  "alertModal": {
     "title": "Notificación",
-    "unsavedChangesTitle": "Cambios sin Guardar",
-    "unsavedChangesMessage": "Tienes cambios sin guardar. ¿Estás seguro de que quieres cerrar? Tus cambios se perderán.",
-    "unsavedChangesTabSwitchMessage": "Tienes cambios sin guardar. Por favor, guarda o revierte tus cambios antes de cambiar de pestaña.",
+    "unsavedChangesTitle": "Cambios no guardados",
+    "unsavedChangesMessage": "Tienes cambios sin guardar. ¿Estás seguro de que deseas cerrar? Tus cambios se perderán.",
+    "unsavedChangesTabSwitchMessage": "Tienes cambios sin guardar. Por favor guarda o revierte tus cambios antes de cambiar de pestaña.",
     "attemptCloseDirtyTitle": "Notificación",
-    "attemptCloseDirtyMessage": "Tienes cambios sin guardar. Por favor, guárdalos o descártalos antes de cerrar.",
-    "invalidCustomRpcAlert": "El punto RPC personalizado debe ser una URL válida.",
-    "invalidMaxCapAlert": "Tope máximo de tarifa de prioridad inválido. Por favor, introduce un número no negativo.",
-    "invalidSlippageAlert": "Deslizamiento inválido. Por favor, introduce un número no negativo (en BPS).",
-    "rpcUpdateAlert": "El punto RPC ha sido actualizado. Puede ser necesario refrescar la página para que los cambios surtan efecto completamente.",
-    "unsavedChangesAlert": "Tienes cambios sin guardar. Por favor, guarda o revierte tus cambios antes de cambiar de pestaña.",
-    "okButton": "Aceptar",
-    "closeButton": "Cerrar"
+    "attemptCloseDirtyMessage": "Tienes cambios sin guardar. Por favor guarda o descártalos antes de cerrar.",
+    "invalidCustomRpcAlert": "El endpoint RPC personalizado debe ser una URL válida.",
+    "invalidMaxCapAlert": "Límite máximo de tarifa de prioridad inválido. Por favor ingresa un número no negativo.",
+    "invalidSlippageAlert": "Deslizamiento inválido. Por favor ingresa un número no negativo (en BPS).",
+    "rpcUpdateAlert": "Endpoint RPC actualizado. Puede ser necesario actualizar la página para que surta efecto.",
+    "unsavedChangesAlert": "Tienes cambios sin guardar. Por favor guarda o revierte antes de cambiar de pestaña.",
+    "okButton": "OK",
+    "closeButton": "Cerrar",
+    "tooltips": {
+      "unsavedChanges": "Aparece cuando tienes cambios sin guardar e intentas salir",
+      "invalidCustomRpc": "Aparece cuando la URL RPC ingresada no es válida",
+      "invalidMaxCap": "Aparece cuando el límite máximo de tarifa de prioridad es inválido",
+      "invalidSlippage": "Aparece cuando la tolerancia de deslizamiento es inválida",
+      "rpcUpdate": "Aparece cuando el endpoint RPC se actualiza correctamente",
+      "okButton": "Confirma la acción y continúa",
+      "closeButton": "Cancela la acción y regresa"
+    }
   },
+
+  "toast": {
+    "error": "Error",
+    "success": "Éxito",
+    "info": "Información",
+    "warning": "Advertencia",
+    "tokenDataInvalid": "Datos de token inválidos para el cálculo del objetivo.",
+    "cannotDepositToTarget": "No se puede depositar para alcanzar el objetivo, el token ya está en o por encima del objetivo.",
+    "internalPrecisionError": "Error interno: el factor de escala de precisión es cero.",
+    "lessThanMinTransfer": "La cantidad objetivo de depósito es menor que la unidad mínima transferible.",
+    "negativeTargetAmount": "La cantidad objetivo calculada es inválida (negativa).",
+    "requiredAmountExceedsBalance": "La cantidad requerida excede el saldo. Se establece al máximo.",
+    "noPoolBalanceDelisted": "No hay saldo en el pool para retirar este token excluido.",
+    "cannotCalcDelistedValue": "No se puede calcular el valor del saldo del token excluido.",
+    "wlqiDecimalsMissing": "Decimales de wLQI no disponibles.",
+    "requiredWlqiExceedsBalance": "La cantidad requerida de wLQI para retirar excede tu saldo. Se establece al máximo.",
+    "cannotWithdrawToTarget": "No se puede retirar para alcanzar el objetivo, el token ya está en o por debajo del objetivo.",
+    "invalidTargetDominance": "Dominancia objetivo inválida para el cálculo.",
+    "calculatedTargetTooSmall": "La cantidad objetivo calculada es demasiado pequeña.",
+    "failedToCalculateTarget": "No se pudo calcular la cantidad objetivo de {{action}}.",
+    "tooltips": {
+      "error": "Se muestra para errores críticos que impiden una acción",
+      "success": "Se muestra cuando una acción se completa con éxito",
+      "info": "Se muestra para información importante que no requiere acción",
+      "warning": "Se muestra para posibles problemas que deben abordarse"
+    }
+  },
+
+  "notifications": {
+    "processingDeposit": "Procesando depósito...",
+    "processingWithdrawal": "Procesando retiro...",
+    "depositSuccess": "¡Depósito exitoso!",
+    "withdrawalSuccess": "¡Retiro exitoso!",
+    "successViewOnExplorer": "Ver en Solscan",
+    "depositError": "Depósito fallido: {{errorMessage}}",
+    "withdrawalError": "Retiro fallido: {{errorMessage}}",
+    "unknownError": "Error desconocido",
+    "unknownProgramError": "Ocurrió un error desconocido del programa (Código: {{code}})."
+  },
+  
+  "poolInteractions": {
+    "insufficientSol": "Saldo de SOL insuficiente para las tarifas de transacción. Se necesita ~{{amount}} SOL.",
+    "couldNotVerifySol": "No se pudo verificar el saldo de SOL.",
+    "priceFeedNotFound": "Cuenta de precio no encontrada o configurada para el token {{action}} {{mint}} en PoolConfig.",
+    "programWalletPoolConfigMissing": "Programa, billetera o configuración del pool no disponible.",
+    "enterValidAmount": "Por favor ingresa una cantidad válida.",
+    "walletNoSign": "La billetera no admite la firma de transacciones.",
+    "tokenDecimalsMissing": "Decimales del token no disponibles.",
+    "wlqiDecimalsMissing": "Decimales de wLQI no disponibles para el procesamiento de retiros.",
+    "confirming": "Confirmando {{action}}... Tx: {{txid}}...",
+    "processingDeposit": "Procesando depósito...",
+    "processingWithdrawal": "Procesando retiro...",
+    "success": "¡{{action}} exitoso!",
+    "viewOnSolscan": "Ver en Solscan",
+    "failed": "{{action}} fallido: {{errorMessage}}",
+    "poolDataLoading": "Cargando datos del pool...",
+    "depositsDisabledDelisted": "Depósitos deshabilitados para tokens excluidos."
+  },
+
   "header": {
     "openMainMenu": "Abrir menú principal",
+    "closeMobileMenu": "Cerrar menú",
     "priorityLabel": "Prioridad:",
-    "approximateFee": "~{{value}} SOL"
+    "approximateFee": "~{{value}} SOL",
+    "tooltips": {
+      "priorityLabel": "La prioridad de la transacción afecta la velocidad de confirmación y la tarifa",
+      "approximateFee": "Tarifa estimada para la prioridad de transacción actual"
+    },
+
+    "settings": {
+      "buttonTitle": "Configuración",
+      "language": "Idioma",
+      "error": "Error",
+      "close": "Cerrar",
+      "title": "Configuración",
+      "saveChanges": "Guardar cambios",
+      "generalTab": "General",
+      "profileTab": "Perfil",
+      "connectionTab": "Conexión",
+      "transactionTab": "Transacción",
+      "numberFormatting": "Formato de números",
+      "decimalSeparatorLabel": "Separador decimal",
+      "thousandSeparatorLabel": "Separador de miles",
+      "commaOption": "Coma (,)",
+      "dotOption": "Punto (.)",
+      "spaceOption": "Espacio ( )",
+      "noneOption": "Ninguno",
+      "languageLabel": "Idioma",
+      "preferredCurrencyLabel": "Moneda preferida",
+      "preferredExplorerLabel": "Explorador preferido",
+      "customRpcUrl": "URL RPC personalizada",
+      "enterCustomRpcUrl": "Ingresa la URL RPC personalizada",
+      "urlCannotBeEmpty": "La URL no puede estar vacía",
+      "enterValidUrl": "Ingresa una URL válida",
+      "pinging": "Haciendo ping...",
+      "currentRpcLatency": "Latencia actual del RPC",
+      "priorityFeeLabel": "Tarifa de prioridad",
+      "manual": "Manual",
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "veryHigh": "Muy alta",
+      "feeLevelFast": "Rápido",
+      "feeLevelNormal": "Normal",
+      "feeLevelTurbo": "Turbo",
+      "slippageTolerance": "Tolerancia de deslizamiento",
+      "maxCapLabel": "Límite máximo (SOL)",
+      "maxCapDescription": "SOL máximo a gastar en tarifas de prioridad por transacción.",
+      "enterMaxCapPlaceholder": "ej., 0.001",
+      "tooltips": {
+        "numberFormatting": "Personaliza cómo se muestran los números en toda la aplicación",
+        "decimalSeparator": "Elige cómo se muestran los puntos decimales en los números",
+        "thousandSeparator": "Elige cómo se separan los miles en los números",
+        "preferredCurrency": "Selecciona tu moneda preferida para mostrar valores",
+        "preferredExplorer": "Elige tu explorador de blockchain preferido para ver transacciones",
+        "customRpcUrl": "Establece un endpoint RPC personalizado para mejor rendimiento o fiabilidad",
+        "rpcLatency": "Tiempo de respuesta actual del endpoint RPC",
+        "slippageTolerance": "Diferencia máxima de precio aceptable entre el precio esperado y el real de la transacción",
+        "maxCap": "Cantidad máxima de SOL que estás dispuesto a gastar en tarifas de prioridad por transacción",
+        "feeCapped": "La tarifa de prioridad seleccionada ({{feeLevel}}) está por encima de tu límite máximo. La tarifa efectiva está limitada, lo que puede reducir la prioridad. Revisa la configuración.",
+        "feeNormal": "Tarifa de prioridad efectiva basada en la configuración actual.",
+        "feeLevel": "{{feeLevel}}: ~{{value}} SOL",
+        "feeLevelCapped": "{{feeLevel}} seleccionado, pero limitado por la tarifa máxima de ~{{maxCapValue}} SOL.",
+        "transactionPriority": "Prioridad de transacción: {{feeLevel}}"
+      }
+    },
+
+    "walletModal": {
+      "connectWallet": "Conecta una billetera en Solana para continuar",
+      "needWallet": "Necesitas una billetera en Solana para continuar",
+      "detected": "Detectado",
+      "connecting": "Conectando...",
+      "connectionError": "Error de conexión: Por favor intenta de nuevo.",
+      "moreOptions": "Más opciones",
+      "lessOptions": "Menos opciones",
+      "viewOptions": "Ver opciones",
+      "hideOptions": "Ocultar opciones",
+      "selectWallet": "Seleccionar billetera",
+      "copyAddress": "Copiar dirección",
+      "copied": "¡Copiado!",
+      "changeWallet": "Cambiar billetera",
+      "disconnect": "Desconectar",
+      "downloadExtension": "Descargar extensión",
+      "tooltips": {
+        "connectWallet": "Conecta tu billetera Solana para interactuar con el protocolo",
+        "detected": "Billetera detectada y lista para conectar",
+        "connecting": "Estableciendo conexión con tu billetera",
+        "copyAddress": "Copia tu dirección de billetera al portapapeles",
+        "changeWallet": "Cambia a una billetera diferente",
+        "disconnect": "Desconecta tu billetera actual"
+      }
+    }
   },
+
+  "main": {
+    "poolInfoDisplay": {
+      "title": "Información del pool",
+      "wlqiTokenValue": "Valor del token wLQI",
+      "wlqiTotalSupply": "Suministro total de wLQI",
+      "totalPoolValue": "Valor total del pool (TVL)",
+      "top30Tokens": "Top 30 tokens",
+      "delistedTokens": "Tokens excluidos (no en el top 30)",
+      "tooltips": {
+        "wlqiTokenValue": "Valor actual del token wLQI basado en los activos subyacentes en el pool",
+        "wlqiTotalSupply": "Número total de tokens wLQI en circulación",
+        "totalPoolValue": "Valor total de todos los activos en el pool, incluyendo tokens permitidos y excluidos",
+        "top30Tokens": "Tokens que actualmente están en el top 30 por capitalización de mercado y gestionados activamente en el pool",
+        "delistedTokens": "Tokens que han salido del top 30 y están disponibles para retiro con bonificación"
+      },
+
+      "tokenTable": {
+        "columns": {
+          "rank": "Rango",
+          "symbol": "Símbolo",
+          "poolBalance": "Saldo del pool",
+          "actualPercent": "% actual",
+          "targetPercent": "% objetivo",
+          "deposit": "Depositar",
+          "withdraw": "Retirar"
+        },
+        "noData": "No hay datos de tokens disponibles.",
+        "connectWallet": "Conectar billetera",
+        "tooltips": {
+          "symbol": "Símbolo e identificador del token",
+          "poolBalance": "Cantidad actual de este token en el pool",
+          "actualPercent": "Porcentaje actual de este token en el pool",
+          "targetPercent": "Porcentaje objetivo para este token en el pool",
+          "deposit": "Agregar este token al pool",
+          "withdraw": "Retirar este token del pool",
+          "noData": "Actualmente no hay datos de tokens disponibles",
+          "connectWallet": "Conecta tu billetera para ver e interactuar con los tokens"
+        },
+
+        "buttonState": {
+          "depositing": "Depositando...",
+          "deposit": "Depositar",
+          "withdrawing": "Retirando...",
+          "withdraw": "Retirar",
+          "depositDefaultTitle": "Ingresa la cantidad a depositar",
+          "withdrawDefaultTitle": "Ingresa la cantidad de wLQI a retirar",
+          "depositWithFee": "Depositar {{feeString}}",
+          "withdrawDelistedAmount": "Retirar cantidad {{feeString}}",
+          "withdrawWithFee": "Retirar {{feeString}}",
+          "insufficientToken": "{{symbol}} insuficiente",
+          "insufficientWlqi": "wLQI insuficiente",
+          "insufficientPoolToken": "Pool de {{symbol}} insuficiente",
+          "poolEmpty": "Pool vacío",
+          "tooltips": {
+            "insufficientToken": "La cantidad a depositar excede tu saldo de {{symbol}}",
+            "insufficientWlqi": "La cantidad a retirar excede tu saldo de wLQI",
+            "insufficientPoolToken": "El pool no tiene suficiente {{symbol}} para retirar",
+            "poolEmpty": "No hay saldo de este token excluido en el pool para retirar",
+            "depositing": "Transacción de depósito de tokens en progreso",
+            "withdrawing": "Transacción de retiro de tokens en progreso",
+            "depositDefaultTitle": "Ingresa la cantidad de tokens que deseas depositar",
+            "withdrawDefaultTitle": "Ingresa la cantidad de wLQI que deseas quemar para retirar",
+            "depositWithFee": "Depositar con la estructura de tarifas especificada",
+            "withdrawDelistedAmount": "Retirar un token excluido con la estructura de tarifas especificada",
+            "withdrawWithFee": "Retirar con la estructura de tarifas especificada"
+          }
+        },
+
+        "whitelisted": {
+          "deposit": {
+            "bonus": {
+              "withValue": "(~{{bonusPercent}}% Bonificación ≈ +${{bonusAmount}})",
+              "onlyPercent": "(~{{bonusPercent}}% Bonificación)",
+              "titleWithValue": "Bonificación estimada: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "titleOnlyPercent": "Bonificación estimada: ~{{bonusPercent}}%",
+              "max": "(máx {{bonusPercent}}% Bonificación)",
+              "titleMax": "Hasta {{bonusPercent}}% de bonificación",
+              "tooltips": {
+                "withValue": "Bonificación estimada: ~{{bonusPercent}}% (+${{bonusAmount}})",
+                "onlyPercent": "Bonificación estimada: ~{{bonusPercent}}%",
+                "max": "Bonificación máxima: {{bonusPercent}}%"
+              }
+            },
+            "fee": {
+              "zeroPercent": "(0.00%)",
+              "zeroTitle": "Tarifa total estimada: 0.00%",
+              "minTitle": "Tarifa mínima aplicada (0.00%)",
+              "withValue": "(~{{displayPercent}}% Tarifa ≈ -${{feeAmount}})",
+              "onlyPercent": "(~{{displayPercent}}% Tarifa)",
+              "titleWithValue": "Tarifa total estimada: ~{{displayPercent}}% (-${{feeAmount}})",
+              "titleOnlyPercent": "Tarifa total estimada: ~{{displayPercent}}%",
+              "min": "(mín {{displayPercent}}% Tarifa)",
+              "titleMin": "Tarifa mínima de {{displayPercent}}%",
+              "tooltips": {
+                "zeroPercent": "No se aplica tarifa (0.00%)",
+                "minTitle": "Tarifa mínima aplicada (0.00%)",
+                "withValue": "Tarifa estimada: ~{{displayPercent}}% (-${{feeAmount}})",
+                "onlyPercent": "Tarifa estimada: ~{{displayPercent}}%",
+                "min": "Tarifa mínima: {{displayPercent}}%"
+              }
+            }
+          },
+          "withdraw": {
+            "bonus": {
+              "withValue": "(~{{bonusPercent}}% Bonificación ≈ +${{bonusAmount}})",
+              "onlyPercent": "(~{{bonusPercent}}% Bonificación)",
+              "titleWithValue": "Bonificación estimada: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "titleOnlyPercent": "Bonificación estimada: ~{{bonusPercent}}%",
+              "max": "(máx {{bonusPercent}}% Bonificación)",
+              "titleMax": "Hasta {{bonusPercent}}% de bonificación",
+              "tooltips": {
+                "withValue": "Bonificación estimada: ~{{bonusPercent}}% (+${{bonusAmount}})",
+                "onlyPercent": "Bonificación estimada: ~{{bonusPercent}}%",
+                "max": "Bonificación máxima: {{bonusPercent}}%"
+              }
+            },
+            "fee": {
+              "zeroPercent": "(0.00%)",
+              "zeroTitle": "Tarifa total estimada: 0.00%",
+              "minTitle": "Tarifa mínima aplicada (0.00%)",
+              "withValue": "(~{{displayPercent}}% Tarifa ≈ -${{feeAmount}})",
+              "onlyPercent": "(~{{displayPercent}}% Tarifa)",
+              "titleWithValue": "Tarifa total estimada: ~{{displayPercent}}% (-${{feeAmount}})",
+              "titleOnlyPercent": "Tarifa total estimada: ~{{displayPercent}}%",
+              "min": "(mín {{displayPercent}}% Tarifa)",
+              "titleMin": "mín {{displayPercent}}% tarifa",
+              "tooltips": {
+                "zeroPercent": "No se aplica tarifa (0.00%)",
+                "minTitle": "Tarifa mínima aplicada (0.00%)",
+                "withValue": "Tarifa estimada: ~{{displayPercent}}% (-${{feeAmount}})",
+                "onlyPercent": "Tarifa estimada: ~{{displayPercent}}%",
+                "min": "Tarifa mínima: {{displayPercent}}%"
+              }
+            }
+          }
+        },
+
+        "delisted": {
+          "badge": "Excluido",
+          "withdrawFullBalanceBonus": "Retirar saldo completo (+{{bonusPercent}}% Bonificación ≈ +${{bonusUsd}})",
+          "poolEmpty": "Pool vacío",
+          "actionInProgress": "Acción en progreso...",
+          "calcError": "Error de cálculo",
+          "needWlqi": "Se necesita ≈ {{amount}} wLQI",
+          "bonus": {
+            "withValue": "(~{{bonusPercent}}% Bonificación ≈ +${{bonusAmount}})",
+            "onlyPercent": "(~{{bonusPercent}}% Bonificación)",
+            "titleWithValue": "Bonificación por retiro de activo excluido: ~{{bonusPercent}}% (+${{bonusAmount}})",
+            "titleOnlyPercent": "Bonificación por retiro de activo excluido: ~{{bonusPercent}}%",
+            "max": "(máx {{bonusPercent}}% Bonificación)",
+            "titleMax": "Bonificación por retiro de activo excluido: {{bonusPercent}}%",
+            "tooltips": {
+              "withValue": "Bonificación por retiro de token excluido: ~{{bonusPercent}}% (+${{bonusAmount}})",
+              "onlyPercent": "Bonificación por retiro de token excluido: ~{{bonusPercent}}%",
+              "max": "Bonificación máxima por retiro de token excluido: {{bonusPercent}}%"
+            }
+          },
+          "tooltips": {
+            "withdrawEntireBalance": "Retirar todo el saldo de {{symbol}} (+{{bonusPercent}}% bonificación ≈ +${{bonusUsd}}). Requiere ≈ {{amount}} wLQI.",
+            "withdrawEntireBalanceNoBonus": "Retirar todo el saldo de {{symbol}}. Requiere ≈ {{amount}} wLQI.",
+            "needWlqi": "wLQI insuficiente. Se necesita ≈ {{amount}}.",
+            "poolEmpty": "El pool no tiene {{symbol}} para retirar.",
+            "actionInProgress": "Otra transacción está en progreso.",
+            "calcError": "No se puede calcular la cantidad requerida de wLQI."
+          }
+        },
+
+        "tokenRow": {
+          "tooltips": {
+            "poolBalance": "Saldo actual del pool para este token",
+            "actualPercent": "Porcentaje actual en el pool",
+            "targetPercent": "Porcentaje objetivo para este token"
+          }
+        },
+
+        "tokenCard": {
+          "depositHeader": "Depositar {{symbol}}",
+          "withdrawHeader": "Retirar {{symbol}}",
+          "rankDisplay": "Rango: {{rank}}",
+          "tooltips": {
+            "deposit": "Información y controles de depósito para este token",
+            "withdraw": "Información y controles de retiro para este token",
+            "depositHeader": "Interfaz de depósito para el token {{symbol}}",
+            "withdrawHeader": "Interfaz de retiro para el token {{symbol}}"
+          }
+        },
+
+        "tokenInputControls": {
+          "amount": {
+            "placeholder": "Cantidad ({{symbol}})",
+            "balance": "Saldo: {{value}} {{symbol}}",
+            "tooltips": {
+              "amount": "Ingresa la cantidad a depositar/retirar en {{symbol}}",
+              "balance": "Tu saldo actual de {{symbol}} disponible para esta acción",
+              "placeholder": "Ingresa la cantidad en tokens {{symbol}}"
+            }
+          },
+          "actions": {
+            "half": "Mitad",
+            "max": "Máx",
+            "toTarget": "A objetivo",
+            "tooltips": {
+              "half": "Establecer la cantidad al 50% de tu saldo disponible de {{symbol}}",
+              "max": "Establecer la cantidad a tu saldo total disponible de {{symbol}}",
+              "toTarget": "Establecer la cantidad para alcanzar el porcentaje objetivo de {{symbol}} en el pool"
+            }
+          }
+        },
+        "mobileSortControls": {
+          "buttonLabelPrefix": "Ordenar: ",
+          "defaultSortLabel": "Por defecto (% objetivo descendente)",
+          "options": {
+            "symbolAsc": "Símbolo: Z-A",
+            "symbolDesc": "Símbolo: A-Z",
+            "valueAsc": "Saldo del pool: menor a mayor",
+            "valueDesc": "Saldo del pool: mayor a menor",
+            "actualPercentAsc": "% actual: menor a mayor",
+            "actualPercentDesc": "% actual: mayor a menor",
+            "targetPercentAsc": "% objetivo: menor a mayor",
+            "targetPercentDesc": "% objetivo: mayor a menor",
+            "depositFeeBonusAsc": "Depósito: mejor a peor",
+            "depositFeeBonusDesc": "Depósito: peor a mejor",
+            "withdrawFeeBonusAsc": "Retiro: mejor a peor",
+            "withdrawFeeBonusDesc": "Retiro: peor a mejor"
+          }
+        }
+      }
+    }
+  },
+
   "footer": {
     "copyright": "© {{year}} wLiquify. Todos los derechos reservados.",
-    "disclaimer": "Descargo de responsabilidad: Este es un proyecto de software. Úsalo bajo tu propio riesgo.",
-    "financialDisclaimer": "wLiquify no es un asesor financiero. Toda la información proporcionada es solo con fines educativos e informativos."
-  },
-  "poolInfo": {
-    "title": "Información del Pool",
-    "wlqiTokenValue": "Valor del Token wLQI",
-    "wlqiTotalSupply": "Suministro Total de wLQI",
-    "totalPoolValue": "Valor Total del Pool (TVL)"
-  },
-  "tokenTable": {
-    "top30Tokens": "Top 30 Tokens",
-    "delistedTokens": "Tokens Retirados (No en Top 30)",
-    "inputControls": {
-      "amountPlaceholder": "Cantidad ({{symbol}})",
-      "half": "Mitad",
-      "max": "Máximo",
-      "toTarget": "Al Objetivo"
+    "disclaimer": "Aviso: Este es un proyecto de software. Úsalo bajo tu propio riesgo.",
+    "financialDisclaimer": "wLiquify no es un asesor financiero. Toda la información proporcionada es solo para fines educativos e informativos.",
+    "sections": {
+      "resources": {
+        "title": "Recursos",
+        "links": {
+          "docs": "Documentos",
+          "github": "GitHub"
+        }
+      },
+      "legal": {
+        "title": "Legal",
+        "links": {
+          "terms": "Términos de servicio",
+          "privacy": "Política de privacidad"
+        }
+      },
+      "community": {
+        "title": "Comunidad",
+        "links": {
+          "twitter": "Twitter / X",
+          "discord": "Discord"
+        }
+      }
     },
-    "delistedWithdraw": {
-      "withdrawFullBalanceBonus": "Retirar Saldo Completo (+{{bonusPercent}}% Bono ≈ +${{bonusUsd}})",
-      "poolEmpty": "Pool Vacío",
-      "actionInProgress": "Acción en progreso...",
-      "calcError": "Error de Cálculo",
-      "needWlqi": "Necesitas ≈ {{amount}} wLQI",
-      "tooltipWithdrawEntireBalance": "Retirar saldo completo de {{symbol}} (+{{bonusPercent}}% bono ≈ +${{bonusUsd}}). Requiere ≈ {{amount}} wLQI.",
-      "tooltipWithdrawEntireBalanceNoBonus": "Retirar saldo completo de {{symbol}}. Requiere ≈ {{amount}} wLQI.",
-      "tooltipNeedWlqi": "wLQI insuficiente. Necesitas ≈ {{amount}}.",
-      "tooltipPoolEmpty": "El pool no tiene {{symbol}} para retirar.",
-      "tooltipActionInProgress": "Hay otra transacción en progreso.",
-      "tooltipCalcError": "No se puede calcular la cantidad de wLQI requerida."
-    },
-    "noData": "No hay datos de tokens disponibles.",
-    "columns": {
-      "rank": "#",
-      "symbol": "Símbolo",
-      "poolBalance": "Balance del Pool",
-      "actualPercent": "% Actual",
-      "targetPercent": "% Objetivo",
-      "deposit": "Depositar",
-      "withdraw": "Retirar"
-    },
-    "connectWallet": "Conectar Billetera",
-    "tooltipConnectWallet": "Conecta tu billetera para continuar."
-  },
-  "tokenCard": {
-    "poolBalanceLabel": "Balance del Pool:",
-    "actualPercentLabel": "% Actual:",
-    "targetPercentLabel": "% Objetivo:",
-    "depositHeader": "Depositar {{symbol}}",
-    "withdrawHeader": "Retirar {{symbol}}"
-  },
-  "walletModal": {
-    "connectWallet": "Conecta una wallet en Solana para continuar",
-    "needWallet": "Necesitas una wallet en Solana para continuar",
-    "detected": "Detectada",
-    "connecting": "Conectando...",
-    "moreOptions": "Más opciones",
-    "lessOptions": "Menos opciones",
-    "viewOptions": "Ver opciones",
-    "hideOptions": "Ocultar opciones"
-  },
-  "walletButton": {
-    "selectWallet": "Seleccionar Wallet",
-    "copyAddress": "Copiar Dirección",
-    "copied": "¡Copiado!",
-    "changeWallet": "Cambiar Wallet",
-    "disconnect": "Desconectar",
-    "downloadExtension": "Descargar Extensión"
-  },
-  "buttonState": {
-    "depositing": "Depositando...",
-    "deposit": "Depositar",
-    "withdrawing": "Retirando...",
-    "withdraw": "Retirar",
-    "depositDefaultTitle": "Introduce la cantidad a depositar",
-    "withdrawDefaultTitle": "Introduce la cantidad de wLQI a retirar",
-    "depositWithFee": "Depositar {{feeString}}",
-    "withdrawDelistedAmount": "Retirar Cantidad {{feeString}}",
-    "withdrawWithFee": "Retirar {{feeString}}",
-    "insufficientToken": "{{symbol}} Insuficiente",
-    "insufficientTokenTitle": "La cantidad a depositar excede tu saldo de {{symbol}}",
-    "insufficientWlqi": "wLQI Insuficiente",
-    "insufficientWlqiTitle": "La cantidad a retirar excede tu saldo de wLQI",
-    "insufficientPoolToken": "{{symbol}} Insuficiente en Pool",
-    "insufficientPoolTokenTitle": "El pool no tiene suficiente {{symbol}} para retirar",
-    "poolEmpty": "Pool Vacío",
-    "poolEmptyTitle": "No hay saldo de este token retirado en el pool para retirar."
-  },
-  "fees": {
-    "depositBonusWithValue": "(~{{bonusPercent}}% Bono ≈ +${{bonusAmount}})",
-    "depositBonusOnlyPercent": "(~{{bonusPercent}}% Bono)",
-    "depositBonusTitleWithValue": "Bono Est.: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "depositBonusTitleOnlyPercent": "Bono Est.: ~{{bonusPercent}}%",
-    "depositBonusMax": "(máx. {{bonusPercent}}% Bono)",
-    "depositBonusTitleMax": "Hasta {{bonusPercent}}% de bono",
-    "zeroFeePercent": "(0.00%)",
-    "zeroFeeTitle": "Comisión Total Est.: 0.00%",
-    "depositFeeWithValue": "(~{{displayPercent}}% Comisión ≈ -${{feeAmount}})",
-    "depositFeeOnlyPercent": "(~{{displayPercent}}% Comisión)",
-    "depositFeeTitleWithValue": "Comisión Total Est.: ~{{displayPercent}}% (-${{feeAmount}})",
-    "depositFeeTitleOnlyPercent": "Comisión Total Est.: ~{{displayPercent}}%",
-    "depositFeeMin": "(mín. {{displayPercent}}% Comisión)",
-    "depositFeeTitleMin": "Mínimo {{displayPercent}}% de comisión",
-    "withdrawBonusWithValue": "(~{{bonusPercent}}% Bono ≈ +${{bonusAmount}})",
-    "withdrawBonusOnlyPercent": "(~{{bonusPercent}}% Bono)",
-    "withdrawBonusTitleWithValue": "Bono Est.: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "withdrawBonusTitleOnlyPercent": "Bono Est.: ~{{bonusPercent}}%",
-    "withdrawBonusMax": "(máx. {{bonusPercent}}% Bono)",
-    "withdrawBonusTitleMax": "Hasta {{bonusPercent}}% de bono",
-    "withdrawMinFeeTitle": "Comisión mínima aplicada (0.00%)",
-    "withdrawFeeWithValue": "(~{{displayPercent}}% Comisión ≈ -${{feeAmount}})",
-    "withdrawFeeOnlyPercent": "(~{{displayPercent}}% Comisión)",
-    "withdrawFeeTitleWithValue": "Comisión Total Est.: ~{{displayPercent}}% (-${{feeAmount}})",
-    "withdrawFeeTitleOnlyPercent": "Comisión Total Est.: ~{{displayPercent}}%",
-    "withdrawFeeMin": "(mín. {{displayPercent}}% Comisión)",
-    "withdrawFeeTitleMin": "mín. {{displayPercent}}% de comisión",
-    "delistedBonusWithValue": "(~{{bonusPercent}}% Bono ≈ +${{bonusAmount}})",
-    "delistedBonusOnlyPercent": "(~{{bonusPercent}}% Bono)",
-    "delistedBonusTitleWithValue": "Bono Retiro Activo Retirado: ~{{bonusPercent}}% (+${{bonusAmount}})",
-    "delistedBonusTitleOnlyPercent": "Bono Retiro Activo Retirado: ~{{bonusPercent}}%",
-    "delistedBonusMax": "(máx. {{bonusPercent}}% Bono)",
-    "delistedBonusTitleMax": "Bono Retiro Activo Retirado: {{bonusPercent}}%"
+    "tooltips": {
+      "copyright": "Información de derechos de autor de wLiquify",
+      "disclaimer": "Aviso importante sobre la naturaleza experimental de este software",
+      "financialDisclaimer": "Aviso importante sobre la naturaleza no financiera de esta plataforma"
+    }
   }
 }

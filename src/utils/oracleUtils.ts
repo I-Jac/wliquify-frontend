@@ -3,6 +3,7 @@ import { BN } from '@coral-xyz/anchor';
 import { Buffer } from 'buffer';
 import { ParsedOracleTokenInfo, HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from './types';
 import { bytesToString } from './helpers';
+import { showToast } from './notifications';
 
 // --- Constants ---
 const DISCRIMINATOR_LENGTH = 8;
@@ -32,10 +33,9 @@ export async function processOracleData(
     try {
         const oracleAccountInfo = await connection.getAccountInfo(oracleAggregatorAddress);
         if (!oracleAccountInfo) {
-            return { 
-                decodedTokens: [], 
-                error: "Oracle account not found" 
-            };
+            const error = "Oracle account not found";
+            showToast(error, 'error');
+            return { decodedTokens: [], error };
         }
 
         const { data: tokenInfoArray } = parseOracleData(Buffer.from(oracleAccountInfo.data));
@@ -51,10 +51,9 @@ export async function processOracleData(
         return { decodedTokens, error: null };
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        return { 
-            decodedTokens: [], 
-            error: `Oracle refresh failed: ${errorMessage}` 
-        };
+        const error = `Oracle refresh failed: ${errorMessage}`;
+        showToast(error, 'error');
+        return { decodedTokens: [], error };
     }
 }
 

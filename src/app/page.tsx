@@ -6,12 +6,14 @@ import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { usePoolData } from '@/hooks/usePoolData';
 import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useTranslation } from 'react-i18next';
 
 export default function Home() {
 
   const { program, provider, readOnlyProvider } = useAnchorProgram();
   const wallet = useWallet();
   const { connection } = useConnection();
+  const { t } = useTranslation();
 
   const {
     poolConfig,
@@ -34,7 +36,7 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[auto_1fr_auto] items-center justify-items-center min-h-screen p-4 sm:p-8 lg:p-16 pb-20 gap-16 font-[family-name:var(--font-geist-sans)] relative">
       <main className="flex flex-col items-center gap-8 w-full max-w-4xl mx-auto">
-        {displayError && <div className="text-red-500 bg-red-900/30 p-2 rounded">Error: {displayError}</div>}
+        {displayError && <div className="text-red-500 bg-red-900/30 p-2 rounded">{t('global.error')}: {displayError}</div>}
         <PoolInfoDisplay
           poolConfig={poolConfig}
           poolConfigPda={poolConfigPda}

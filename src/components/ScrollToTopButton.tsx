@@ -38,7 +38,7 @@ export const ScrollToTopButton: React.FC = () => {
                     type="button"
                     onClick={scrollToTop}
                     // Responsive padding and a base class for common styles
-                    className="bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-opacity duration-300 ease-in-out p-2 md:p-3"
+                    className="bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-opacity duration-300 ease-in-out p-2 md:p-3 cursor-pointer"
                     aria-label="Scroll to top"
                 >
                     {/* Icon size can also be responsive if needed, but h-6 w-6 is often fine. For smaller button, h-5 w-5 might be better */}

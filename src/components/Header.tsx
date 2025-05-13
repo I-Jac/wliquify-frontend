@@ -50,7 +50,7 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
         // This is usually an Esc key press or click outside.
         else if (!huiOpen && prevHuiOpen && isSettingsModalOpen) {
             if (isSettingsDirty) {
-                openAlertModal(t('notifications.attemptCloseDirtyMessage'));
+                openAlertModal(t('alertModal.attemptCloseDirtyMessage'));
             } else {
                 closeSettingsModal();
             }
@@ -137,7 +137,7 @@ export const Header: React.FC = () => {
                         </span>
                         <button
                             onClick={toggleMobileMenu}
-                            className="ml-2 p-1 text-white rounded-md md:hidden hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                            className="ml-3 p-2 bg-gray-700 text-white rounded-md md:hidden hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white cursor-pointer h-9 w-9 flex items-center justify-center"
                             aria-controls="mobile-menu"
                             aria-expanded={isMobileMenuOpen}
                             title={isMounted ? t('header.openMainMenu') : 'Open main menu'}
@@ -185,10 +185,10 @@ export const Header: React.FC = () => {
                                 {feeLevel && (
                                     <div 
                                         className="hidden sm:flex items-center bg-gray-700 text-gray-300 text-xs px-2.5 py-1.5 rounded-md"
-                                        title={t('settings.transactionPriorityTitle', { feeLevel: t(`settings.feeLevel${feeLevel}`)})}
+                                        title={t('header.settings.tooltips.transactionPriority', { feeLevel: t(`header.settings.feeLevel${feeLevel}`)})}
                                     >
                                         <span>{t('header.priorityLabel')}</span>
-                                        <span className="text-white font-semibold ml-1.5">{t(`settings.feeLevel${feeLevel}`)}</span>
+                                        <span className="text-white font-semibold ml-1.5">{t(`header.settings.feeLevel${feeLevel}`)}</span>
                                         {(priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (() => {
                                             // Ensure tempFeeLevel is a valid key for dynamicFees
                                             let tempFeeLevel: Exclude<FeeLevel, 'Custom'> = feeLevel as Exclude<FeeLevel, 'Custom'>;
@@ -205,13 +205,13 @@ export const Header: React.FC = () => {
                                                 }
                                             }
                                             const displayedSol = (priorityFee * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
-                                            const translatedFeeLevel = t(`settings.feeLevel${feeLevel}`);
+                                            const translatedFeeLevel = t(`header.settings.feeLevel${feeLevel}`);
                                             
                                             return (
                                                 <span 
                                                     className={`${isSelectedLevelCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
                                                     data-tooltip-id="app-tooltip"
-                                                    data-tooltip-content={isSelectedLevelCapped ? t('settings.tooltipFeeCapped', { feeLevel: translatedFeeLevel }) : t('settings.tooltipFeeNormal')}
+                                                    data-tooltip-content={isSelectedLevelCapped ? t('header.settings.tooltips.feeCapped', { feeLevel: translatedFeeLevel }) : t('header.settings.tooltips.feeNormal')}
                                                 >
                                                     {t('header.approximateFee', { value: displayedSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
                                                 </span>
@@ -234,8 +234,8 @@ export const Header: React.FC = () => {
                                             />
                                             <Popover.Button 
                                                 ref={settingsButtonRef}
-                                                className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 sm:h-8 sm:w-8 cursor-pointer"
-                                                title="Settings"
+                                                className="p-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 flex items-center justify-center h-9 w-9 cursor-pointer md:ml-0 ml-3"
+                                                title={t('header.settings.buttonTitle')}
                                             >
                                                 <SolidCogIcon className="h-5 w-5" />
                                             </Popover.Button>
@@ -255,7 +255,7 @@ export const Header: React.FC = () => {
                                                     className="fixed inset-0 z-40 bg-black/30" 
                                                     onClick={() => {
                                                         if (isSettingsDirty) {
-                                                            openAlertModal(t('notifications.attemptCloseDirtyMessage'));
+                                                            openAlertModal(t('alertModal.attemptCloseDirtyMessage'));
                                                         } else {
                                                             closeSettingsModal(); 
                                                         }
@@ -335,7 +335,7 @@ export const Header: React.FC = () => {
                                     toggleMobileMenu();
                                 }}
                                 className="p-2 text-gray-400 hover:text-white"
-                                aria-label="Close menu"
+                                aria-label={t('header.closeMobileMenu')}
                             >
                                 <XMarkIcon className="h-6 w-6" />
                             </button>

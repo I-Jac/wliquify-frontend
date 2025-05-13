@@ -312,7 +312,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                                 showTargetButton={!actionDisabled && actualPercentBN?.lt(targetScaled)}
                                 isMobile={false}
                             />
-                            <button onClick={handleActualDeposit} disabled={depositButtonDisabled} className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={depositTitle}>{depositLabel}</button>
+                            <button onClick={handleActualDeposit} disabled={depositButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={depositTitle}>{depositLabel}</button>
                         </div>
                     )}
                 </td>
@@ -337,39 +337,33 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                         showTargetButton={!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled)}
                         isMobile={false}
                     />
-                    <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : ''}`} title={withdrawTitle}>{withdrawLabel}</button>
+                    <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={withdrawTitle}>{withdrawLabel}</button>
                     {isDelisted && (
                         <div className="mt-1">
                             <button
                                 onClick={handleFullDelistedWithdraw}
                                 disabled={actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn}
-                                className={`w-full px-1 py-0.5 text-xs rounded text-white truncate ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                title={actionDisabled ? t('tokenTable.delistedWithdraw.tooltipActionInProgress') :
-                                       (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.tooltipPoolEmpty', { symbol }) :
-                                       !requiredWlqiForDelistedFormatted ? t('tokenTable.delistedWithdraw.tooltipCalcError') :
-                                       !userHasEnoughForDelisted ? t('tokenTable.tooltipNeedWlqi', { amount: requiredWlqiForDelistedFormatted }) :
+                                className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                                title={actionDisabled ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.actionInProgress') :
+                                       (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.poolEmpty', { symbol }) :
+                                       !requiredWlqiForDelistedFormatted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.calcError') :
+                                       !userHasEnoughForDelisted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.needWlqi', { amount: requiredWlqiForDelistedFormatted }) :
                                        (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
-                                            t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalance', {
-                                                symbol,
+                                            t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
                                                 bonusPercent: delistedFullWithdrawBonusPercentString,
-                                                bonusUsd: delistedFullWithdrawBonusAmountString,
-                                                amount: requiredWlqiForDelistedFormatted
+                                                bonusUsd: delistedFullWithdrawBonusAmountString
                                             }) :
-                                            t('tokenTable.delistedWithdraw.tooltipWithdrawEntireBalanceNoBonus', {
-                                                symbol,
-                                                amount: requiredWlqiForDelistedFormatted
-                                            })
-                                }
+                                            t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
                             >
-                                {actionDisabled ? (isWithdrawing ? t('tokenTable.delistedWithdraw.withdrawing') : t('tokenTable.delistedWithdraw.actionInProgress')) :
-                                 (!vaultBalance || vaultBalance.isZero()) ? t('tokenTable.delistedWithdraw.poolEmpty') :
-                                 !requiredWlqiForDelistedBn ? t('tokenTable.delistedWithdraw.calcError') :
+                                {actionDisabled ? (isWithdrawing ? t('main.poolInfoDisplay.tokenTable.buttonState.withdrawing') : t('main.poolInfoDisplay.tokenTable.delisted.actionInProgress')) :
+                                 (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.poolEmpty') :
+                                 !requiredWlqiForDelistedBn ? t('main.poolInfoDisplay.tokenTable.delisted.calcError') :
                                  (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
-                                    t('tokenTable.delistedWithdraw.withdrawFullBalanceBonus', {
+                                    t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
                                         bonusPercent: delistedFullWithdrawBonusPercentString,
                                         bonusUsd: delistedFullWithdrawBonusAmountString
                                     }) :
-                                    t('tokenTable.delistedWithdraw.withdrawFullBalanceNoBonus')}
+                                    t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
                             </button>
                         </div>
                     )}

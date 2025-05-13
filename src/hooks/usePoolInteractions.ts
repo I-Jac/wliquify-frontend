@@ -30,6 +30,7 @@ import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda"; // Use re
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
 import { handleTransactionError } from '@/utils/transactionErrorHandling';
 import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS } from '@/utils/constants';
+import i18next from 'i18next';
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
@@ -40,6 +41,8 @@ interface UsePoolInteractionsProps {
     onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>;
     onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
 }
+
+const t = i18next.t.bind(i18next);
 
 // Update the helper function with proper typing
 const handleTransactionConfirmation = async (
@@ -58,7 +61,7 @@ const handleTransactionConfirmation = async (
             connection,
             txid
         });
-        toast.error(`${_action} failed: ${errorMessage}`, { 
+        toast.error(t('poolInteractions.failed', { action: _action, errorMessage }), { 
             id: _toastId,
             style: {
                 maxWidth: '90vw',
@@ -75,14 +78,14 @@ const handleTransactionConfirmation = async (
 const showSuccessToast = (toastId: string, txid: string, action: 'Deposit' | 'Withdrawal') => {
     toast.success(
         React.createElement('div', null, [
-            React.createElement('div', { key: 'message' }, `${action} successful!`),
+            React.createElement('div', { key: 'message' }, t('poolInteractions.success', { action })),
             React.createElement('a', {
                 key: 'link',
                 href: `https://solscan.io/tx/${txid}?cluster=devnet`,
                 target: '_blank',
                 rel: 'noopener noreferrer',
                 style: { color: '#4CAF50', textDecoration: 'underline' }
-            }, 'View on Solscan')
+            }, t('poolInteractions.viewOnSolscan'))
         ]),
         { 
             id: toastId,
@@ -104,14 +107,14 @@ const checkSolBalance = async (
     try {
         const balance = await connection.getBalance(publicKey);
         if (balance < minSolBalanceLamports) {
-            toast.error(`Insufficient SOL balance for transaction fees. Need ~${minSolBalanceLamports / LAMPORTS_PER_SOL} SOL.`);
+            toast.error(t('poolInteractions.insufficientSol', { amount: minSolBalanceLamports / LAMPORTS_PER_SOL }));
             console.error(`Insufficient SOL balance: ${balance} lamports. Need ${minSolBalanceLamports} lamports.`);
             return false;
         }
         return true;
     } catch (balanceError) {
-        toast.error("Could not verify SOL balance.");
-        console.error("Failed to fetch SOL balance:", balanceError);
+        toast.error(t('poolInteractions.couldNotVerifySol'));
+        console.error('Failed to fetch SOL balance:', balanceError);
         return false;
     }
 };
@@ -124,7 +127,7 @@ const validatePriceFeed = (
     action: 'Deposit' | 'Withdrawal'
 ): boolean => {
     if (!tokenInfo || !tokenInfo.priceFeed || tokenInfo.priceFeed.equals(SystemProgram.programId)) {
-        const errorMsg = `Price feed account not found or configured for ${action.toLowerCase()} token ${mint.toBase58()} in PoolConfig`;
+        const errorMsg = t('poolInteractions.priceFeedNotFound', { action, mint: mint.toBase58() });
         console.error(errorMsg);
         toast.error(errorMsg, { id: toastId });
         return false;
@@ -193,7 +196,7 @@ const confirmTransaction = async (
     toastId: string,
     action: 'Deposit' | 'Withdrawal'
 ): Promise<{ value: { err: TransactionError | null } }> => {
-    toast.loading(`Confirming ${action.toLowerCase()}... Tx: ${txid.substring(0, 8)}...`, { id: toastId });
+    toast.loading(t('poolInteractions.confirming', { action: action.toLowerCase(), txid: txid.substring(0, 8) }), { id: toastId });
     const confirmation = await connection.confirmTransaction({
         signature: txid,
         blockhash: blockhash,
@@ -216,7 +219,7 @@ const handleTransactionErrorWithToast = async (
         program,
         connection
     });
-    toast.error(`${action} failed: ${errorMessage}`, { 
+    toast.error(t('poolInteractions.failed', { action, errorMessage }), { 
         id: toastId,
         style: {
             maxWidth: '90vw',
@@ -237,13 +240,13 @@ const validatePreFlightChecks = (
     isFullDelistedWithdraw: boolean = false
 ): { isValid: boolean; poolConfig: PoolConfig | null } => {
     if (!program || !publicKey || !poolConfig || !poolConfigPda || !oracleData) {
-        toast.error("Program, wallet, or pool config not available.");
-        console.error("Prerequisites not met:", { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
+        toast.error(t('poolInteractions.programWalletPoolConfigMissing'));
+        console.error('Prerequisites not met:', { program:!!program, publicKey:!!publicKey, poolConfig:!!poolConfig, poolConfigPda:!!poolConfigPda });
         return { isValid: false, poolConfig: null };
     }
 
     if (!isFullDelistedWithdraw && (!amountString || parseFloat(amountString) <= 0)) {
-        alert('Please enter a valid amount.');
+        alert(t('poolInteractions.enterValidAmount'));
         return { isValid: false, poolConfig: null };
     }
 
@@ -253,8 +256,8 @@ const validatePreFlightChecks = (
 // Update the helper function's parameter type
 const validateSignTransaction = (signTransaction: ((transaction: Transaction | VersionedTransaction) => Promise<Transaction | VersionedTransaction>) | undefined): boolean => {
     if (!signTransaction) {
-        alert('Wallet does not support signing transactions.');
-        console.error("Wallet adapter does not provide signTransaction method.");
+        alert(t('poolInteractions.walletNoSign'));
+        console.error('Wallet adapter does not provide signTransaction method.');
         return false;
     }
     return true;
@@ -364,7 +367,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             return;
         }
         if (decimals === null) {
-            toast.error("Token decimals not available.");
+            toast.error(t('poolInteractions.tokenDecimalsMissing'));
             return;
         }
 
@@ -374,7 +377,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         }
 
         setIsDepositing(true);
-        const toastId = toast.loading("Processing deposit...");
+        const toastId = toast.loading(t('poolInteractions.processingDeposit'));
         let depositMint: PublicKey | null = null; // Keep track of the mint
 
         try {
@@ -497,7 +500,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
         }
 
         setIsWithdrawing(true);
-        const toastId = toast.loading("Processing withdrawal...");
+        const toastId = toast.loading(t('poolInteractions.processingWithdrawal'));
         let outputMint: PublicKey | null = null; // Keep track of the output mint
 
         try {
@@ -505,7 +508,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
 
             // Use wLqiDecimals from props
             if (wLqiDecimals === null) {
-                toast.error("wLQI decimals not available for withdrawal processing.");
+                toast.error(t('poolInteractions.wlqiDecimalsMissing'));
                 setIsWithdrawing(false); // Ensure loading state is reset
                 return;
             }
