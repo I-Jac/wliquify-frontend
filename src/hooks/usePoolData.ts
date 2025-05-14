@@ -4,17 +4,15 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, SystemProgram, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import { getAssociatedTokenAddressSync, getMint } from '@solana/spl-token';
+import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { calculateWLqiValue } from '@/utils/calculations';
 import {
     DynamicTokenData,
     HistoricalTokenDataDecoded,
-    TokenProcessingInfo,
     ParsedOracleTokenInfo,
     ProcessedTokenData,
 } from '@/utils/types';
-import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/pda';
-import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/accounts';
+import { decodeTokenAccountAmountBN } from '@/utils/accounts';
 import { PoolConfig, SupportedToken } from '@/utils/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { useOracleData } from './useOracleData';
@@ -22,6 +20,8 @@ import { createRateLimitedFetch } from '@/utils/hookUtils';
 import { processSingleToken } from '@/utils/singleTokenProcessing';
 import { processOracleData } from '@/utils/oracleUtils';
 import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptionUtils';
+import { fetchCorePoolConfigAndWLQI, RateLimitedFetchFn } from '@/utils/poolDataUtils';
+import { fetchSupportedTokensPublicData, fetchUserTokenAccountBalances } from '@/utils/poolDataUtils';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
@@ -72,224 +72,103 @@ export function usePoolData({
     // --- Fetch Public Pool Data (Moved from Component) ---
     const fetchPublicPoolData = useCallback(async () => {
         const activeProvider = provider || readOnlyProvider;
-        if (!program || !activeProvider || !connection) {
-            console.warn("usePoolData Hook: Fetch public data skipped: Program or Provider/Connection not ready.");
+        // Use program from state/props, activeProvider.connection for the connection
+        const currentProgram = program;
+        const currentConnection = activeProvider?.connection ?? connection; // Fallback to hook prop connection
+
+        if (!currentProgram || !currentConnection) {
+            console.warn("usePoolData Hook: Fetch public data skipped: Program or Connection not ready.");
+            setIsLoadingPublicData(false); // Ensure loading state is reset
             return;
         }
+
         // console.log("usePoolData Hook: Fetching public pool data...");
         setIsLoadingPublicData(true);
         setError(null);
         // Reset relevant states before fetch
-        setPoolConfig(null);
+        setPoolConfig(null); // Reset before calling the new util
+        setPoolConfigPda(null);
+        setWlqiSupply(null);
+        setWlqiDecimals(null);
+        setWLqiMint(null);
         setDynamicData(new Map());
         setHistoricalData(new Map());
         setWlqiValueScaled(null);
         hasFetchedPublicData.current = false;
 
         try {
-            const programId = program.programId;
-            const configPda = findPoolConfigPDA(programId);
-            setPoolConfigPda(configPda);
-
-            const fetchedConfig = await rateLimitedFetch(
-                () => program.account.poolConfig.fetch(configPda) as Promise<PoolConfig>,
-                "Failed to fetch pool config"
+            // Call the new utility function for core config and wLQI data
+            const coreDataResult = await fetchCorePoolConfigAndWLQI(
+                currentProgram,
+                currentConnection,
+                rateLimitedFetch as RateLimitedFetchFn // Cast because rateLimitedFetch is created by useMemo without explicit type arg in usePoolData
             );
-            
-            setPoolConfig(fetchedConfig);
-            setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled);
 
-            // --- wLQI Mint Info ---
-            const [wlqiSupplyData, wlqiMintData] = await Promise.all([
-                rateLimitedFetch(
-                    () => connection.getTokenSupply(fetchedConfig.wliMint),
-                    "Failed to fetch wLQI supply"
-                ),
-                rateLimitedFetch(
-                    () => getMint(connection, fetchedConfig.wliMint),
-                    "Failed to fetch wLQI mint data"
-                )
-            ]);
-
-            const fetchedWlqiSupply = wlqiSupplyData.value.amount;
-            const fetchedWlqiDecimals = wlqiMintData.decimals;
-
-            setWlqiSupply(fetchedWlqiSupply);
-            setWlqiDecimals(fetchedWlqiDecimals);
-
-            // --- Fetching Vaults, Price Feeds, History for Supported Tokens ---
-            const publicAddressesToFetch: PublicKey[] = [];
-            const tokenInfoMap = new Map<string, Partial<TokenProcessingInfo>>();
-
-            // Get all decimals first - fetch in parallel with retries
-            const allConfiguredMints = fetchedConfig.supportedTokens
-                .map((st: SupportedToken) => st.mint)
-                .filter((mint): mint is PublicKey => mint !== null);
-
-            // Fetch all mint info in parallel with retries
-            const mintInfoPromises = allConfiguredMints.map((mint: PublicKey) => 
-                rateLimitedFetch(
-                    () => getMint(connection, mint),
-                    `Failed to get mint info for ${mint.toBase58()}`
-                ).catch(err => {
-                    console.warn(`usePoolData Hook: Failed to get mint info for ${mint.toBase58()}: ${err.message}`);
-                    return null;
-                })
-            );
-            const mintInfos = await Promise.all(mintInfoPromises);
-            const decimalsMap = new Map<string, number>();
-            mintInfos.forEach((mintInfo: import('@solana/spl-token').Mint | null, index: number) => {
-                if (mintInfo) {
-                    decimalsMap.set(allConfiguredMints[index].toBase58(), mintInfo.decimals);
-                }
-            });
-
-            // Prepare addresses to fetch
-            fetchedConfig.supportedTokens.forEach((supportedToken: SupportedToken) => {
-                const mint = supportedToken.mint;
-                if (!mint) {
-                    console.warn("usePoolData Hook: Skipping token in config with null mint address.");
-                    return;
-                }
-                const mintAddress = mint.toBase58();
-                const priceFeedAddress = supportedToken.priceFeed;
-                const vault = supportedToken.vault;
-                const decimals = decimalsMap.get(mintAddress);
-
-                if (!vault) {
-                    console.error(`usePoolData Hook: Vault address missing in config for mint ${mintAddress}. Skipping public fetch.`);
-                    return;
-                }
-                if (typeof decimals !== 'number') {
-                    console.warn(`usePoolData Hook: Decimals not found via getMint for ${mintAddress}, skipping public fetch.`);
-                    return;
-                }
-
-                // Add vault to fetch list
-                publicAddressesToFetch.push(vault);
-                const vaultIndex = publicAddressesToFetch.length - 1;
-
-                // Add price feed if it exists in config
-                let priceFeedIndex: number | undefined = undefined;
-                if (priceFeedAddress && !priceFeedAddress.equals(SystemProgram.programId)) {
-                    publicAddressesToFetch.push(priceFeedAddress);
-                    priceFeedIndex = publicAddressesToFetch.length - 1;
-                } else {
-                    console.warn(`usePoolData Hook: Price feed missing or system program ID for mint ${mintAddress}.`);
-                }
-
-                // Add HistoricalTokenData PDA to fetch list
-                const historyPda = findHistoricalTokenDataPDA(mint, program.programId);
-                publicAddressesToFetch.push(historyPda);
-                const historyPdaIndex = publicAddressesToFetch.length - 1;
-
-                tokenInfoMap.set(mintAddress, {
-                    mint: mint,
-                    vault: vault,
-                    priceFeed: priceFeedAddress ?? SystemProgram.programId,
-                    vaultIndex: vaultIndex,
-                    priceFeedIndex: priceFeedIndex,
-                    historyPdaIndex: historyPdaIndex,
-                    mintDecimals: decimals,
-                });
-            });
-
-            // --- Batch fetch all public accounts --- 
-            const ACCOUNTS_BATCH_SIZE = 99; // Max accounts per getMultipleAccountsInfo call, under the typical limit of 100
-            let allFetchedAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
-            const batchPromises = [];
-
-            for (let i = 0; i < publicAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
-                const batch = publicAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
-                if (batch.length > 0) {
-                    batchPromises.push(
-                        rateLimitedFetch(
-                            () => connection.getMultipleAccountsInfo(batch),
-                            `Failed to fetch batch of public accounts (offset ${i})`
-                        )
-                    );
-                }
-            }
-
-            try {
-                const resultsFromBatches = await Promise.all(batchPromises);
-                resultsFromBatches.forEach(batchResult => {
-                    if (batchResult) { // batchResult itself could be null if rateLimitedFetch can return null for a whole batch
-                        allFetchedAccountsInfo = allFetchedAccountsInfo.concat(batchResult);
-                    }
-                });
-            } catch (batchError) {
-                console.error("usePoolData Hook: Error fetching one or more account batches:", batchError);
-                const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
-                setError(`Failed to fetch all public account details due to batching error: ${errorMessage}`);
+            if (coreDataResult.error || !coreDataResult.poolConfig || !coreDataResult.poolConfigPda || coreDataResult.wlqiSupply === null || coreDataResult.wlqiDecimals === null || !coreDataResult.wLqiMint) {
+                setError(coreDataResult.error || "Failed to load essential pool configuration or wLQI data.");
+                // Set states to null or defaults if core data fetching failed partially or fully
+                setPoolConfig(coreDataResult.poolConfig || null);
+                setPoolConfigPda(coreDataResult.poolConfigPda || null);
+                setWlqiSupply(coreDataResult.wlqiSupply || null);
+                setWlqiDecimals(coreDataResult.wlqiDecimals || null);
+                setWLqiMint(coreDataResult.wLqiMint || null);
                 setIsLoadingPublicData(false);
-                // Potentially set other states to null/empty if data is unusable
-                setPoolConfig(null);
-                setWlqiSupply(null);
-                setDynamicData(new Map());
-                setHistoricalData(new Map());
-                setPoolConfigPda(null);
-                return; // Exit if critical batch fetching fails
+                return;
             }
-            // END Batch fetch --- 
 
-            // Process fetched accounts (now using allFetchedAccountsInfo)
-            const initialDynamicData = new Map<string, DynamicTokenData>();
-            const initialHistoricalData = new Map<string, HistoricalTokenDataDecoded | null>();
-            let processingError = false;
+            const fetchedConfig = coreDataResult.poolConfig;
+            setPoolConfig(fetchedConfig);
+            setPoolConfigPda(coreDataResult.poolConfigPda);
+            setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled); // This comes from fetchedConfig
+            setWlqiSupply(coreDataResult.wlqiSupply);
+            setWlqiDecimals(coreDataResult.wlqiDecimals);
+            setWLqiMint(coreDataResult.wLqiMint);
 
-            fetchedConfig.supportedTokens.forEach((supportedToken: SupportedToken) => {
-                const mint = supportedToken.mint;
-                if (!mint) return;
-                const mintAddress = mint.toBase58();
-                const info = tokenInfoMap.get(mintAddress);
+            // --- Fetching Vaults, Price Feeds, History for Supported Tokens --- 
+            // Call the new utility function for supported tokens public data
+            const supportedTokensDataResult = await fetchSupportedTokensPublicData(
+                currentConnection,
+                currentProgram.programId,
+                fetchedConfig.supportedTokens,
+                rateLimitedFetch as RateLimitedFetchFn
+            );
 
-                if (!info || info.vaultIndex === undefined || info.mintDecimals === undefined || info.historyPdaIndex === undefined) {
-                    console.warn(`usePoolData Hook: Skipping processing dynamic/historical data for ${mintAddress}, info/indices/decimals/history incomplete in map.`);
-                    processingError = true;
-                    return;
-                }
-
-                const vaultInfo = allFetchedAccountsInfo[info.vaultIndex];
-                const priceFeedInfo = info.priceFeedIndex !== undefined ? allFetchedAccountsInfo[info.priceFeedIndex] : null;
-                const historyInfo = allFetchedAccountsInfo[info.historyPdaIndex];
-
-                // Store Dynamic Data
-                initialDynamicData.set(mintAddress, {
-                    vaultBalance: vaultInfo ? decodeTokenAccountAmountBN(vaultInfo.data) : null,
-                    priceFeedInfo: priceFeedInfo,
-                    decimals: info.mintDecimals,
-                    userBalance: null // User balance fetched separately
-                });
-
-                // Decode and store Historical Data
-                const decodedHistory = decodeHistoricalTokenData(historyInfo);
-                if (decodedHistory) {
-                    initialHistoricalData.set(mintAddress, decodedHistory);
-                } else {
-                    console.warn(`usePoolData Hook: Failed to decode HistoricalTokenData for ${mintAddress}`);
-                    initialHistoricalData.set(mintAddress, null);
-                }
-            });
-
-            setDynamicData(initialDynamicData);
-            setHistoricalData(initialHistoricalData);
-
-            if (processingError) {
-                setError("Errors occurred processing some public token data.");
+            if (supportedTokensDataResult.error) {
+                // Append to existing error or set new error
+                setError(prevError => 
+                    prevError 
+                        ? `${prevError}; ${supportedTokensDataResult.error}` 
+                        : (supportedTokensDataResult.error ?? null) // Ensure null if undefined
+                );
+                // Note: We might still have partial data in supportedTokensDataResult.dynamicData and .historicalData
+                // Decide if we should stop or proceed with potentially partial data.
+                // For now, we will set what we have and the error will indicate issues.
             }
+
+            // Set dynamic and historical data from the result
+            // Ensure the structure matches what setDynamicData and setHistoricalData expect.
+            // The utility returns Pick<DynamicTokenData, ...>, so we might need to cast or ensure compatibility.
+            setDynamicData(supportedTokensDataResult.dynamicData as Map<string, DynamicTokenData>); 
+            setHistoricalData(supportedTokensDataResult.historicalData);
+            
+            // The original `processingError` logic is now handled within `fetchSupportedTokensPublicData`
+            // and its error is returned/appended.
 
             hasFetchedPublicData.current = true;
 
-        } catch (err) {
+        } catch (err) { // This catch is for errors in fetchCorePoolConfigAndWLQI or other unexpected errors
             const errorMessage = err instanceof Error ? err.message : String(err);
             console.error("usePoolData Hook: Error fetching public pool data:", errorMessage);
             setError(`Failed to load public pool data: ${errorMessage}`);
+            // Reset all relevant states on a major catch-all error
             setPoolConfig(null);
+            setPoolConfigPda(null);
             setWlqiSupply(null);
+            setWlqiDecimals(null);
+            setWLqiMint(null);
             setDynamicData(new Map());
             setHistoricalData(new Map());
-            setPoolConfigPda(null);
+            setTotalPoolValueScaled(null);
         } finally {
             setIsLoadingPublicData(false);
         }
@@ -299,115 +178,53 @@ export function usePoolData({
     const fetchUserAccountData = useCallback(async () => {
         // Guard clauses
         if (!wallet.connected || !wallet.publicKey || !connection) {
-            // console.log("usePoolData Hook: Skipping user data fetch: Wallet not connected or connection missing.");
-            // Reset user-specific state if wallet disconnects
             setUserWlqiBalance(null);
             setUserTokenBalances(new Map());
             hasFetchedUserData.current = false;
             return;
         }
-        // Ensure public data (specifically poolConfig) is loaded before fetching user data
         if (!poolConfig || !poolConfig.wliMint) {
             // console.log("usePoolData Hook: Skipping user data fetch: Pool config or wLQI mint not loaded yet.");
-            // Don't reset state here, just wait for public data
             return;
         }
 
         // console.log("usePoolData Hook: Fetching user account data...");
-        setIsLoadingUserData(true); // Set user data loading state
-        // Don't reset error here, let public data errors persist if they occurred
-        const userPublicKey = wallet.publicKey;
-        const userAddressesToFetch: PublicKey[] = [];
-        const tokenMintMapForUserFetch = new Map<string, PublicKey>(); // map index to mint
+        setIsLoadingUserData(true);
+        // Don't reset main error state here, let prior errors persist or be overwritten by this specific fetch if it fails badly
 
         try {
-            // Add user wLQI ATA
-            const userWlqiAta = getAssociatedTokenAddressSync(poolConfig.wliMint, userPublicKey, true);
-            userAddressesToFetch.push(userWlqiAta);
+            const userBalancesResult = await fetchUserTokenAccountBalances(
+                connection,
+                wallet.publicKey, // Already checked for null above
+                poolConfig.wliMint, // Already checked for null above
+                poolConfig.supportedTokens,
+                rateLimitedFetch as RateLimitedFetchFn
+            );
 
-            // Add user ATAs for supported tokens
-            poolConfig.supportedTokens.forEach(token => {
-                try {
-                    const mint = token.mint;
-                    if (mint && !mint.equals(poolConfig.wliMint)) { // Exclude wLQI itself
-                        const userAta = getAssociatedTokenAddressSync(mint, userPublicKey, true);
-                        userAddressesToFetch.push(userAta);
-                        tokenMintMapForUserFetch.set((userAddressesToFetch.length - 1).toString(), mint);
-                    }
-                } catch (e) {
-                    const errorMessage = e instanceof Error ? e.message : String(e);
-                    console.error(`usePoolData Hook: Error deriving user ATA for mint ${token.mint?.toBase58() ?? 'unknown'}:`, errorMessage);
-                }
-            });
-
-            // --- Batch fetch all user accounts ---
-            const ACCOUNTS_BATCH_SIZE = 99;
-            let allUserAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
-            const userAccountBatchPromises = [];
-
-            if (userAddressesToFetch.length > 0) { // Only proceed if there are addresses to fetch
-                for (let i = 0; i < userAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
-                    const batch = userAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
-                    if (batch.length > 0) {
-                        userAccountBatchPromises.push(
-                            rateLimitedFetch(
-                                () => connection.getMultipleAccountsInfo(batch),
-                                `Failed to fetch batch of user accounts (offset ${i})`
-                            )
-                        );
-                    }
-                }
-
-                try {
-                    const resultsFromUserBatches = await Promise.all(userAccountBatchPromises);
-                    resultsFromUserBatches.forEach(batchResult => {
-                        if (batchResult) {
-                            allUserAccountsInfo = allUserAccountsInfo.concat(batchResult);
-                        }
-                    });
-                } catch (batchError) {
-                    console.error("usePoolData Hook: Error fetching one or more user account batches:", batchError);
-                    const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
-                    setError(`Failed to load user account data due to batching error: ${errorMessage}`);
-                    setUserWlqiBalance(null);
-                    setUserTokenBalances(new Map());
-                    setIsLoadingUserData(false);
-                    return; // Exit if critical batch fetching fails
-                }
-            } else {
-                allUserAccountsInfo = [];
+            if (userBalancesResult.error) {
+                setError(prevError => 
+                    prevError 
+                        ? `${prevError}; UserData: ${userBalancesResult.error}` 
+                        : `UserData: ${userBalancesResult.error ?? 'Unknown user data fetch error'}`
+                );
+                // Set balances to what was returned, even if partial or null, error will indicate issues
             }
-            // END Batch fetch ---
 
-            const userWlqiInfo = allUserAccountsInfo[0];
-            const newWlqiBalance = userWlqiInfo ? decodeTokenAccountAmountBN(userWlqiInfo.data) : new BN(0);
-            setUserWlqiBalance(newWlqiBalance);
-
-            const newUserTokenBalancesMap = new Map<string, BN | null>();
-            const otherTokenAccountsInfo = allUserAccountsInfo.length > 1 ? allUserAccountsInfo.slice(1) : [];
-            otherTokenAccountsInfo.forEach((accInfo, index) => {
-                const mapKey = (index + 1).toString(); 
-                const mint = tokenMintMapForUserFetch.get(mapKey);
-                if (mint) {
-                    const mintAddressStr = mint.toBase58();
-                    const newUserBalance = accInfo ? decodeTokenAccountAmountBN(accInfo.data) : new BN(0);
-                    newUserTokenBalancesMap.set(mintAddressStr, newUserBalance);
-                } else {
-                    console.warn(`usePoolData Hook: [fetchUserAccountData] Could not find mint in map for key ${mapKey}.`);
-                }
-            });
-            setUserTokenBalances(newUserTokenBalancesMap);
+            setUserWlqiBalance(userBalancesResult.userWlqiBalance ?? new BN(0));
+            setUserTokenBalances(userBalancesResult.userTokenBalances ?? new Map());
+            
             hasFetchedUserData.current = true;
-        } catch (err) {
+
+        } catch (err) { // Catch unexpected errors from the utility or other issues
             const errorMessage = err instanceof Error ? err.message : String(err);
-            console.error("usePoolData Hook: Error fetching user account data:", errorMessage);
-            setError(`Failed to load user account data: ${errorMessage}`);
+            console.error("usePoolData Hook: Critical error in fetchUserAccountData:", errorMessage);
+            setError(`Critical error fetching user account data: ${errorMessage}`);
             setUserWlqiBalance(null);
             setUserTokenBalances(new Map());
         } finally {
             setIsLoadingUserData(false);
         }
-    }, [wallet.connected, wallet.publicKey, connection, poolConfig, rateLimitedFetch]); // Explicitly including rateLimitedFetch
+    }, [wallet.connected, wallet.publicKey, connection, poolConfig, rateLimitedFetch]);
 
     // --- NEW: Targeted function to fetch only oracle data ---
     const fetchAndSetOracleData = useCallback(async () => {
