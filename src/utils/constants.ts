@@ -78,7 +78,7 @@ export const MAX_CONCURRENT_REQUESTS = 8; // Reduced from 10 to 8 to reduce rate
 export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance for transaction fees
 
 // Compute budget constants
-export const TRANSACTION_COMPUTE_UNITS = 500000;
+export const TRANSACTION_COMPUTE_UNITS = 550000; // Increased from 500000
 
 // Settings Defaults
 export const SETTINGS_DEFAULT_SLIPPAGE_BPS = 50; // 0.5%
