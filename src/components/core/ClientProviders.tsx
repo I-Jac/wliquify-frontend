@@ -22,8 +22,8 @@ import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import Anch
 import { Tooltip } from 'react-tooltip'; // Added import
 import 'react-tooltip/dist/react-tooltip.css'; // Added CSS import
 import { I18nextProvider } from 'react-i18next'; // Added
-import i18nPromise from '../i18n'; // Renamed from i18n
-import { WalletModalProvider } from './WalletModalProvider'; // Import our custom WalletModalProvider
+import i18nPromise from '../../i18n'; // Renamed from i18n
+import { WalletModalProvider } from '../wallet/WalletModalProvider'; // Import our custom WalletModalProvider
 
 // Component to handle dynamic fee updates
 function DynamicFeeUpdater() {
@@ -79,10 +79,10 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         i18nPromise
-            .then((instance) => {
+            .then((instance: I18nType) => {
                 setResolvedI18nInstance(instance);
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
                 console.error("Failed to initialize i18n in ClientProviders:", err);
                 // Optionally, set an error state or a fallback i18n instance here
             });

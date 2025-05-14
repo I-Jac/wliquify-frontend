@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { WalletButton } from './WalletButton';
-import { SettingsModal } from './SettingsModal';
+import { WalletButton } from '../wallet/WalletButton';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { FeeLevel } from '@/utils/types';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';

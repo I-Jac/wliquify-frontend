@@ -9,9 +9,9 @@ import {
     PREDEFINED_RPCS
 } from '@/utils/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { ProfileSettingsTab } from './settings/ProfileSettingsTab';
-import { ConnectionSettingsTab } from './settings/ConnectionSettingsTab';
-import { TransactionSettingsTab } from './settings/TransactionSettingsTab';
+import { ProfileSettingsTab } from './tabs/ProfileSettingsTab';
+import { ConnectionSettingsTab } from './tabs/ConnectionSettingsTab';
+import { TransactionSettingsTab } from './tabs/TransactionSettingsTab';
 
 interface SettingsModalProps {
     closePanel?: () => void;

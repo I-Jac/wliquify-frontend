@@ -26,7 +26,7 @@ import { TokenRowProps } from './TokenRow';
 import { safeConvertBnToNumber } from '@/utils/helpers';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from './WalletModalProvider';
+import { useWalletModal } from '../../wallet/WalletModalProvider';
 
 // --- TokenCard Props (Omit 'index' from TokenRowProps) ---
 export type TokenCardProps = Omit<TokenRowProps, 'index'>;

@@ -13,10 +13,10 @@ import {
     formatScaledBnToDollarString,
     formatRawAmountString,
 } from '@/utils/calculations';
-import { TokenTable } from './TokenTable';
+import { TokenTable } from './tokentable/TokenTable';
 import { usePoolInteractions } from '@/hooks/usePoolInteractions';
-import { SkeletonBlock } from './SkeletonBlock';
-import { SkeletonTokenTable } from './SkeletonTokenTable';
+import { SkeletonBlock } from '../ui/skeletons/SkeletonBlock';
+import { SkeletonTokenTable } from '../ui/skeletons/SkeletonTokenTable';
 import { useAmountState } from '@/hooks/useAmountState';
 import { PoolConfig, AggregatedOracleDataDecoded } from '@/utils/types';
 import { useTranslation } from 'react-i18next';

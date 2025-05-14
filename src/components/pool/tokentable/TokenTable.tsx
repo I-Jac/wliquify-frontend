@@ -12,7 +12,7 @@ import {
     usdToWlqiAmount,
     estimateFeeBpsBN
 } from '@/utils/calculations';
-import { SkeletonTokenTable } from './SkeletonTokenTable';
+import { SkeletonTokenTable } from '../../ui/skeletons/SkeletonTokenTable';
 import {
     PRECISION_SCALE_FACTOR,
     BPS_SCALE,
@@ -20,7 +20,7 @@ import {
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from './WalletModalProvider';
+import { useWalletModal } from '../../wallet/WalletModalProvider';
 import { useSettings } from '@/contexts/SettingsContext';
 
 // Import the new components

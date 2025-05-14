@@ -3,10 +3,10 @@ import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css"; // Import wallet adapter styles
 import type { Viewport } from 'next' // Import Viewport type
 
-import { ClientProviders } from "@/components/ClientProviders"; // Import the new wrapper
-import { Header } from "@/components/Header"; // Import the Header component
-import { AlertModal } from "@/components/AlertModal"; // Import the AlertModal component
-import { Footer } from "@/components/Footer"; // Import the Footer component
+import { ClientProviders } from "@/components/core/ClientProviders"; // Import the new wrapper
+import { Header } from "@/components/layout/Header"; // Import the Header component
+import { AlertModal } from "@/components/ui/AlertModal"; // Import the AlertModal component
+import { Footer } from "@/components/layout/Footer"; // Import the Footer component
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
