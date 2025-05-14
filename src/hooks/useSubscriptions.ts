@@ -8,13 +8,13 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { decodeTokenAccountAmountBN } from '@/utils/accounts';
 import { BN } from '@coral-xyz/anchor';
 
-interface UsePoolSubscriptionsProps {
+interface UseSubscriptionsProps {
     connection: Connection;
-    poolConfig: PoolConfig;
+    poolConfig: PoolConfig | null;
     poolConfigPda: PublicKey | null;
-    publicKey: PublicKey;
+    userPublicKey: PublicKey | null;
     refreshPublicData: () => void;
-    refreshUserData: () => void;
+    refreshOracleData: () => void;
     setUserWlqiBalance: (balance: BN) => void;
     setUserTokenBalances: (callback: (prev: Map<string, BN>) => Map<string, BN>) => void;
 }
@@ -22,22 +22,22 @@ interface UsePoolSubscriptionsProps {
 /**
  * Manages WebSocket subscriptions for pool data changes.
  */
-export function usePoolSubscriptions({
+export function useSubscriptions({
     connection,
     poolConfig,
     poolConfigPda,
-    publicKey,
+    userPublicKey,
     refreshPublicData,
-    refreshUserData,
+    refreshOracleData,
     setUserWlqiBalance,
     setUserTokenBalances
-}: UsePoolSubscriptionsProps) {
+}: UseSubscriptionsProps) {
     const subscriptionIdsRef = useRef<number[]>([]);
 
     // Memoize the cleanup function to prevent unnecessary recreations
     const cleanup = useCallback((connection: Connection, subscriptions: number[]) => {
         if (subscriptions.length > 0) {
-            console.log('usePoolSubscriptions: Cleaning up subscriptions...');
+            console.log('useSubscriptions: Cleaning up subscriptions...');
             cleanupSubscriptions(connection, subscriptions);
         }
     }, []);
@@ -48,7 +48,7 @@ export function usePoolSubscriptions({
             return;
         }
 
-        console.log("usePoolSubscriptions: Setting up PoolConfig/Oracle/Vault subscriptions...");
+        console.log("useSubscriptions: Setting up PoolConfig/Oracle/Vault subscriptions...");
         const subscriptions: number[] = [];
 
         // Subscribe to PoolConfig changes
@@ -65,7 +65,7 @@ export function usePoolSubscriptions({
             const oracleSub = setupSubscription(
                 connection,
                 poolConfig.oracleAggregatorAccount,
-                refreshPublicData,
+                refreshOracleData,
                 'Oracle'
             );
             if (oracleSub) subscriptions.push(oracleSub);
@@ -87,20 +87,26 @@ export function usePoolSubscriptions({
         subscriptionIdsRef.current = subscriptions;
 
         return () => cleanup(connection, subscriptions);
-    }, [connection, poolConfig, poolConfigPda, refreshPublicData, cleanup]);
+    }, [connection, poolConfig, poolConfigPda, refreshPublicData, refreshOracleData, cleanup]);
 
     // --- User Account Subscriptions ---
     useEffect(() => {
         const subscriptionIds: number[] = [];
 
+        if (!connection || !poolConfig || !userPublicKey || !poolConfig.wliMint) {
+            // If essential data for subscriptions isn't ready, clean up existing and exit.
+            cleanup(connection, subscriptionIdsRef.current);
+            subscriptionIdsRef.current = [];
+            return;
+        }
+
         // Subscribe to wLQI balance changes
         const wLqiSub = setupUserTokenSubscription(
             connection,
-            getAssociatedTokenAddressSync(poolConfig.wliMint, publicKey, true),
+            getAssociatedTokenAddressSync(poolConfig.wliMint, userPublicKey, true),
             (accountInfo) => {
                 const newBalance = decodeTokenAccountAmountBN(accountInfo.data);
                 setUserWlqiBalance(newBalance);
-                refreshUserData();
             }
         );
         if (wLqiSub) subscriptionIds.push(wLqiSub);
@@ -108,7 +114,7 @@ export function usePoolSubscriptions({
         // Subscribe to other token balance changes
         poolConfig.supportedTokens.forEach(token => {
             if (!token.mint) return;
-            const userAta = getAssociatedTokenAddressSync(token.mint, publicKey, true);
+            const userAta = getAssociatedTokenAddressSync(token.mint, userPublicKey, true);
             const sub = setupUserTokenSubscription(
                 connection,
                 userAta,
@@ -119,7 +125,6 @@ export function usePoolSubscriptions({
                         next.set(token.mint!.toBase58(), newBalance);
                         return next;
                     });
-                    refreshUserData();
                 }
             );
             if (sub) subscriptionIds.push(sub);
@@ -130,7 +135,7 @@ export function usePoolSubscriptions({
         return () => {
             cleanup(connection, subscriptionIds);
         };
-    }, [connection, poolConfig, publicKey, refreshUserData, setUserWlqiBalance, setUserTokenBalances, cleanup]);
+    }, [connection, poolConfig, userPublicKey, setUserWlqiBalance, setUserTokenBalances, cleanup]);
 
     return subscriptionIdsRef;
 } 

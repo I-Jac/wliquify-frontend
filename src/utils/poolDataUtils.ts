@@ -5,8 +5,6 @@ import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { PoolConfig, SupportedToken, DynamicTokenData, HistoricalTokenDataDecoded } from './types';
 import { findPoolConfigPDA, findHistoricalTokenDataPDA } from './pda';
 import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from './accounts';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { BN } from '@coral-xyz/anchor';
 
 // Type for the rateLimitedFetch function passed from usePoolData
 export type RateLimitedFetchFn = <T>(
@@ -278,119 +276,119 @@ export async function fetchSupportedTokensPublicData(
     }
 }
 
-// --- Utility function for fetching user account data ---
+// --- Utility function for fetching user account data --- (REMOVED - Logic migrated to useUserData.ts)
 
-interface UserTokenAccountBalancesResult {
-    userWlqiBalance: BN | null;
-    userTokenBalances: Map<string, BN | null>;
-    error?: string;
-}
+// interface UserTokenAccountBalancesResult {
+//     userWlqiBalance: BN | null;
+//     userTokenBalances: Map<string, BN | null>;
+//     error?: string;
+// }
 
-/**
- * Fetches user's wLQI balance and balances for other supported tokens.
- */
-export async function fetchUserTokenAccountBalances(
-    connection: Connection,
-    userPublicKey: PublicKey,
-    poolConfigWliMint: PublicKey, // Only pass the specific fields needed
-    poolConfigSupportedTokens: SupportedToken[], // from poolConfig
-    rateLimitedFetch: RateLimitedFetchFn
-): Promise<UserTokenAccountBalancesResult> {
-    const userAddressesToFetch: PublicKey[] = [];
-    const tokenMintMapForUserFetch = new Map<string, PublicKey>(); // map index to mint for later processing
-    const batchErrorAccumulator: string[] = [];
+// /**
+//  * Fetches user's wLQI balance and balances for other supported tokens.
+//  */
+// export async function fetchUserTokenAccountBalances(
+//     connection: Connection,
+//     userPublicKey: PublicKey,
+//     poolConfigWliMint: PublicKey, // Only pass the specific fields needed
+//     poolConfigSupportedTokens: SupportedToken[], // from poolConfig
+//     rateLimitedFetch: RateLimitedFetchFn
+// ): Promise<UserTokenAccountBalancesResult> {
+//     const userAddressesToFetch: PublicKey[] = [];
+//     const tokenMintMapForUserFetch = new Map<string, PublicKey>(); // map index to mint for later processing
+//     const batchErrorAccumulator: string[] = [];
 
-    try {
-        // Add user wLQI ATA
-        const userWlqiAta = getAssociatedTokenAddressSync(poolConfigWliMint, userPublicKey, true);
-        userAddressesToFetch.push(userWlqiAta);
+//     try {
+//         // Add user wLQI ATA
+//         const userWlqiAta = getAssociatedTokenAddressSync(poolConfigWliMint, userPublicKey, true);
+//         userAddressesToFetch.push(userWlqiAta);
 
-        // Add user ATAs for supported tokens
-        poolConfigSupportedTokens.forEach(token => {
-            try {
-                const mint = token.mint;
-                if (mint && !mint.equals(poolConfigWliMint)) { // Exclude wLQI itself
-                    const userAta = getAssociatedTokenAddressSync(mint, userPublicKey, true);
-                    userAddressesToFetch.push(userAta);
-                    // Store mint by its future index in allUserAccountsInfo (after wLQI ATA)
-                    tokenMintMapForUserFetch.set((userAddressesToFetch.length - 1).toString(), mint);
-                }
-            } catch (e) {
-                const errorMessage = e instanceof Error ? e.message : String(e);
-                console.error(`fetchUserTokenAccountBalances: Error deriving ATA for mint ${token.mint?.toBase58() ?? 'unknown'}:`, errorMessage);
-                batchErrorAccumulator.push(`ATA derivation failed for ${token.mint?.toBase58() ?? 'unknown'}`);
-            }
-        });
+//         // Add user ATAs for supported tokens
+//         poolConfigSupportedTokens.forEach(token => {
+//             try {
+//                 const mint = token.mint;
+//                 if (mint && !mint.equals(poolConfigWliMint)) { // Exclude wLQI itself
+//                     const userAta = getAssociatedTokenAddressSync(mint, userPublicKey, true);
+//                     userAddressesToFetch.push(userAta);
+//                     // Store mint by its future index in allUserAccountsInfo (after wLQI ATA)
+//                     tokenMintMapForUserFetch.set((userAddressesToFetch.length - 1).toString(), mint);
+//                 }
+//             } catch (e) {
+//                 const errorMessage = e instanceof Error ? e.message : String(e);
+//                 console.error(`fetchUserTokenAccountBalances: Error deriving ATA for mint ${token.mint?.toBase58() ?? 'unknown'}:`, errorMessage);
+//                 batchErrorAccumulator.push(`ATA derivation failed for ${token.mint?.toBase58() ?? 'unknown'}`);
+//             }
+//         });
 
-        // Batch fetch all user accounts
-        const ACCOUNTS_BATCH_SIZE = 99;
-        let allUserAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
+//         // Batch fetch all user accounts
+//         const ACCOUNTS_BATCH_SIZE = 99;
+//         let allUserAccountsInfo: (import('@solana/web3.js').AccountInfo<Buffer> | null)[] = [];
 
-        if (userAddressesToFetch.length > 0) {
-            const userAccountBatchPromises = [];
-            for (let i = 0; i < userAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
-                const batch = userAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
-                if (batch.length > 0) {
-                    userAccountBatchPromises.push(
-                        rateLimitedFetch(
-                            () => connection.getMultipleAccountsInfo(batch),
-                            `Failed to fetch batch of user accounts (offset ${i})`
-                        ).catch(err => {
-                            console.error(`fetchUserTokenAccountBalances: Batch fetch error (offset ${i}):`, err);
-                            batchErrorAccumulator.push(`Batch fetch failed (offset ${i})`);
-                            return null; // Ensure promise resolves, error handled by accumulator
-                        })
-                    );
-                }
-            }
-            const resultsFromUserBatches = await Promise.all(userAccountBatchPromises);
-            resultsFromUserBatches.forEach(batchResult => {
-                if (batchResult) {
-                    allUserAccountsInfo = allUserAccountsInfo.concat(batchResult);
-                }
-            });
-        }
+//         if (userAddressesToFetch.length > 0) {
+//             const userAccountBatchPromises = [];
+//             for (let i = 0; i < userAddressesToFetch.length; i += ACCOUNTS_BATCH_SIZE) {
+//                 const batch = userAddressesToFetch.slice(i, i + ACCOUNTS_BATCH_SIZE);
+//                 if (batch.length > 0) {
+//                     userAccountBatchPromises.push(
+//                         rateLimitedFetch(
+//                             () => connection.getMultipleAccountsInfo(batch),
+//                             `Failed to fetch batch of user accounts (offset ${i})`
+//                         ).catch(err => {
+//                             console.error(`fetchUserTokenAccountBalances: Batch fetch error (offset ${i}):`, err);
+//                             batchErrorAccumulator.push(`Batch fetch failed (offset ${i})`);
+//                             return null; // Ensure promise resolves, error handled by accumulator
+//                         })
+//                     );
+//                 }
+//             }
+//             const resultsFromUserBatches = await Promise.all(userAccountBatchPromises);
+//             resultsFromUserBatches.forEach(batchResult => {
+//                 if (batchResult) {
+//                     allUserAccountsInfo = allUserAccountsInfo.concat(batchResult);
+//                 }
+//             });
+//         }
         
-        if (batchErrorAccumulator.length > 0 && allUserAccountsInfo.length < userAddressesToFetch.length) {
-             // If batch fetching had errors and we didn't get all accounts, it's a more significant issue.
-        }
+//         if (batchErrorAccumulator.length > 0 && allUserAccountsInfo.length < userAddressesToFetch.length) {
+//              // If batch fetching had errors and we didn't get all accounts, it's a more significant issue.
+//         }
 
-        const userWlqiInfo = allUserAccountsInfo[0]; // First one is always wLQI ATA if userAddressesToFetch was not empty
-        const fetchedUserWlqiBalance = (userWlqiInfo && userAddressesToFetch.length > 0) 
-            ? decodeTokenAccountAmountBN(userWlqiInfo.data) 
-            : new BN(0);
+//         const userWlqiInfo = allUserAccountsInfo[0]; // First one is always wLQI ATA if userAddressesToFetch was not empty
+//         const fetchedUserWlqiBalance = (userWlqiInfo && userAddressesToFetch.length > 0) 
+//             ? decodeTokenAccountAmountBN(userWlqiInfo.data)
+//             : new BN(0);
 
-        const fetchedUserTokenBalancesMap = new Map<string, BN | null>();
-        // Process from index 1 if wLQI ATA was added
-        const startIndexForTokens = userAddressesToFetch.length > 0 && userAddressesToFetch[0].equals(userWlqiAta) ? 1 : 0;
+//         const fetchedUserTokenBalancesMap = new Map<string, BN | null>();
+//         // Process from index 1 if wLQI ATA was added
+//         const startIndexForTokens = userAddressesToFetch.length > 0 && userAddressesToFetch[0].equals(userWlqiAta) ? 1 : 0;
         
-        for (let i = startIndexForTokens; i < allUserAccountsInfo.length; i++) {
-            const accInfo = allUserAccountsInfo[i];
-            const mapKey = i.toString(); // The key used when populating tokenMintMapForUserFetch
-            const mint = tokenMintMapForUserFetch.get(mapKey);
-            if (mint) {
-                const mintAddressStr = mint.toBase58();
-                const newUserBalance = accInfo ? decodeTokenAccountAmountBN(accInfo.data) : new BN(0);
-                fetchedUserTokenBalancesMap.set(mintAddressStr, newUserBalance);
-            } else {
-                 // This case should ideally not happen if map keys are set correctly
-                console.warn(`fetchUserTokenAccountBalances: Could not find mint in map for key ${mapKey}.`);
-            }
-        }
+//         for (let i = startIndexForTokens; i < allUserAccountsInfo.length; i++) {
+//             const accInfo = allUserAccountsInfo[i];
+//             const mapKey = i.toString(); // The key used when populating tokenMintMapForUserFetch
+//             const mint = tokenMintMapForUserFetch.get(mapKey);
+//             if (mint) {
+//                 const mintAddressStr = mint.toBase58();
+//                 const newUserBalance = accInfo ? decodeTokenAccountAmountBN(accInfo.data) : new BN(0);
+//                 fetchedUserTokenBalancesMap.set(mintAddressStr, newUserBalance);
+//             } else {
+//                  // This case should ideally not happen if map keys are set correctly
+//                 console.warn(`fetchUserTokenAccountBalances: Could not find mint in map for key ${mapKey}.`);
+//             }
+//         }
 
-        return {
-            userWlqiBalance: fetchedUserWlqiBalance,
-            userTokenBalances: fetchedUserTokenBalancesMap,
-            error: batchErrorAccumulator.length > 0 ? batchErrorAccumulator.join('; ') : undefined,
-        };
+//         return {
+//             userWlqiBalance: fetchedUserWlqiBalance,
+//             userTokenBalances: fetchedUserTokenBalancesMap,
+//             error: batchErrorAccumulator.length > 0 ? batchErrorAccumulator.join('; ') : undefined,
+//         };
 
-    } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        console.error("fetchUserTokenAccountBalances Error:", errorMessage);
-        return {
-            userWlqiBalance: null,
-            userTokenBalances: new Map(),
-            error: `Failed to load user account balances: ${errorMessage}. Partial errors: ${batchErrorAccumulator.join('; ')}`,
-        };
-    }
-} 
+//     } catch (err) {
+//         const errorMessage = err instanceof Error ? err.message : String(err);
+//         console.error("fetchUserTokenAccountBalances Error:", errorMessage);
+//         return {
+//             userWlqiBalance: null,
+//             userTokenBalances: new Map(),
+//             error: `Failed to load user account balances: ${errorMessage}. Partial errors: ${batchErrorAccumulator.join('; ')}`,
+//         };
+//     }
+// } 
