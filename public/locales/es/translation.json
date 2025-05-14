@@ -83,7 +83,7 @@
     "processingDeposit": "Procesando depósito...",
     "processingWithdrawal": "Procesando retiro...",
     "success": "¡{{action}} exitoso!",
-    "viewOnSolscan": "Ver en Solscan",
+    "viewOnExplorer": "Ver en {{explorerName}}",
     "failed": "{{action}} fallido: {{errorMessage}}",
     "poolDataLoading": "Cargando datos del pool...",
     "depositsDisabledDelisted": "Depósitos deshabilitados para tokens excluidos.",

@@ -96,6 +96,10 @@ export const MIN_TARGET_DOMINANCE_TO_RANK = 0.0005; // Minimum targetDominance f
 // TODO: Move to environment variable for production!
 export const HELIUS_API_KEY = '719a9a14-11e6-4629-901b-53d3a209941e';
 
+// Explorer Configuration
+export const EXPLORER_CLUSTER = 'devnet'; // Change to 'testnet' or 'mainnet-beta' as needed
+// const SOLANA_FM_DEVNET_CLUSTER_NAME = 'devnet-solana'; // No longer needed
+
 // LocalStorage Keys
 export const LOCAL_STORAGE_KEY_FEE_LEVEL = 'feeLevel';
 export const LOCAL_STORAGE_KEY_MAX_PRIORITY_FEE_CAP_SOL = 'maxPriorityFeeCapSol';
@@ -134,24 +138,36 @@ export const DEFAULT_NUMBER_FORMAT: { decimalSeparator: '.' | ','; thousandSepar
 };
 export const DEFAULT_PREFERRED_EXPLORER = 'Solscan'; // Name matches a key in DEFAULT_EXPLORER_OPTIONS
 
-export const DEFAULT_EXPLORER_OPTIONS: Record<string, { name: string; urlTemplate: string; addressUrlTemplate?: string; tokenUrlTemplate?: string; }> = {
+export const DEFAULT_EXPLORER_OPTIONS: Record<string, { name: string; urlTemplate: string; addressUrlTemplate?: string; tokenUrlTemplate?: string; getClusterQueryParam: (clusterConst: string) => string; }> = {
     Solscan: {
         name: 'Solscan',
         urlTemplate: 'https://solscan.io/tx/{txId}?cluster={cluster}',
         addressUrlTemplate: 'https://solscan.io/account/{address}?cluster={cluster}',
         tokenUrlTemplate: 'https://solscan.io/token/{token_address}?cluster={cluster}',
+        getClusterQueryParam: (clusterConst) => clusterConst, // Standard cluster name
     },
     SolanaFM: {
         name: 'SolanaFM',
         urlTemplate: 'https://solana.fm/tx/{txId}?cluster={cluster}',
         addressUrlTemplate: 'https://solana.fm/address/{address}?cluster={cluster}',
-        tokenUrlTemplate: 'https://solana.fm/address/{token_address}?cluster={cluster}', // SolanaFM uses 'address' for tokens too
+        tokenUrlTemplate: 'https://solana.fm/address/{token_address}?cluster={cluster}',
+        getClusterQueryParam: (clusterConst) => {
+            if (clusterConst === 'devnet') {
+                return 'devnet-solana';
+            } else if (clusterConst === 'testnet') {
+                return 'testnet-solana';
+            } else if (clusterConst === 'mainnet-beta') {
+                return 'mainnet-alpha';
+            }
+            return clusterConst; // Fallback for any other unhandled cluster string
+        },
     },
     'Solana Explorer': { // Key with space
         name: 'Solana Explorer',
         urlTemplate: 'https://explorer.solana.com/tx/{txId}?cluster={cluster}',
         addressUrlTemplate: 'https://explorer.solana.com/address/{address}?cluster={cluster}',
         tokenUrlTemplate: 'https://explorer.solana.com/address/{token_address}?cluster={cluster}', // Explorer also uses 'address' for tokens
+        getClusterQueryParam: (clusterConst) => clusterConst, // Standard cluster name
     },
     // Add XRAY if desired
     // XRAY: {
@@ -159,5 +175,6 @@ export const DEFAULT_EXPLORER_OPTIONS: Record<string, { name: string; urlTemplat
     //     urlTemplate: 'https://xray.helius.xyz/tx/{txId}?network={network_for_xray}', // network_for_xray needs to be 'devnet' or 'mainnet-beta'
     //     addressUrlTemplate: 'https://xray.helius.xyz/account/{address}?network={network_for_xray}',
     //     tokenUrlTemplate: 'https://xray.helius.xyz/token/{token_address}?network={network_for_xray}',
+    //     getClusterQueryParam: (clusterConst) => clusterConst === 'devnet' ? 'devnet' : 'mainnet-beta', // XRAY uses 'network' param with different values
     // },
 };

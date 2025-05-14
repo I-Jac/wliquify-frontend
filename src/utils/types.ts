@@ -198,6 +198,7 @@ export type SolanaExplorerOption = {
     // Add other templates as needed (address, account, etc.)
     addressUrlTemplate?: string; // e.g., 'https://solscan.io/account/{address}?cluster={cluster}'
     tokenUrlTemplate?: string; // e.g., 'https://solscan.io/token/{token_address}?cluster={cluster}'
+    getClusterQueryParam: (clusterConst: string) => string; // ADDED: Function to get the correct cluster query parameter string
 };
 
 export interface ProfileSettings {

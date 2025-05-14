@@ -29,7 +29,7 @@ import toast from "react-hot-toast";
 import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda"; // Use relative path
 import { useSettings } from '@/contexts/SettingsContext'; // ADDED: Import useSettings
 import { handleTransactionError } from '@/utils/transactionErrorHandling';
-import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS } from '@/utils/constants';
+import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS, EXPLORER_CLUSTER, DEFAULT_EXPLORER_OPTIONS, DEFAULT_PREFERRED_EXPLORER } from '@/utils/constants';
 import i18next from 'i18next';
 
 interface UsePoolInteractionsProps {
@@ -75,17 +75,23 @@ const handleTransactionConfirmation = async (
 };
 
 // Add this helper function after handleTransactionConfirmation
-const showSuccessToast = (toastId: string, txid: string, action: 'Deposit' | 'Withdrawal') => {
+const showSuccessToast = (toastId: string, txid: string, action: 'Deposit' | 'Withdrawal', preferredExplorer: string, explorerOptions: typeof DEFAULT_EXPLORER_OPTIONS) => {
+    const explorerInfo = explorerOptions[preferredExplorer] || explorerOptions[DEFAULT_PREFERRED_EXPLORER]; // Fallback to default if preferred not found
+    const clusterQueryParam = explorerInfo.getClusterQueryParam(EXPLORER_CLUSTER);
+    const explorerUrl = explorerInfo.urlTemplate
+        .replace('{txId}', txid)
+        .replace('{cluster}', clusterQueryParam);
+
     toast.success(
         React.createElement('div', null, [
             React.createElement('div', { key: 'message' }, t('poolInteractions.success', { action })),
             React.createElement('a', {
                 key: 'link',
-                href: `https://solscan.io/tx/${txid}?cluster=devnet`,
+                href: explorerUrl,
                 target: '_blank',
                 rel: 'noopener noreferrer',
                 style: { color: '#4CAF50', textDecoration: 'underline' }
-            }, t('poolInteractions.viewOnSolscan'))
+            }, t('poolInteractions.viewOnExplorer', { explorerName: explorerInfo.name })) // Use correct key and pass explorerName
         ]),
         { 
             id: toastId,
@@ -298,9 +304,11 @@ const handleTransactionSuccess = async (
     toastId: string,
     action: 'Deposit' | 'Withdrawal',
     mintAddress: string | null,
-    onTransactionSuccess: (affectedMintAddress?: string) => Promise<void>,
+    onTransactionSuccessFn: (affectedMintAddress?: string) => Promise<void>, // Renamed to avoid conflict
     onClearInput: (mintAddress: string, action: 'deposit' | 'withdraw') => void,
-    setIsLoading: (value: boolean) => void
+    setIsLoading: (value: boolean) => void,
+    preferredExplorer: string, // Added
+    explorerOptions: typeof DEFAULT_EXPLORER_OPTIONS // Added
 ): Promise<boolean> => {
     const confirmation = await confirmTransaction(
         connection,
@@ -316,13 +324,13 @@ const handleTransactionSuccess = async (
         return false;
     }
 
-    showSuccessToast(toastId, txid, action);
+    showSuccessToast(toastId, txid, action, preferredExplorer, explorerOptions);
     
     if (mintAddress) {
-        await onTransactionSuccess(mintAddress);
+        await onTransactionSuccessFn(mintAddress);
         onClearInput(mintAddress, action.toLowerCase() as 'deposit' | 'withdraw');
     } else {
-        await onTransactionSuccess();
+        await onTransactionSuccessFn();
     }
     
     setIsLoading(false);
@@ -346,7 +354,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
     const { connection } = useConnection();
     const wallet = useWallet();
     const { publicKey, signTransaction } = wallet;
-    const { priorityFee } = useSettings(); // ADDED: Get priorityFee from context
+    const { priorityFee, preferredExplorer, explorerOptions } = useSettings(); // ADDED: Get priorityFee, preferredExplorer, explorerOptions from context
     const [isDepositing, setIsDepositing] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
 
@@ -454,7 +462,9 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 depositMint?.toBase58() ?? null,
                 onTransactionSuccess,
                 onClearInput,
-                setIsDepositing
+                setIsDepositing,
+                preferredExplorer, // Pass to handler
+                explorerOptions    // Pass to handler
             )) {
                 return;
             }
@@ -469,7 +479,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsDepositing
             );
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput]);
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, preferredExplorer, explorerOptions]);
 
     // --- handleWithdraw ---
     const handleWithdraw = useCallback(async (
@@ -587,7 +597,9 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 outputMint?.toBase58() ?? null,
                 onTransactionSuccess,
                 onClearInput,
-                setIsWithdrawing
+                setIsWithdrawing,
+                preferredExplorer, // Pass to handler
+                explorerOptions    // Pass to handler
             )) {
                 return;
             }
@@ -602,7 +614,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsWithdrawing
             );
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, wLqiDecimals]); // Replaced wallet with publicKey, signTransaction, ADDED wLqiDecimals
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, preferredExplorer, explorerOptions]);
 
     return {
         handleDeposit,
