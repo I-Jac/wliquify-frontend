@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { WalletButton } from '../wallet/WalletButton';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { FeeLevel } from '@/utils/types';
+import type { FeeLevel } from '@/utils/core/types';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Popover, Transition } from '@headlessui/react';
 import { Cog6ToothIcon as SolidCogIcon } from '@heroicons/react/24/solid';
@@ -14,7 +14,7 @@ import {
     FAUCET_URL_TOKEN,
     FAUCET_URL_SOL_1,
     FAUCET_URL_SOL_2
-} from '@/utils/constants';
+} from '@/utils/core/constants';
 import { useTranslation } from 'react-i18next';
 
 // Helper component to manage Popover state synchronization with context

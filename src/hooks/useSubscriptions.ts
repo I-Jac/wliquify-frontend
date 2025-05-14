@@ -2,10 +2,10 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
-import { PoolConfig, SupportedToken } from '@/utils/types';
-import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptionUtils';
+import { PoolConfig, SupportedToken } from '@/utils/core/types';
+import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptions/subscriptionUtils';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { decodeTokenAccountAmountBN } from '@/utils/accounts';
+import { decodeTokenAccountAmountBN } from '@/utils/solana/accounts';
 import { BN } from '@coral-xyz/anchor';
 
 interface UseSubscriptionsProps {

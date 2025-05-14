@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
-import { AggregatedOracleDataDecoded } from '@/utils/types';
-import { processOracleData } from '@/utils/oracleUtils';
+import { AggregatedOracleDataDecoded } from '@/utils/core/types';
+import { processOracleData } from '@/utils/app/oracleUtils';
 
 interface UseOracleDataProps {
     connection: Connection | null;

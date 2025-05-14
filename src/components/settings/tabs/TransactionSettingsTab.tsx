@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FeeLevel } from '@/utils/types';
-import { PREDEFINED_SLIPPAGE_OPTIONS } from '@/utils/constants';
+import type { FeeLevel } from '@/utils/core/types';
+import { PREDEFINED_SLIPPAGE_OPTIONS } from '@/utils/core/constants';
 
 interface TransactionSettingsTabProps {
     localFeeLevel: FeeLevel;

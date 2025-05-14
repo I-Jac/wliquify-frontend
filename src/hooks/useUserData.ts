@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { decodeTokenAccountAmountBN } from '@/utils/accounts';
-import { SupportedToken } from '@/utils/types';
-import { RateLimitedFetchFn } from '@/utils/poolDataUtils';
+import { decodeTokenAccountAmountBN } from '@/utils/solana/accounts';
+import { SupportedToken } from '@/utils/core/types';
+import { RateLimitedFetchFn } from '@/utils/app/poolDataUtils';
 
 interface UseUserDataProps {
     connection: Connection | null;

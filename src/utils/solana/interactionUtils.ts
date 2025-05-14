@@ -19,9 +19,9 @@ import toast from "react-hot-toast";
 import i18next from 'i18next';
 
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { PoolConfig } from '@/utils/types';
-import { handleTransactionError } from '@/utils/transactionErrorHandling';
-import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS, EXPLORER_CLUSTER, DEFAULT_EXPLORER_OPTIONS, DEFAULT_PREFERRED_EXPLORER } from '@/utils/constants';
+import { PoolConfig } from '@/utils/core/types';
+import { handleTransactionError } from '@/utils/solana/transactionErrorHandling';
+import { TRANSACTION_COMPUTE_UNITS, MIN_SOL_BALANCE_LAMPORTS, EXPLORER_CLUSTER, DEFAULT_EXPLORER_OPTIONS, DEFAULT_PREFERRED_EXPLORER } from '@/utils/core/constants';
 
 const t = i18next.t.bind(i18next);
 

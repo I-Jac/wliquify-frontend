@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PREDEFINED_RPCS } from '@/utils/constants';
-import { getRpcLatency } from '@/utils/networkUtils';
+import { PREDEFINED_RPCS } from '@/utils/core/constants';
+import { getRpcLatency } from '@/utils/network/networkUtils';
 
 interface ConnectionSettingsTabProps {
     localSelectedRpcUrl: string;

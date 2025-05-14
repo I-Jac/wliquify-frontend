@@ -4,7 +4,7 @@ import {
     calculateTokenValueUsdScaled,
     calculateRelativeDeviationBpsBN,
     usdToTokenAmount,
-} from '@/utils/calculations';
+} from '@/utils/app/calculations';
 import {
     BASE_FEE_BPS,
     BN_BASE_FEE_BPS,
@@ -18,8 +18,8 @@ import {
     PRECISION_SCALE_FACTOR,
     BPS_SCALE,
     DELISTED_WITHDRAW_BONUS_BPS,
-} from '@/utils/constants';
-import { FeeCalculationProps } from '@/utils/types';
+} from '@/utils/core/constants';
+import { FeeCalculationProps } from '@/utils/core/types';
 import { TFunction } from 'i18next';
 
 // --- Fee Calculation Types ---

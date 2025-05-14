@@ -3,11 +3,11 @@
 import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { FeeLevel, InitialSettings } from '@/utils/types';
+import type { FeeLevel, InitialSettings } from '@/utils/core/types';
 import {
     PREDEFINED_SLIPPAGE_OPTIONS,
     PREDEFINED_RPCS
-} from '@/utils/constants';
+} from '@/utils/core/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { ProfileSettingsTab } from './tabs/ProfileSettingsTab';
 import { ConnectionSettingsTab } from './tabs/ConnectionSettingsTab';

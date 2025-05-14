@@ -3,9 +3,9 @@
 import React from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits, parseUnits } from 'ethers';
-import { formatScaledBnToDollarString, calculateTokenValueUsdScaled } from '@/utils/calculations';
-import { USD_SCALE } from '@/utils/constants';
-import { DecodedPriceData } from '@/utils/types';
+import { formatScaledBnToDollarString, calculateTokenValueUsdScaled } from '@/utils/app/calculations';
+import { USD_SCALE } from '@/utils/core/constants';
+import { DecodedPriceData } from '@/utils/core/types';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 

@@ -26,8 +26,8 @@ import {
     DEFAULT_NUMBER_FORMAT,
     DEFAULT_PREFERRED_EXPLORER,
     DEFAULT_EXPLORER_OPTIONS, // Added for explorer options
-} from '@/utils/constants'; // Import new constants
-import type { FeeLevel, NumberFormatSettings, SolanaExplorerOption, LanguageOption, CurrencyOption } from '@/utils/types'; // Import related types
+} from '@/utils/core/constants'; // Import new constants
+import type { FeeLevel, NumberFormatSettings, SolanaExplorerOption, LanguageOption, CurrencyOption } from '@/utils/core/types'; // Import related types
 
 // Moved calculateSolFromFeeMicroLamportsPerCu to top level and exported
 export const calculateSolFromFeeMicroLamportsPerCu = (rpcFeePerCu: number | undefined, defaultFeeMicroLamportsPerCu: number): number => {

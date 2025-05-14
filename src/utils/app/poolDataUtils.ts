@@ -2,9 +2,9 @@ import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
 import { getMint } from '@solana/spl-token';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
-import { PoolConfig, SupportedToken, DynamicTokenData, HistoricalTokenDataDecoded } from './types';
-import { findPoolConfigPDA, findHistoricalTokenDataPDA } from './pda';
-import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from './accounts';
+import { PoolConfig, SupportedToken, DynamicTokenData, HistoricalTokenDataDecoded } from '@/utils/core/types';
+import { findPoolConfigPDA, findHistoricalTokenDataPDA } from '@/utils/solana/pda';
+import { decodeHistoricalTokenData, decodeTokenAccountAmountBN } from '@/utils/solana/accounts';
 
 // Type for the rateLimitedFetch function passed from usePoolData
 export type RateLimitedFetchFn = <T>(

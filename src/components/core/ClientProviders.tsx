@@ -15,7 +15,7 @@ import {
     // Add other wallets here if needed
 } from "@solana/wallet-adapter-wallets";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RPC_URL } from '@/utils/constants'; // Import RPC URL
+import { RPC_URL } from '@/utils/core/constants'; // Import RPC URL
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext'; // Keep SettingsProvider and useSettings
 import { Toaster } from 'react-hot-toast';
 import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import AnchorProgramProvider

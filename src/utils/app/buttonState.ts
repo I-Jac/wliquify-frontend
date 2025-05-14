@@ -1,5 +1,5 @@
 import { BN } from '@coral-xyz/anchor';
-import { BTN_GREEN, BTN_RED, BTN_GRAY } from './constants';
+import { BTN_GREEN, BTN_RED, BTN_GRAY } from '../core/constants';
 import { formatFeeString, formatDelistedWithdrawFeeString } from './fees';
 import { PublicKey } from '@solana/web3.js';
 import { TFunction } from 'i18next';

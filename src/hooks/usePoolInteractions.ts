@@ -17,12 +17,12 @@ import {
     getAssociatedTokenAddressSync, 
 } from '@solana/spl-token';
 import { parseUnits } from 'ethers';
-import { PoolConfig } from '@/utils/types';
+import { PoolConfig } from '@/utils/core/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import toast from "react-hot-toast";
-import { findPoolAuthorityPDA, findPoolVaultPDA } from "../utils/pda";
+import { findPoolAuthorityPDA, findPoolVaultPDA } from "@/utils/solana/pda";
 import { useSettings } from '@/contexts/SettingsContext';
-import { TRANSACTION_COMPUTE_UNITS } from '@/utils/constants';
+import { TRANSACTION_COMPUTE_UNITS } from '@/utils/core/constants';
 import i18next from 'i18next';
 
 import {
@@ -35,7 +35,7 @@ import {
     createAtaIfNeeded,
     handleTransactionSuccess,
     handleTransactionErrorAndCleanup
-} from '@/utils/interactionUtils';
+} from '@/utils/solana/interactionUtils';
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;

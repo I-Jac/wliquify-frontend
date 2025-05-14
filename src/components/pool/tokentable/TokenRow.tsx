@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import Image from 'next/image';
-import { ProcessedTokenData } from '@/utils/types';
+import { ProcessedTokenData } from '@/utils/core/types';
 import {
     calculateTokenValueUsdScaled,
     calculateTargetPercentageScaled,
@@ -9,9 +9,9 @@ import {
     formatRawAmountString,
     formatScaledToPercentageString,
     usdToWlqiAmount
-} from '@/utils/calculations';
-import { calculateButtonStates } from '@/utils/buttonState';
-import { calculateFees } from '@/utils/fees';
+} from '@/utils/app/calculations';
+import { calculateButtonStates } from '@/utils/app/buttonState';
+import { calculateFees } from '@/utils/app/fees';
 import { TokenInputControls } from './TokenInputControls';
 import {
     USD_SCALE,
@@ -21,9 +21,9 @@ import {
     EXPLORER_CLUSTER,
     DEFAULT_EXPLORER_OPTIONS,
     DEFAULT_PREFERRED_EXPLORER,
-} from '@/utils/constants';
+} from '@/utils/core/constants';
 import { parseUnits } from 'ethers';
-import { safeConvertBnToNumber } from '@/utils/helpers';
+import { safeConvertBnToNumber } from '@/utils/core/helpers';
 import { useTranslation } from 'react-i18next';
 import { PublicKey } from '@solana/web3.js';
 

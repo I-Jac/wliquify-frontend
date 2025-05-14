@@ -1,5 +1,5 @@
 import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
-import { showToast } from './notifications';
+import { showToast } from '../ui/notifications';
 
 /**
  * Throttles a function to limit execution rate

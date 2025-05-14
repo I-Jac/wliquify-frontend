@@ -7,18 +7,18 @@ import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
     USD_SCALE,
-} from '@/utils/constants';
-import { ProcessedTokenData } from '@/utils/types';
+} from '@/utils/core/constants';
+import { ProcessedTokenData } from '@/utils/core/types';
 import {
     formatScaledBnToDollarString,
     formatRawAmountString,
-} from '@/utils/calculations';
+} from '@/utils/app/calculations';
 import { TokenTable } from './tokentable/TokenTable';
 import { usePoolInteractions } from '@/hooks/usePoolInteractions';
 import { SkeletonBlock } from '../ui/skeletons/SkeletonBlock';
 import { SkeletonTokenTable } from '../ui/skeletons/SkeletonTokenTable';
 import { useAmountState } from '@/hooks/useAmountState';
-import { PoolConfig, AggregatedOracleDataDecoded } from '@/utils/types';
+import { PoolConfig, AggregatedOracleDataDecoded } from '@/utils/core/types';
 import { useTranslation } from 'react-i18next';
 
 // --- Define Props Interface ---

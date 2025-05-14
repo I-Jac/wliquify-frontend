@@ -1,9 +1,9 @@
 import { Connection, PublicKey, SystemProgram, AccountInfo } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { Buffer } from 'buffer';
-import { ParsedOracleTokenInfo, HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from './types';
-import { bytesToString } from './helpers';
-import { showToast } from './notifications';
+import { ParsedOracleTokenInfo, HistoricalTokenDataDecoded, TokenInfo, AggregatedOracleData } from '../core/types';
+import { bytesToString } from '../core/helpers';
+import { showToast } from '../ui/notifications';
 
 // --- Constants ---
 const DISCRIMINATOR_LENGTH = 8;

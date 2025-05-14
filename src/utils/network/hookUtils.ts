@@ -1,5 +1,5 @@
 import { Connection } from '@solana/web3.js';
-import { RATE_LIMIT_DELAY, MAX_RETRIES, MAX_DELAY, MAX_CONCURRENT_REQUESTS } from './constants';
+import { RATE_LIMIT_DELAY, MAX_RETRIES, MAX_DELAY, MAX_CONCURRENT_REQUESTS } from '../core/constants';
 
 // Rate limiting state interface
 export interface RateLimitState {

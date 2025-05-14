@@ -4,7 +4,7 @@ import { useAnchorWallet, useConnection, useWallet } from '@solana/wallet-adapte
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; 
 import idl from '@/programTarget/idl/w_liquify_pool.json'; // Import the IDL JSON
 import { PublicKey, Connection } from '@solana/web3.js';
-import { RPC_URL } from '@/utils/constants'; // Import RPC_URL
+import { RPC_URL } from '@/utils/core/constants'; // Import RPC_URL
 
 // Define commitment level as a constant
 const COMMITMENT = 'confirmed' as const;

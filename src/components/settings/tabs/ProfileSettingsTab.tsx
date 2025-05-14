@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SolanaExplorerOption, LanguageOption } from '@/utils/types';
+import type { SolanaExplorerOption, LanguageOption } from '@/utils/core/types';
 
 interface ProfileSettingsTabProps {
     localPreferredLanguage: string;

@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits } from 'ethers';
-import { ProcessedTokenData } from '@/utils/types';
+import { ProcessedTokenData } from '@/utils/core/types';
 import {
     calculateTokenValueUsdScaled,
     calculateTotalTargetDominance,
@@ -11,12 +11,12 @@ import {
     usdToTokenAmount,
     usdToWlqiAmount,
     estimateFeeBpsBN
-} from '@/utils/calculations';
+} from '@/utils/app/calculations';
 import { SkeletonTokenTable } from '../../ui/skeletons/SkeletonTokenTable';
 import {
     PRECISION_SCALE_FACTOR,
     BPS_SCALE,
-} from '@/utils/constants';
+} from '@/utils/core/constants';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '@solana/wallet-adapter-react';

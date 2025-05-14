@@ -5,15 +5,15 @@ import {
     ParsedOracleTokenInfo,
     ProcessedTokenData,
     SupportedToken
-} from '@/utils/types';
-import { formatScaledBnToDollarString } from '@/utils/calculations';
-import { USD_SCALE } from '@/utils/constants';
+} from '@/utils/core/types';
+import { formatScaledBnToDollarString } from '@/utils/app/calculations';
+import { USD_SCALE } from '@/utils/core/constants';
 import { priceDataCacheManager } from './priceDataUtils';
 import { 
     DOMINANCE_SCALE_FACTOR,
     DELISTED_WITHDRAW_BONUS_BPS,
     BASE_FEE_BPS
-} from './constants';
+} from '../core/constants';
 
 interface ProcessSingleTokenParams {
     mintAddress: string;

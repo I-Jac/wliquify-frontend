@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { BN, Program, AnchorProvider } from '@coral-xyz/anchor';
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import { calculateWLqiValue } from '@/utils/calculations';
+import { calculateWLqiValue } from '@/utils/app/calculations';
 import {
     DynamicTokenData,
     HistoricalTokenDataDecoded,
@@ -12,15 +12,15 @@ import {
     ProcessedTokenData,
     PoolConfig,
     SupportedToken
-} from '@/utils/types';
+} from '@/utils/core/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { useOracleData } from './useOracleData';
-import { createRateLimitedFetch } from '@/utils/hookUtils';
-import { processSingleToken } from '@/utils/singleTokenProcessing';
+import { createRateLimitedFetch } from '@/utils/network/hookUtils';
+import { processSingleToken } from '@/utils/app/singleTokenProcessing';
 import { useSubscriptions } from '@/hooks/useSubscriptions';
 import { useUserData } from '@/hooks/useUserData';
-import { fetchCorePoolConfigAndWLQI, RateLimitedFetchFn } from '@/utils/poolDataUtils';
-import { fetchSupportedTokensPublicData } from '@/utils/poolDataUtils';
+import { fetchCorePoolConfigAndWLQI, RateLimitedFetchFn } from '@/utils/app/poolDataUtils';
+import { fetchSupportedTokensPublicData } from '@/utils/app/poolDataUtils';
 
 interface UsePoolDataProps {
     program: Program<WLiquifyPool> | null;
