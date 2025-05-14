@@ -46,7 +46,6 @@ export function usePoolData({
     const [wLqiDecimals, setWlqiDecimals] = useState<number | null>(null);
     const [processedTokenData, setProcessedTokenData] = useState<ProcessedTokenData[] | null>(null);
     const [totalPoolValueScaled, setTotalPoolValueScaled] = useState<BN | null>(null);
-    const [wLqiValueScaled, setWlqiValueScaled] = useState<BN | null>(null);
     const [isLoadingPublicData, setIsLoadingPublicData] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const hasFetchedPublicData = useRef(false);
@@ -94,7 +93,6 @@ export function usePoolData({
         setDynamicData(new Map());
         setHistoricalData(new Map());
         setTotalPoolValueScaled(null);
-        setWlqiValueScaled(null);
         hasFetchedPublicData.current = false;
 
         try {
@@ -159,28 +157,30 @@ export function usePoolData({
         });
     }, [fetchPublicPoolData, refreshUserDataFromHook]);
 
-    // --- Effect to Calculate Derived Values ---
-    useEffect(() => {
-        if (!poolConfig || !dynamicData || dynamicData.size === 0 || !historicalData || historicalData.size === 0 || !oracleData || wLqiDecimals === null || !wLqiSupply) {
-            setWlqiValueScaled(null);
-            setProcessedTokenData(null);
-            return;
+    // --- Calculate Derived Values ---
+
+    const wLqiValueScaled = useMemo(() => {
+        if (totalPoolValueScaled === null || wLqiSupply === null || wLqiDecimals === null) {
+            return null;
+        }
+        try {
+            return calculateWLqiValue(totalPoolValueScaled, wLqiSupply, wLqiDecimals);
+        } catch (e) {
+            console.error("usePoolData Hook: Error calculating wLqiValueScaled:", e);
+            setError(prev => prev ? prev + "; Failed to calculate wLQI value" : "Failed to calculate wLQI value");
+            return null;
+        }
+    }, [totalPoolValueScaled, wLqiSupply, wLqiDecimals]);
+
+    const memoizedNewProcessedData = useMemo(() => {
+        if (!poolConfig || !dynamicData || dynamicData.size === 0 || !historicalData || historicalData.size === 0 || !oracleData?.data || totalPoolValueScaled === null) {
+            return null;
         }
 
         try {
             const oracleTokenMap = new Map<string, ParsedOracleTokenInfo>(oracleData.data.map(info => [info.address, info]));
-            const currentTvlFromState = totalPoolValueScaled;
             
-            if (currentTvlFromState === null) {
-                setWlqiValueScaled(null);
-                setProcessedTokenData(null);
-                return;
-            }
-
-            const calculatedWlqiValue = calculateWLqiValue(currentTvlFromState, wLqiSupply, wLqiDecimals);
-            setWlqiValueScaled(calculatedWlqiValue);
-
-            const newProcessedData = Array.from(dynamicData.entries())
+            return Array.from(dynamicData.entries())
                 .map(([mintAddress, data]) => {
                     const tokenConfig = poolConfig.supportedTokens.find((st: SupportedToken) => st.mint?.toBase58() === mintAddress);
                     const oracleInfo = oracleTokenMap.get(mintAddress);
@@ -202,33 +202,43 @@ export function usePoolData({
                         tokenConfig,
                         oracleInfo,
                         history,
-                        currentTvlFromState,
+                        currentTvlFromState: totalPoolValueScaled,
                         userBalance: userBalanceForToken,
                     });
                 })
                 .filter((data): data is ProcessedTokenData => data !== null);
-
-            setProcessedTokenData(prevProcessedTokenData => {
-                if (isLoadingPublicData || isLoadingUserData) {
-                    return prevProcessedTokenData;
-                }
-                if (JSON.stringify(prevProcessedTokenData) !== JSON.stringify(newProcessedData)) {
-                    return newProcessedData;
-                }
-                return prevProcessedTokenData;
-            });
-
         } catch (e) {
-            console.error("usePoolData Hook: Error calculating derived values:", e);
-            setError("Failed to process pool data.");
-            setProcessedTokenData(null);
-            setWlqiValueScaled(null);
+            console.error("usePoolData Hook: Error memoizing newProcessedData:", e);
+            setError(prev => prev ? prev + "; Failed to process token data" : "Failed to process token data");
+            return null;
         }
-    }, [
-        poolConfig, dynamicData, historicalData, oracleData, wLqiSupply, wLqiDecimals, 
-        userTokenBalances,
-        totalPoolValueScaled, isLoadingPublicData, isLoadingUserData
-    ]);
+    }, [poolConfig, dynamicData, historicalData, oracleData?.data, userTokenBalances, totalPoolValueScaled]);
+    
+    useEffect(() => {
+        if (isLoadingPublicData || isLoadingUserData) {
+            // Don't update processedTokenData while main data is loading; it will keep its previous state.
+            // wLqiValueScaled will also update independently via its useMemo when its deps are ready.
+            return;
+        }
+
+        // If memoizedNewProcessedData is null (due to its own guards or error), set processedTokenData to null
+        if (memoizedNewProcessedData === null) {
+            setProcessedTokenData(null);
+            // If wLqiValueScaled calculation also resulted in null, ensure error state reflects potential issues.
+            if (wLqiValueScaled === null && (!wLqiSupply || wLqiDecimals === null || totalPoolValueScaled === null)) {
+                // This condition might be too specific or redundant if useMemo for wLqiValueScaled already sets an error.
+            }
+            return;
+        }
+
+        setProcessedTokenData(prevProcessedTokenData => {
+            if (JSON.stringify(prevProcessedTokenData) !== JSON.stringify(memoizedNewProcessedData)) {
+                return memoizedNewProcessedData;
+            }
+            return prevProcessedTokenData;
+        });
+
+    }, [memoizedNewProcessedData, isLoadingPublicData, isLoadingUserData, wLqiValueScaled, wLqiSupply, wLqiDecimals, totalPoolValueScaled]);
 
     // --- Effect for Initial Public Data Fetch ---
     useEffect(() => {
