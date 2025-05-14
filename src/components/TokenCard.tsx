@@ -17,6 +17,9 @@ import {
     BPS_SCALE,
     BTN_DELISTED_WITHDRAW,
     DELISTED_WITHDRAW_BONUS_BPS,
+    EXPLORER_CLUSTER,
+    DEFAULT_EXPLORER_OPTIONS,
+    DEFAULT_PREFERRED_EXPLORER,
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
 import { TokenRowProps } from './TokenRow';
@@ -50,10 +53,12 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     totalTargetDominance,
     targetRank,
     showRankColumn,
+    preferredExplorer,
+    explorerOptions,
 }) => {
     const { t } = useTranslation();
-    const { publicKey } = useWallet();
-    const { setVisible } = useWalletModal();
+    const { publicKey: walletPublicKey } = useWallet();
+    const { setVisible: setWalletModalVisible } = useWalletModal();
     // --- Re-use calculations and formatting logic from TokenRow ---
     const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
     const [currentIconSrc, setCurrentIconSrc] = useState(icon);
@@ -112,7 +117,7 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     // --- Button State & Labels ---
     const buttonStates = calculateButtonStates({
         t,
-        publicKey,
+        publicKey: walletPublicKey,
         actionDisabled,
         isDepositing,
         isWithdrawing,
@@ -155,24 +160,24 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
 
     // Button callbacks
     const handleActualDeposit = () => {
-        if (!publicKey) {
-            setVisible(true);
+        if (!walletPublicKey) {
+            setWalletModalVisible(true);
             return;
         }
         onDeposit(mintAddress, currentDepositAmount, decimals);
     };
 
     const handleActualWithdraw = () => {
-        if (!publicKey) {
-            setVisible(true);
+        if (!walletPublicKey) {
+            setWalletModalVisible(true);
             return;
         }
         onWithdraw(mintAddress, currentWithdrawAmount, false);
     };
 
     const handleFullDelistedWithdraw = () => {
-        if (!publicKey) {
-            setVisible(true);
+        if (!walletPublicKey) {
+            setWalletModalVisible(true);
             return;
         }
         onWithdraw(mintAddress, "0", true);
@@ -212,12 +217,58 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         }
     }
 
+    // --- Handle Symbol Click for Explorer Link ---
+    const handleSymbolClick = () => {
+        if (!mintAddress) return;
+
+        // Ensure preferredExplorer and explorerOptions are available, falling back to defaults
+        const currentPreferredExplorer = preferredExplorer || DEFAULT_PREFERRED_EXPLORER;
+        const currentExplorerOptions = explorerOptions || DEFAULT_EXPLORER_OPTIONS;
+
+        const explorerInfo = currentExplorerOptions[currentPreferredExplorer] || currentExplorerOptions[DEFAULT_PREFERRED_EXPLORER];
+        const clusterQuery = explorerInfo.getClusterQueryParam(EXPLORER_CLUSTER);
+        
+        const templateUrl = explorerInfo.tokenUrlTemplate || explorerInfo.addressUrlTemplate;
+
+        if (!templateUrl) {
+            console.warn(`No token or address URL template found for explorer: ${explorerInfo.name}, falling back to Solscan.`);
+            const fallbackExplorer = DEFAULT_EXPLORER_OPTIONS['Solscan']; // Use the direct constant here
+            const fallbackTemplateUrl = fallbackExplorer.tokenUrlTemplate || fallbackExplorer.addressUrlTemplate;
+            if (fallbackTemplateUrl) {
+                 const url = fallbackTemplateUrl
+                    .replace('{token_address}', mintAddress)
+                    .replace('{address}', mintAddress) 
+                    .replace('{cluster}', fallbackExplorer.getClusterQueryParam(EXPLORER_CLUSTER));
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+            return;
+        }
+
+        const url = templateUrl
+            .replace('{token_address}', mintAddress)
+            .replace('{address}', mintAddress) 
+            .replace('{cluster}', clusterQuery);
+        
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    // --- Tooltip Content for Symbol ---
+    const explorerInfoForTitle = (explorerOptions || DEFAULT_EXPLORER_OPTIONS)[preferredExplorer || DEFAULT_PREFERRED_EXPLORER] || (explorerOptions || DEFAULT_EXPLORER_OPTIONS)[DEFAULT_PREFERRED_EXPLORER];
+    const tooltipContent = t('main.poolInfoDisplay.tokenTable.tooltips.symbolExplorer', { 
+        symbol: displaySymbol, 
+        explorerName: explorerInfoForTitle.name 
+    });
+
     return (
         <div className={`border border-gray-600 rounded-lg p-3 ${isDelisted ? 'bg-red-900/20' : 'bg-gray-750'} ${actionDisabled ? 'opacity-50' : ''}`}>
             {/* --- Header --- */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-600">
                 {/* Left Part: Icon and Symbol */}
-                <div className="flex items-center space-x-2">
+                <div 
+                    className="flex items-center space-x-2 cursor-pointer"
+                    onClick={handleSymbolClick}
+                    title={tooltipContent}
+                >
                     <Image
                         src={currentIconSrc}
                         alt={symbol}

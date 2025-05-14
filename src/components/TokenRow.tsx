@@ -18,6 +18,9 @@ import {
     BPS_SCALE,
     BTN_DELISTED_WITHDRAW,
     DELISTED_WITHDRAW_BONUS_BPS,
+    EXPLORER_CLUSTER,
+    DEFAULT_EXPLORER_OPTIONS,
+    DEFAULT_PREFERRED_EXPLORER,
 } from '@/utils/constants';
 import { parseUnits } from 'ethers';
 import { safeConvertBnToNumber } from '@/utils/helpers';
@@ -51,6 +54,8 @@ export interface TokenRowProps {
     showRankColumn: boolean;
     publicKey: PublicKey | null;
     setVisible: (open: boolean) => void;
+    preferredExplorer: string;
+    explorerOptions: typeof DEFAULT_EXPLORER_OPTIONS;
 }
 
 // --- TokenRow Component ---
@@ -78,6 +83,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     showRankColumn,
     publicKey,
     setVisible,
+    preferredExplorer,
+    explorerOptions,
 }) => {
     const { t } = useTranslation();
     // Destructure token object inside the function
@@ -254,6 +261,42 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
         ? new BN(Math.round(token.actualDominancePercent * BPS_SCALE))
         : null;
 
+    const handleSymbolClick = () => {
+        if (!token.mintAddress) return;
+
+        const explorerInfo = explorerOptions[preferredExplorer] || explorerOptions[DEFAULT_PREFERRED_EXPLORER];
+        const clusterQuery = explorerInfo.getClusterQueryParam(EXPLORER_CLUSTER);
+        
+        const templateUrl = explorerInfo.tokenUrlTemplate || explorerInfo.addressUrlTemplate;
+
+        if (!templateUrl) {
+            console.warn(`No token or address URL template found for explorer: ${explorerInfo.name}, falling back to Solscan.`);
+            const fallbackExplorer = DEFAULT_EXPLORER_OPTIONS['Solscan'];
+            const fallbackTemplateUrl = fallbackExplorer.tokenUrlTemplate || fallbackExplorer.addressUrlTemplate;
+            if (fallbackTemplateUrl) {
+                 const url = fallbackTemplateUrl
+                    .replace('{token_address}', token.mintAddress)
+                    .replace('{address}', token.mintAddress) 
+                    .replace('{cluster}', fallbackExplorer.getClusterQueryParam(EXPLORER_CLUSTER));
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+            return;
+        }
+
+        const url = templateUrl
+            .replace('{token_address}', token.mintAddress)
+            .replace('{address}', token.mintAddress) 
+            .replace('{cluster}', clusterQuery);
+        
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
+    
+    const explorerInfoForTitle = explorerOptions[preferredExplorer] || explorerOptions[DEFAULT_PREFERRED_EXPLORER];
+    const tooltipContent = t('main.poolInfoDisplay.tokenTable.tooltips.symbolExplorer', { 
+        symbol: displaySymbol, 
+        explorerName: explorerInfoForTitle.name 
+    });
+
     return (
         <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
             {showRankColumn && (
@@ -265,8 +308,12 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                     )}
                 </td>
             )}
-            <td className="p-0 font-semibold align-middle text-left whitespace-nowrap truncate" style={{ width: '85px' }} title={token.mintAddress}>
-                <div className="flex items-center h-full space-x-1 px-1">
+            <td className="p-0 font-semibold align-middle text-left whitespace-nowrap truncate" style={{ width: '85px' }}>
+                <div 
+                    className="flex items-center h-full space-x-1 px-1 cursor-pointer"
+                    title={tooltipContent}
+                    onClick={handleSymbolClick}
+                >
                     <Image
                         src={currentIconSrc}
                         alt={symbol}

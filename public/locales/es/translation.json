@@ -222,7 +222,8 @@
           "deposit": "Agregar este token al pool",
           "withdraw": "Retirar este token del pool",
           "noData": "Actualmente no hay datos de tokens disponibles",
-          "connectWallet": "Conecta tu billetera para ver e interactuar con los tokens"
+          "connectWallet": "Conecta tu billetera para ver e interactuar con los tokens",
+          "symbolExplorer": "Ver {{symbol}} en {{explorerName}}"
         },
 
         "buttonState": {

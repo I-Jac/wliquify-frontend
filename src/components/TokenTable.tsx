@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from './WalletModalProvider';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // Import the new components
 import { TokenRow } from './TokenRow';
@@ -73,6 +74,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
     const { t } = useTranslation();
     const { publicKey } = useWallet();
     const { setVisible } = useWalletModal();
+    const { preferredExplorer, explorerOptions } = useSettings();
     const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const mobileTokenListRef = useRef<HTMLDivElement>(null);
@@ -527,6 +529,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                                     totalTargetDominance={totalTargetDominance}
                                     publicKey={publicKey}
                                     setVisible={setVisible}
+                                    preferredExplorer={preferredExplorer}
+                                    explorerOptions={explorerOptions}
                                 />
                             );
                         })}
@@ -570,6 +574,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
                             totalTargetDominance={totalTargetDominance}
                             publicKey={publicKey}
                             setVisible={setVisible}
+                            preferredExplorer={preferredExplorer}
+                            explorerOptions={explorerOptions}
                         />
                     );
                 })}

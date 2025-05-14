@@ -614,7 +614,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsWithdrawing
             );
         }
-    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, preferredExplorer, explorerOptions]);
+    }, [program, publicKey, poolConfig, poolConfigPda, oracleData, connection, signTransaction, onTransactionSuccess, priorityFee, onClearInput, preferredExplorer, explorerOptions, wLqiDecimals]);
 
     return {
         handleDeposit,
