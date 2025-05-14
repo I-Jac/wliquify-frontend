@@ -7,6 +7,7 @@ import { formatScaledBnToDollarString, calculateTokenValueUsdScaled } from '@/ut
 import { USD_SCALE } from '@/utils/constants';
 import { DecodedPriceData } from '@/utils/types';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 interface TokenInputControlsProps {
     mintAddress: string;
@@ -81,6 +82,21 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
     const buttonClassName = `px-${isMobile ? '1.5' : '1'} py-${isMobile ? '0.5' : '0.5'} text-[10px] bg-gray-600 hover:bg-gray-500 rounded text-white text-center cursor-pointer`;
     const targetButtonClassName = `ml-1 px-${isMobile ? '1.5' : '1'} py-${isMobile ? '1' : '0.5'} text-[10px] bg-blue-600 hover:bg-blue-500 rounded text-white text-center whitespace-nowrap cursor-pointer`;
 
+    const handleSetAmountWithToast = (fraction: number) => {
+        if (action === 'deposit') {
+            if (!userBalance || userBalance === '0' || (typeof userBalance === 'object' && userBalance.isZero && userBalance.isZero())) {
+                toast(t('toast.noUserBalanceToDeposit'));
+                return;
+            }
+        } else if (action === 'withdraw') {
+            if (!userBalance || userBalance === '0' || (typeof userBalance === 'object' && userBalance.isZero && userBalance.isZero())) {
+                toast(t('toast.noUserBalanceToWithdraw'));
+                return;
+            }
+        }
+        handleSetAmount(mintAddress, action, fraction);
+    };
+
     return (
         <div className="flex flex-col space-y-1">
             <div className="flex items-center justify-between">
@@ -92,7 +108,7 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                 </div>
                 <div className="flex space-x-1">
                     <button
-                        onClick={() => handleSetAmount(mintAddress, action, 0.5)}
+                        onClick={() => handleSetAmountWithToast(0.5)}
                         disabled={actionDisabled || userBalance === null || (isDeposit && isDelisted)}
                         className={`${buttonClassName} ${(actionDisabled || userBalance === null || (isDeposit && isDelisted)) ? 'cursor-not-allowed opacity-50' : ''}`}
                         title={t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.half')}
@@ -100,7 +116,7 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                         {t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.half')}
                     </button>
                     <button
-                        onClick={() => handleSetAmount(mintAddress, action, 1)}
+                        onClick={() => handleSetAmountWithToast(1)}
                         disabled={actionDisabled || userBalance === null || (isDeposit && isDelisted)}
                         className={`${buttonClassName} ${(actionDisabled || userBalance === null || (isDeposit && isDelisted)) ? 'cursor-not-allowed opacity-50' : ''}`}
                         title={t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.max')}

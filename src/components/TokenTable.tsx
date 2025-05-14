@@ -250,7 +250,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
             return compareResult;
         });
         return dataToSort;
-    }, [tokenData, sortKey, sortDirection, totalTargetDominance, totalPoolValueScaled, wLqiValueScaled, wLqiDecimals]);
+    }, [tokenData, sortKey, sortDirection, totalTargetDominance, totalPoolValueScaled, wLqiValueScaled, wLqiDecimals, rankedTokenMap]);
 
     const showRankColumn = useMemo(() => {
         if (!sortedTokenData || sortedTokenData.length === 0) {
@@ -287,6 +287,18 @@ export const TokenTable = React.memo<TokenTableProps>(({
         if (!currentToken || currentToken.decimals === null || currentToken.targetDominance.isNeg()) {
             toast(t('main.poolInfoDisplay.tokenTable.toast.tokenDataInvalid'));
             return;
+        }
+        // Early exit if user balance is 0
+        if (action === 'deposit') {
+            if (!currentToken.userBalance || currentToken.userBalance.isZero()) {
+                toast(t('toast.noUserBalanceToDeposit'));
+                return;
+            }
+        } else if (action === 'withdraw') {
+            if (!userWlqiBalance || userWlqiBalance.isZero()) {
+                toast(t('toast.noUserBalanceToWithdraw'));
+                return;
+            }
         }
         let isTokenDataInvalid = false;
         if ((action === 'deposit' || !currentToken.isDelisted) && currentToken.targetDominance.isZero()) {
@@ -326,7 +338,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                     return;
                 }
                 if (currentToken.userBalance && finalAmountBn.gt(currentToken.userBalance)) {
-                    toast(t('main.poolInfoDisplay.tokenTable.toast.requiredAmountExceedsBalance'), { icon: '⚠️' });
+                    toast(t('toast.requiredAmountExceedsBalance'), { icon: '⚠️' });
                     amountToSet = formatUnits(currentToken.userBalance.toString(), currentToken.decimals);
                 } else {
                     amountToSet = formatUnits(finalAmountBn.toString(), currentToken.decimals);
@@ -395,7 +407,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
                 amountToSet = amountToSet.substring(0, amountToSet.length - 2);
             }
             if (parseFloat(amountToSet) <= 0) {
-                toast(t('main.poolInfoDisplay.tokenTable.toast.calculatedTargetTooSmall'));
+                toast(t('toast.calculatedTargetTooSmall'));
                 return;
             }
             handleAmountChange(mintAddress, action, amountToSet, action === 'deposit' ? currentToken?.decimals ?? null : wLqiDecimals);
@@ -403,7 +415,7 @@ export const TokenTable = React.memo<TokenTableProps>(({
             console.error(`Error calculating target amount for ${action}:`, error);
             toast(t('main.poolInfoDisplay.tokenTable.toast.failedToCalculateTarget'));
         }
-    }, [tokenData, totalPoolValueScaled, totalTargetDominance, wLqiValueScaled, wLqiDecimals, handleAmountChange, userWlqiBalance]);
+    }, [tokenData, totalPoolValueScaled, totalTargetDominance, wLqiValueScaled, wLqiDecimals, handleAmountChange, userWlqiBalance, t]);
 
     if (isLoadingPublicData && !tokenData) {
         return <SkeletonTokenTable />;
@@ -421,73 +433,68 @@ export const TokenTable = React.memo<TokenTableProps>(({
         <div className="">
             {/* --- Desktop Table (Hidden on Mobile) --- */}
             <div className="hidden md:block">
-                <table className="min-w-full bg-gray-700 text-xs text-left table-fixed mb-2">
+                <table className="w-full max-w-[900px] table-fixed bg-gray-700 text-xs text-left mb-2">
                     <thead className="sticky top-14 z-10 bg-gray-600">
                         <tr className="bg-gray-600 rounded-tl-md rounded-tr-md overflow-hidden">
-                            <th className={`p-2 text-left sticky top-0 bg-gray-700 z-10 ${showRankColumn ? 'table-cell' : 'hidden'}`}>
-                                <button 
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full text-left flex items-center cursor-pointer p-1"
+                            {showRankColumn && (
+                                <th
+                                    scope="col"
+                                    className="p-2 text-center bg-gray-600 rounded-tl-md cursor-pointer hover:bg-gray-500"
+                                    style={{ width: '40px' }}
                                     onClick={() => handleSort('rank')}
                                 >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.rank')}
-                                    {getSortIndicator('rank')}
-                                </button>
-                            </th>
-                            <th className="p-2 text-left sticky top-0 bg-gray-700 z-10">
-                                <button 
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full text-left flex items-center cursor-pointer p-1"
-                                    onClick={() => handleSort('symbol')}
-                                >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.symbol')}
-                                    {getSortIndicator('symbol')}
-                                </button>
-                            </th>
-                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
-                                <button 
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
-                                    onClick={() => handleSort('value')}
-                                >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.poolBalance')}
-                                    {getSortIndicator('value')}
-                                </button>
-                            </th>
-                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
-                                <button 
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
-                                    onClick={() => handleSort('actualPercent')}
-                                >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.actualPercent')}
-                                    {getSortIndicator('actualPercent')}
-                                </button>
-                            </th>
-                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
-                                <button 
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
-                                    onClick={() => handleSort('targetPercent')}
-                                >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.targetPercent')}
-                                    {getSortIndicator('targetPercent')}
-                                </button>
-                            </th>
-                            {!hideDepositColumn && (
-                                <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
-                                    <button
-                                        className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
-                                        onClick={() => handleSort('depositFeeBonus')}
-                                    >
-                                        {t('main.poolInfoDisplay.tokenTable.columns.deposit')}
-                                        {getSortIndicator('depositFeeBonus')}
-                                    </button>
+                                    Rank
                                 </th>
                             )}
-                            <th className="p-2 text-center sticky top-0 bg-gray-700 z-10">
-                                <button
-                                    className="font-semibold text-xs text-gray-300 hover:text-white hover:bg-gray-500 w-full justify-center flex items-center cursor-pointer p-1"
-                                    onClick={() => handleSort('withdrawFeeBonus')}
+                            <th
+                                className="p-2 whitespace-nowrap cursor-pointer hover:bg-gray-500 text-center"
+                                style={{ width: '85px' }}
+                                onClick={() => handleSort('symbol')}
+                            >
+                                {t('main.poolInfoDisplay.tokenTable.columns.symbol')}
+                                {getSortIndicator('symbol')}
+                            </th>
+                            <th
+                                className="p-2 whitespace-nowrap cursor-pointer hover:bg-gray-500 text-center"
+                                style={{ width: '155px' }}
+                                onClick={() => handleSort('value')}
+                            >
+                                {t('main.poolInfoDisplay.tokenTable.columns.poolBalance')}
+                                {getSortIndicator('value')}
+                            </th>
+                            <th
+                                className="p-2 cursor-pointer hover:bg-gray-500 text-center"
+                                style={{ width: '80px' }}
+                                onClick={() => handleSort('actualPercent')}
+                            >
+                                {t('main.poolInfoDisplay.tokenTable.columns.actualPercent')}
+                                {getSortIndicator('actualPercent')}
+                            </th>
+                            <th
+                                className="p-2 cursor-pointer hover:bg-gray-500 text-center"
+                                style={{ width: '80px' }}
+                                onClick={() => handleSort('targetPercent')}
+                            >
+                                {t('main.poolInfoDisplay.tokenTable.columns.targetPercent')}
+                                {getSortIndicator('targetPercent')}
+                            </th>
+                            {!hideDepositColumn && (
+                                <th
+                                    className="p-2 cursor-pointer hover:bg-gray-500 text-center"
+                                    style={{ width: '230px' }}
+                                    onClick={() => handleSort('depositFeeBonus')}
                                 >
-                                    {t('main.poolInfoDisplay.tokenTable.columns.withdraw')}
-                                    {getSortIndicator('withdrawFeeBonus')}
-                                </button>
+                                    {t('main.poolInfoDisplay.tokenTable.columns.deposit')}
+                                    {getSortIndicator('depositFeeBonus')}
+                                </th>
+                            )}
+                            <th
+                                className="p-2 cursor-pointer hover:bg-gray-500 text-center"
+                                style={{ width: '230px' }}
+                                onClick={() => handleSort('withdrawFeeBonus')}
+                            >
+                                {t('main.poolInfoDisplay.tokenTable.columns.withdraw')}
+                                {getSortIndicator('withdrawFeeBonus')}
                             </th>
                         </tr>
                     </thead>

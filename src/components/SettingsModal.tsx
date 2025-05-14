@@ -3,13 +3,12 @@
 import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/SettingsContext';
-import type { FeeLevel, InitialSettings, NumberFormatSettings } from '@/utils/types';
+import type { FeeLevel, InitialSettings } from '@/utils/types';
 import {
     PREDEFINED_SLIPPAGE_OPTIONS,
     PREDEFINED_RPCS
 } from '@/utils/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { getRpcLatency } from '@/utils/networkUtils';
 import { ProfileSettingsTab } from './settings/ProfileSettingsTab';
 import { ConnectionSettingsTab } from './settings/ConnectionSettingsTab';
 import { TransactionSettingsTab } from './settings/TransactionSettingsTab';
@@ -19,7 +18,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
 
     const {
         closeSettingsModal,
@@ -41,15 +40,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         // Profile settings from context
         preferredLanguage: contextPreferredLanguage,
         setPreferredLanguage: setContextPreferredLanguage,
-        preferredCurrency: contextPreferredCurrency,
-        setPreferredCurrency: setContextPreferredCurrency,
-        numberFormat: contextNumberFormat,
-        setNumberFormat: setContextNumberFormat,
         preferredExplorer: contextPreferredExplorer,
         setPreferredExplorer: setContextPreferredExplorer,
         explorerOptions,
-        availableLanguages,
-        availableCurrencies
+        availableLanguages
+        // availableCurrencies
     } = useSettings();
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -72,8 +67,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     
     // Local state for Profile settings (for dirty checking and saving)
     const [localPreferredLanguage, setLocalPreferredLanguage] = useState(contextPreferredLanguage);
-    const [localPreferredCurrency, setLocalPreferredCurrency] = useState(contextPreferredCurrency);
-    const [localNumberFormat, setLocalNumberFormat] = useState<NumberFormatSettings>(contextNumberFormat);
     const [localPreferredExplorer, setLocalPreferredExplorer] = useState(contextPreferredExplorer);
 
     // Other states (active tab, mounted ref)
@@ -118,8 +111,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                 isCustomSlippage: initialIsCustomSlippage,
                 // Add profile settings to initial ref from context
                 preferredLanguage: contextPreferredLanguage,
-                preferredCurrency: contextPreferredCurrency,
-                numberFormat: contextNumberFormat, // Deep copy might be better if object is complex, but context should provide new obj on change
                 preferredExplorer: contextPreferredExplorer,
             };
             console.log("[InitializationEffect] Set initialSettingsRef.current:", initialSettingsRef.current);
@@ -139,8 +130,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
 
             // Set local Profile states from context
             setLocalPreferredLanguage(contextPreferredLanguage);
-            setLocalPreferredCurrency(contextPreferredCurrency);
-            setLocalNumberFormat(contextNumberFormat);
             setLocalPreferredExplorer(contextPreferredExplorer);
             
             setIsSettingsDirty(false); // Initially, form is not dirty
@@ -159,8 +148,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         contextRpcEndpoint,
         setIsSettingsDirty,
         contextPreferredLanguage,
-        contextPreferredCurrency,
-        contextNumberFormat,
         contextPreferredExplorer
     ]);
 
@@ -184,8 +171,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             localIsCustomSlippageActive,
             // Include local profile states in log
             localPreferredLanguage,
-            localPreferredCurrency,
-            localNumberFormat,
             localPreferredExplorer,
             initialSettings: initialSettingsRef.current // Also log what it's comparing against
         });
@@ -219,12 +204,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         
         // Profile settings dirty check
         const languageChanged = localPreferredLanguage !== initialSettingsRef.current.preferredLanguage;
-        const currencyChanged = localPreferredCurrency !== initialSettingsRef.current.preferredCurrency;
-        const numberFormatChanged = JSON.stringify(localNumberFormat) !== JSON.stringify(initialSettingsRef.current.numberFormat);
         const explorerChanged = localPreferredExplorer !== initialSettingsRef.current.preferredExplorer;
         
         const dirty = feeLevelChanged || maxPriorityFeeCapSolChanged || slippageDirty || rpcChanged ||
-                      languageChanged || currencyChanged || numberFormatChanged || explorerChanged;
+                      languageChanged || explorerChanged;
         if (isSettingsDirty !== dirty) { // Only update if the dirty state actually changes
            setIsSettingsDirty(dirty);
         }
@@ -238,8 +221,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         localIsCustomSlippageActive,
         // Add local profile states to dependency array
         localPreferredLanguage,
-        localPreferredCurrency,
-        localNumberFormat,
         localPreferredExplorer,
         setIsSettingsDirty, 
         isSettingsDirty // Include isSettingsDirty to prevent unnecessary calls to setIsSettingsDirty
@@ -275,8 +256,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             localIsCustomSlippageActive,
             // Add local profile states to log
             localPreferredLanguage,
-            localPreferredCurrency,
-            localNumberFormat,
             localPreferredExplorer,
         });
 
@@ -355,8 +334,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         
         // Save Profile Settings to context
         setContextPreferredLanguage(localPreferredLanguage);
-        setContextPreferredCurrency(localPreferredCurrency);
-        setContextNumberFormat(localNumberFormat);
         setContextPreferredExplorer(localPreferredExplorer);
         
         // After successful context updates, update initialSettingsRef to reflect the new "saved" state
@@ -371,8 +348,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                 isCustomSlippage: localIsCustomSlippageActive,
                 // Update initialSettingsRef with saved profile settings
                 preferredLanguage: localPreferredLanguage,
-                preferredCurrency: localPreferredCurrency,
-                numberFormat: localNumberFormat, // Store the saved object
                 preferredExplorer: localPreferredExplorer,
             };
             console.log("[PerformSave] Updated initialSettingsRef.current:", initialSettingsRef.current);
@@ -475,15 +450,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
                         <ProfileSettingsTab
                             localPreferredLanguage={localPreferredLanguage}
                             setLocalPreferredLanguage={setLocalPreferredLanguage}
-                            localPreferredCurrency={localPreferredCurrency}
-                            setLocalPreferredCurrency={setLocalPreferredCurrency}
-                            localNumberFormat={localNumberFormat}
-                            setLocalNumberFormat={setLocalNumberFormat}
                             localPreferredExplorer={localPreferredExplorer}
                             setLocalPreferredExplorer={setLocalPreferredExplorer}
                             explorerOptions={explorerOptions}
                             availableLanguages={availableLanguages}
-                            availableCurrencies={availableCurrencies}
                         />
                     )}
                     {activeTab === 'connection' && (

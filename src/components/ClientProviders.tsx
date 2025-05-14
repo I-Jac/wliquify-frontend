@@ -1,6 +1,7 @@
 'use client'; // Make this a Client Component
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import type { i18n as I18nType } from 'i18next'; // Import i18n type for state
 import {
     ConnectionProvider,
     WalletProvider,
@@ -21,7 +22,7 @@ import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import Anch
 import { Tooltip } from 'react-tooltip'; // Added import
 import 'react-tooltip/dist/react-tooltip.css'; // Added CSS import
 import { I18nextProvider } from 'react-i18next'; // Added
-import i18n from '../i18n'; // Added, assuming path from src/components to src/i18n.ts
+import i18nPromise from '../i18n'; // Renamed from i18n
 import { WalletModalProvider } from './WalletModalProvider'; // Import our custom WalletModalProvider
 
 // Component to handle dynamic fee updates
@@ -64,6 +65,7 @@ function DynamicFeeUpdater() {
 
         return () => {
             if (intervalId) {
+                clearInterval(intervalId); // Clear interval on unmount
             }
         };
     }, [rpcEndpoint, fetchDynamicFees, isSettingsModalOpen]);
@@ -72,10 +74,19 @@ function DynamicFeeUpdater() {
 }
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
-    // --- React Query Client Setup ---
-    // Use state to ensure client is only created once
     const [queryClient] = useState(() => new QueryClient());
-    // --- End React Query Client Setup ---
+    const [resolvedI18nInstance, setResolvedI18nInstance] = useState<I18nType | null>(null);
+
+    useEffect(() => {
+        i18nPromise
+            .then((instance) => {
+                setResolvedI18nInstance(instance);
+            })
+            .catch((err) => {
+                console.error("Failed to initialize i18n in ClientProviders:", err);
+                // Optionally, set an error state or a fallback i18n instance here
+            });
+    }, []);
 
     const endpoint = useMemo(() => RPC_URL, []);
     const wallets = useMemo(
@@ -89,8 +100,14 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         []
     );
 
+    if (!resolvedI18nInstance) {
+        // You can render a loader here if you want
+        // For now, returning null to prevent rendering children until i18n is ready
+        return null; 
+    }
+
     return (
-        <I18nextProvider i18n={i18n}>
+        <I18nextProvider i18n={resolvedI18nInstance}>
             <SettingsProvider>
                 <ConnectionProvider endpoint={endpoint}>
                     <WalletProvider wallets={wallets} autoConnect>

@@ -170,8 +170,8 @@ export interface InitialSettings {
     customRpcInputValue: string;
     isCustomSlippage: boolean;
     preferredLanguage: string;
-    preferredCurrency: string;
-    numberFormat: NumberFormatSettings;
+    preferredCurrency?: string;
+    numberFormat?: NumberFormatSettings;
     preferredExplorer: string;
 }
 

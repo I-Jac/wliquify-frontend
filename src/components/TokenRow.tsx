@@ -257,7 +257,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     return (
         <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
             {showRankColumn && (
-                <td className="p-2 align-middle text-center">
+                <td className="p-2 align-middle text-center" style={{ width: '40px' }}>
                     {isDelisted ? (
                         <div className="text-gray-500 italic font-normal">N/A</div>
                     ) : (
@@ -265,8 +265,8 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                     )}
                 </td>
             )}
-            <td className="p-0 font-semibold align-middle text-left" title={token.mintAddress}>
-                <div className="flex items-center h-full space-x-1 px-2">
+            <td className="p-0 font-semibold align-middle text-left whitespace-nowrap truncate" style={{ width: '85px' }} title={token.mintAddress}>
+                <div className="flex items-center h-full space-x-1 px-1">
                     <Image
                         src={currentIconSrc}
                         alt={symbol}
@@ -279,17 +279,21 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                             }
                         }}
                     />
-                    <span className="">{displaySymbol}</span>
+                    <span className="truncate">{displaySymbol}</span>
                 </div>
             </td>
-            <td className="p-2 align-middle text-center">
-                <div>{displayValue}</div>
-                <div className="text-gray-400">{displayBalance} {displaySymbol}</div>
+            <td className="p-2 align-middle text-center whitespace-nowrap truncate" style={{ width: '155px' }}>
+                <div className="truncate">{displayValue}</div>
+                <div className="text-gray-400 truncate">{displayBalance} {displaySymbol}</div>
             </td>
-            <td className="p-2 align-middle text-center">{displayActualPercent}%</td>
-            <td className="p-2 align-middle text-center">{displayTargetPercent}%</td>
+            <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
+                {displayActualPercent}%
+            </td>
+            <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
+                {displayTargetPercent}%
+            </td>
             {!hideDepositColumn && (
-                <td className="p-2 align-middle">
+                <td className="p-2 align-middle" style={{ width: '230px' }}>
                     {isDelisted ? (
                         <div className="text-center text-gray-500 italic">N/A</div>
                     ) : (
@@ -317,7 +321,7 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
                     )}
                 </td>
             )}
-            <td className="p-2 align-middle">
+            <td className="p-2 align-middle" style={{ width: '230px' }}>
                 <div className="flex flex-col space-y-1">
                     <TokenInputControls
                         mintAddress={mintAddress}

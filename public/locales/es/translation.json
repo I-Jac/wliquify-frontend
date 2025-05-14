@@ -48,6 +48,8 @@
     "invalidTargetDominance": "Dominancia objetivo inválida para el cálculo.",
     "calculatedTargetTooSmall": "La cantidad objetivo calculada es demasiado pequeña.",
     "failedToCalculateTarget": "No se pudo calcular la cantidad objetivo de {{action}}.",
+    "noUserBalanceToDeposit": "No tienes saldo para depositar.",
+    "noUserBalanceToWithdraw": "No tienes wLQI para retirar.",
     "tooltips": {
       "error": "Se muestra para errores críticos que impiden una acción",
       "success": "Se muestra cuando una acción se completa con éxito",
@@ -84,7 +86,9 @@
     "viewOnSolscan": "Ver en Solscan",
     "failed": "{{action}} fallido: {{errorMessage}}",
     "poolDataLoading": "Cargando datos del pool...",
-    "depositsDisabledDelisted": "Depósitos deshabilitados para tokens excluidos."
+    "depositsDisabledDelisted": "Depósitos deshabilitados para tokens excluidos.",
+    "depositAction": "depósito",
+    "withdrawalAction": "retiro"
   },
 
   "header": {

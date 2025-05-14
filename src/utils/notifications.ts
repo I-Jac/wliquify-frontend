@@ -1,5 +1,5 @@
 import toast from 'react-hot-toast';
-import { useSettings } from '@/contexts/SettingsContext';
+// import { useSettings } from '@/contexts/SettingsContext';
 import React from 'react';
 import type { CSSProperties } from 'react';
 import i18next from 'i18next';
@@ -15,12 +15,12 @@ interface ToastOptions {
 }
 
 // Alert modal options
-interface AlertOptions {
-    title?: string;
-    message: string;
-    onConfirm?: () => void;
-    onCancel?: () => void;
-}
+// interface AlertOptions {
+//     title?: string;
+//     message: string;
+//     onConfirm?: () => void;
+//     onCancel?: () => void;
+// }
 
 // Toast notification function
 export const showToast = (
@@ -54,11 +54,12 @@ export const showToast = (
 
 // Alert modal function
 export const showAlert = (
-    message: string,
-    options: Partial<AlertOptions> = {}
+    // message: string,
+    // options: Partial<AlertOptions> = {}
 ) => {
-    const { openAlertModal } = useSettings();
-    openAlertModal(message);
+    // Not implemented: useSettings() cannot be used here due to React hook rules.
+    // const { openAlertModal } = useSettings();
+    // openAlertModal(message);
 };
 
 // Transaction notification helper
@@ -73,10 +74,9 @@ export const showTransactionNotification = (
 
     switch (status) {
         case 'loading':
+            const actionKey = action === 'Deposit' ? 'depositAction' : 'withdrawalAction';
             return toast.loading(
-                action === 'Deposit'
-                    ? t('notifications.processingDeposit')
-                    : t('notifications.processingWithdrawal'),
+                t('poolInteractions.confirming', { action: t(`poolInteractions.${actionKey}`), txid: txid ? txid.substring(0, 8) : '' }),
                 { id: toastId }
             );
         case 'success':

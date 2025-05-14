@@ -196,7 +196,8 @@ const confirmTransaction = async (
     toastId: string,
     action: 'Deposit' | 'Withdrawal'
 ): Promise<{ value: { err: TransactionError | null } }> => {
-    toast.loading(t('poolInteractions.confirming', { action: action.toLowerCase(), txid: txid.substring(0, 8) }), { id: toastId });
+    const actionKey = action === 'Deposit' ? 'depositAction' : 'withdrawalAction';
+    toast.loading(t('poolInteractions.confirming', { action: t(`poolInteractions.${actionKey}`), txid: txid.substring(0, 8) }), { id: toastId });
     const confirmation = await connection.confirmTransaction({
         signature: txid,
         blockhash: blockhash,

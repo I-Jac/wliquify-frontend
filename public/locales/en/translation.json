@@ -48,6 +48,8 @@
     "invalidTargetDominance": "Invalid target dominance for calculation.",
     "calculatedTargetTooSmall": "Calculated target amount is too small.",
     "failedToCalculateTarget": "Failed to calculate target {{action}} amount.",
+    "noUserBalanceToDeposit": "You have no balance to deposit.",
+    "noUserBalanceToWithdraw": "You have no wLQI to withdraw.",
     "tooltips": {
       "error": "Shown for critical errors that prevent an action",
       "success": "Shown when an action completes successfully",
@@ -84,7 +86,9 @@
     "viewOnSolscan": "View on Solscan",
     "failed": "{{action}} failed: {{errorMessage}}",
     "poolDataLoading": "Pool data loading...",
-    "depositsDisabledDelisted": "Deposits disabled for delisted tokens."
+    "depositsDisabledDelisted": "Deposits disabled for delisted tokens.",
+    "depositAction": "deposit",
+    "withdrawalAction": "withdrawal"
   },
 
   "header": {

@@ -175,7 +175,7 @@ export const PoolInfoDisplay = ({
     if (showInitialSkeletons) {
         // Render full skeleton UI only on initial load when no data exists yet
         return (
-            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
+            <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full max-w-[950px] mx-auto font-[family-name:var(--font-geist-mono)]">
                 <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
                      {isMounted ? t('main.poolInfoDisplay.title') : 'Pool Information'}
                 </h2>
@@ -199,7 +199,7 @@ export const PoolInfoDisplay = ({
 
     // Render the main UI, potentially indicating refresh state via button disable
     return (
-        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full font-[family-name:var(--font-geist-mono)]">
+        <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full max-w-[950px] mx-auto font-[family-name:var(--font-geist-mono)]">
             <h2 className="text-2xl font-bold mb-4 text-center border-b border-gray-600 pb-2">
                 {isMounted ? t('main.poolInfoDisplay.title') : 'Pool Information'}
             </h2>

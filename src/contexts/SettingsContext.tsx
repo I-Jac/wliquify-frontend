@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useTranslation } from 'react-i18next'; // Import useTranslation
 import {
     RPC_URL, // Import RPC_URL
     SETTINGS_DEFAULT_SLIPPAGE_BPS,
@@ -27,7 +28,6 @@ import {
     DEFAULT_EXPLORER_OPTIONS, // Added for explorer options
 } from '@/utils/constants'; // Import new constants
 import type { FeeLevel, NumberFormatSettings, SolanaExplorerOption, LanguageOption, CurrencyOption } from '@/utils/types'; // Import related types
-import i18n from '@/i18n'; // Added for language change
 
 // Moved calculateSolFromFeeMicroLamportsPerCu to top level and exported
 export const calculateSolFromFeeMicroLamportsPerCu = (rpcFeePerCu: number | undefined, defaultFeeMicroLamportsPerCu: number): number => {
@@ -87,6 +87,7 @@ interface SettingsContextProps {
 const SettingsContext = createContext<SettingsContextProps | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { i18n } = useTranslation(); // Get i18n instance from useTranslation
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [feeLevel, setFeeLevelState] = useState<FeeLevel>(SETTINGS_DEFAULT_FEE_LEVEL);
     const [maxPriorityFeeCapSol, setMaxPriorityFeeCapSolState] = useState<number>(SETTINGS_DEFAULT_MAX_PRIORITY_FEE_CAP_SOL);
@@ -116,7 +117,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (preferredLanguage && i18n.language !== preferredLanguage) {
             i18n.changeLanguage(preferredLanguage);
         }
-    }, [preferredLanguage]);
+    }, [preferredLanguage, i18n]);
 
     useEffect(() => {
         try {
@@ -314,34 +315,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [isLoaded]);
 
-    const priorityFee = useMemo(() => {
-        const calculateMicroLamportsPerCUFromSol = (targetSol: number): number => {
-            return Math.round((targetSol * 1_000_000 * LAMPORTS_PER_SOL) / TRANSACTION_COMPUTE_UNITS);
-        };
-
-        let selectedFeeLevel = feeLevel;
-        if (feeLevel === 'Custom') {
-            console.warn("'Custom' feeLevel encountered in priorityFee calculation, defaulting to Normal's capped fee.");
-            selectedFeeLevel = 'Normal';
-        }
-        
-        const validFeeLevel = selectedFeeLevel as Exclude<FeeLevel, 'Custom'>;
-        
-        let solForLevel: number;
-        if (dynamicFees[validFeeLevel] !== undefined) {
-            solForLevel = dynamicFees[validFeeLevel];
-        } else {
-            solForLevel = calculateSolFromFeeMicroLamportsPerCu(undefined, SETTINGS_DEFAULT_DYNAMIC_FEES[validFeeLevel]);
-        }
-        
-        const microLamportsPerCUForLevel = calculateMicroLamportsPerCUFromSol(solForLevel);
-        const maxMicroLamportsPerCUFromCap = calculateMicroLamportsPerCUFromSol(maxPriorityFeeCapSol);
-        
-        const finalMicroLamportsPerCU = Math.max(0, Math.min(microLamportsPerCUForLevel, maxMicroLamportsPerCUFromCap));
-        
-        return finalMicroLamportsPerCU;
-    }, [feeLevel, dynamicFees, maxPriorityFeeCapSol]);
-
     const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
     const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
@@ -354,12 +327,49 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setIsAlertModalOpen(false);
     }, []);
 
+    const priorityFee = useMemo(() => {
+        const calculateMicroLamportsPerCUFromSol = (targetSol: number): number => {
+            // Ensure targetSol is a number and not NaN, otherwise default to 0
+            const effectiveSol = (typeof targetSol === 'number' && !isNaN(targetSol)) ? targetSol : 0;
+            return Math.round((effectiveSol * 1_000_000 * LAMPORTS_PER_SOL) / TRANSACTION_COMPUTE_UNITS);
+        };
+
+        let selectedFeeLevel = feeLevel;
+        // 'Custom' fee level is not directly used for automatic fee calculation;
+        // it implies the user sets a raw microLamport value elsewhere if such a feature existed.
+        // For this calculation, if 'Custom' is somehow selected, we should use a fallback, e.g., 'Normal'.
+        if (feeLevel === 'Custom') {
+            // console.warn("[SettingsContext] 'Custom' feeLevel encountered in priorityFee calculation, defaulting to Normal's capped fee for this context value.");
+            selectedFeeLevel = 'Normal'; // Or handle as an error/specific logic
+        }
+        
+        // Ensure selectedFeeLevel is a valid key for dynamicFees and SETTINGS_DEFAULT_DYNAMIC_FEES
+        const validFeeLevel = selectedFeeLevel as Exclude<FeeLevel, 'Custom'>;
+        
+        let solForLevel: number;
+        if (dynamicFees && dynamicFees[validFeeLevel] !== undefined) {
+            solForLevel = dynamicFees[validFeeLevel];
+        } else {
+            // Fallback to default SOL value if dynamicFees isn't populated or doesn't have the level
+            // The SETTINGS_DEFAULT_DYNAMIC_FEES are expected to be in SOL directly based on their current usage.
+            solForLevel = SETTINGS_DEFAULT_DYNAMIC_FEES[validFeeLevel];
+        }
+        
+        const microLamportsPerCUForLevel = calculateMicroLamportsPerCUFromSol(solForLevel);
+        const maxMicroLamportsPerCUFromCap = calculateMicroLamportsPerCUFromSol(maxPriorityFeeCapSol);
+        
+        // Ensure a non-negative fee, then apply the cap
+        const finalMicroLamportsPerCU = Math.max(0, Math.min(microLamportsPerCUForLevel, maxMicroLamportsPerCUFromCap));
+        
+        return finalMicroLamportsPerCU;
+    }, [feeLevel, dynamicFees, maxPriorityFeeCapSol]);
+
     const contextValue = useMemo(() => ({
         feeLevel,
         setFeeLevel,
         maxPriorityFeeCapSol,
         setMaxPriorityFeeCapSol,
-        priorityFee,
+        priorityFee, // Use the memoized priorityFee (in microLamports)
         dynamicFees,
         fetchDynamicFees,
         slippageBps,
@@ -385,16 +395,23 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setPreferredExplorer,
         explorerOptions,
         availableLanguages,
-        availableCurrencies,
+        availableCurrencies
     }), [
-        feeLevel, setFeeLevel, maxPriorityFeeCapSol, setMaxPriorityFeeCapSol, priorityFee, dynamicFees, fetchDynamicFees,
-        slippageBps, setSlippageBps, rpcEndpoint, setRpcEndpoint, isSettingsModalOpen, openSettingsModal, closeSettingsModal,
-        isSettingsDirty, setIsSettingsDirty, isAlertModalOpen, alertModalMessage, openAlertModal, closeAlertModal,
-        preferredLanguage, setPreferredLanguage, preferredCurrency, setPreferredCurrency, numberFormat, setNumberFormat,
-        preferredExplorer, setPreferredExplorer, explorerOptions, availableLanguages, availableCurrencies
+        feeLevel, maxPriorityFeeCapSol, priorityFee, dynamicFees, slippageBps, rpcEndpoint, // Added priorityFee to dependencies
+        isSettingsModalOpen, isSettingsDirty, isAlertModalOpen, alertModalMessage,
+        preferredLanguage, preferredCurrency, numberFormat, preferredExplorer, 
+        explorerOptions, availableLanguages, availableCurrencies, 
+        setFeeLevel, setMaxPriorityFeeCapSol, fetchDynamicFees, setSlippageBps, 
+        setRpcEndpoint, setIsSettingsDirty,
+        openSettingsModal, closeSettingsModal, openAlertModal, closeAlertModal,
+        setPreferredLanguage, setPreferredCurrency, setNumberFormat, setPreferredExplorer
     ]);
 
-    return <SettingsContext.Provider value={contextValue}>{children}</SettingsContext.Provider>;
+    return (
+        <SettingsContext.Provider value={contextValue}>
+            {children}
+        </SettingsContext.Provider>
+    );
 };
 
 export const useSettings = (): SettingsContextProps => {
