@@ -1,6 +1,6 @@
 'use client'; // Make this a Client Component
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, Suspense } from 'react';
 import type { i18n as I18nType } from 'i18next'; // Import i18n type for state
 import {
     ConnectionProvider,
@@ -12,10 +12,7 @@ import {
     CoinbaseWalletAdapter,
     TrustWalletAdapter,
     LedgerWalletAdapter,
-    // Add other wallets here if needed
-} from "@solana/wallet-adapter-wallets";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RPC_URL } from '@/utils/core/constants'; // Import RPC URL
+} from "@solana/wallet-adapter-wallets"; // Re-added wallet adapters
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext'; // Keep SettingsProvider and useSettings
 import { Toaster } from 'react-hot-toast';
 import { AnchorProgramProvider } from '@/hooks/useAnchorProgram'; // Import AnchorProgramProvider
@@ -24,6 +21,11 @@ import 'react-tooltip/dist/react-tooltip.css'; // Added CSS import
 import { I18nextProvider } from 'react-i18next'; // Added
 import i18nPromise from '../../i18n'; // Renamed from i18n
 import { WalletModalProvider } from '../wallet/WalletModalProvider'; // Import our custom WalletModalProvider
+import { AutoConnectProvider, useAutoConnect } from './AutoConnectProvider';
+import { AlertProvider } from '@/contexts/AlertContext';
+import { WalletProfileProvider } from '@/contexts/WalletProfileContext';
+import dynamic from 'next/dynamic';
+import { SolanaNetworkProvider, useSolanaNetwork } from '@/contexts/SolanaNetworkContext';
 
 // Simple full screen loader component
 const FullScreenLoader: React.FC = () => {
@@ -91,22 +93,16 @@ function DynamicFeeUpdater() {
     return null; // This component does not render anything
 }
 
-export function ClientProviders({ children }: { children: React.ReactNode }) {
-    const [queryClient] = useState(() => new QueryClient());
-    const [resolvedI18nInstance, setResolvedI18nInstance] = useState<I18nType | null>(null);
+// Dynamically import WalletProfilePanel
+const WalletProfilePanel = dynamic(() => 
+    import('@/components/wallet/WalletProfilePanel').then(mod => mod.WalletProfilePanel),
+    { ssr: false, loading: () => null } // No specific loader for the panel itself, it manages its own visibility
+);
 
-    useEffect(() => {
-        i18nPromise
-            .then((instance: I18nType) => {
-                setResolvedI18nInstance(instance);
-            })
-            .catch((err: unknown) => {
-                console.error("Failed to initialize i18n in ClientProviders:", err);
-                // Optionally, set an error state or a fallback i18n instance here
-            });
-    }, []);
+const WalletContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { autoConnect } = useAutoConnect();
+    const { endpoint } = useSolanaNetwork();
 
-    const endpoint = useMemo(() => RPC_URL, []);
     const wallets = useMemo(
         () => [
             new PhantomWalletAdapter(),
@@ -115,34 +111,62 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
             new TrustWalletAdapter(),
             new LedgerWalletAdapter(),
         ],
-        []
+        [] // The network is not needed as a dependency here, adapters are static
     );
 
-    if (!resolvedI18nInstance) {
-        // You can render a loader here if you want
-        // For now, returning null to prevent rendering children until i18n is ready
-        // return null; 
+    return (
+        <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect={autoConnect}>
+                <WalletModalProvider>{children}</WalletModalProvider>
+            </WalletProvider>
+        </ConnectionProvider>
+    );
+};
+
+export const ClientProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [resolvedI18nInstance, setResolvedI18nInstance] = useState<I18nType | null>(null);
+
+    useEffect(() => {
+        const PPromise = i18nPromise;
+        const initI18n = async () => {
+            try {
+                const instance = await PPromise;
+                setResolvedI18nInstance(instance);
+            } catch (error) {
+                console.error("Failed to initialize i18n:", error);
+                // Handle error, maybe set a fallback i18n instance or show error message
+            }
+        };
+        initI18n();
+    }, []);
+
+    if (!resolvedI18nInstance) { // Show loader until i18n is resolved
         return <FullScreenLoader />;
     }
 
     return (
-        <I18nextProvider i18n={resolvedI18nInstance}>
-            <SettingsProvider>
-                <ConnectionProvider endpoint={endpoint}>
-                    <WalletProvider wallets={wallets} autoConnect>
-                        <WalletModalProvider>
-                            <QueryClientProvider client={queryClient}>
-                                <AnchorProgramProvider>
-                                    <DynamicFeeUpdater />
-                                    {children}
-                                    <Toaster position="bottom-center" />
-                                    <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} className="app-tooltip-custom" />
-                                </AnchorProgramProvider>
-                            </QueryClientProvider>
-                        </WalletModalProvider>
-                    </WalletProvider>
-                </ConnectionProvider>
-            </SettingsProvider>
-        </I18nextProvider>
+        <Suspense fallback={<FullScreenLoader />}>
+            <I18nextProvider i18n={resolvedI18nInstance}> {/* Use resolved instance */}
+                <SolanaNetworkProvider>
+                    <AutoConnectProvider>
+                        <WalletContextProvider>
+                            <SettingsProvider>
+                                <AlertProvider>
+                                    <WalletProfileProvider>
+                                        <AnchorProgramProvider>
+                                            <DynamicFeeUpdater />
+                                            {children}
+                                            <Toaster position="bottom-center" />
+                                            <Tooltip id="app-tooltip" style={{ zIndex: 9999 }} className="app-tooltip-custom" />
+                                            <WalletProfilePanel />
+                                        </AnchorProgramProvider>
+                                    </WalletProfileProvider>
+                                </AlertProvider>
+                            </SettingsProvider>
+                        </WalletContextProvider>
+                    </AutoConnectProvider>
+                </SolanaNetworkProvider>
+            </I18nextProvider>
+        </Suspense>
     );
 } 

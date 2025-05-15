@@ -16,6 +16,7 @@ interface UseUserDataProps {
         supportedTokens: SupportedToken[];
     } | null;
     rateLimitedFetch: RateLimitedFetchFn | null;
+    enabled?: boolean;
 }
 
 interface UserDataReturnType {
@@ -33,6 +34,7 @@ export function useUserData({
     userPublicKey,
     poolConfigForUserBalances,
     rateLimitedFetch,
+    enabled = true,
 }: UseUserDataProps): UserDataReturnType {
     const [userWlqiBalance, setUserWlqiBalance] = useState<BN | null>(null);
     const [userTokenBalances, setUserTokenBalances] = useState<Map<string, BN | null>>(new Map());
@@ -42,8 +44,8 @@ export function useUserData({
     const prevPoolConfigRef = useRef(poolConfigForUserBalances);
 
     const fetchBalancesAndSetState = useCallback(async () => {
-        if (!connection || !userPublicKey || !poolConfigForUserBalances || !rateLimitedFetch) {
-            if (!userPublicKey) { // If user disconnects, clear their data
+        if (!enabled || !connection || !userPublicKey || !poolConfigForUserBalances || !rateLimitedFetch) {
+            if (!userPublicKey || !enabled) {
                 setUserWlqiBalance(null);
                 setUserTokenBalances(new Map());
                 hasFetchedOnce.current = false;
@@ -142,7 +144,7 @@ export function useUserData({
         } finally {
             setIsLoadingUserData(false);
         }
-    }, [connection, userPublicKey, poolConfigForUserBalances, rateLimitedFetch]);
+    }, [connection, userPublicKey, poolConfigForUserBalances, rateLimitedFetch, enabled]);
 
     useEffect(() => {
         // Initialize prevPoolConfigRef correctly on first render if poolConfigForUserBalances is already available
@@ -152,29 +154,25 @@ export function useUserData({
     
         const configChanged = JSON.stringify(poolConfigForUserBalances) !== JSON.stringify(prevPoolConfigRef.current);
 
-        if (userPublicKey && poolConfigForUserBalances && rateLimitedFetch && !isLoadingUserData) {
+        if (enabled && userPublicKey && poolConfigForUserBalances && rateLimitedFetch && !isLoadingUserData) {
             if (!hasFetchedOnce.current || configChanged) {
                  fetchBalancesAndSetState();
             }
-        } else if (!userPublicKey && hasFetchedOnce.current) { // User disconnected
+        } else if ((!userPublicKey || !enabled) && hasFetchedOnce.current) {
             setUserWlqiBalance(null);
             setUserTokenBalances(new Map());
             setUserDataError(null);
-            setIsLoadingUserData(false); // Reset loading state
-            hasFetchedOnce.current = false; // Allow fetching again if user reconnects
+            setIsLoadingUserData(false);
+            hasFetchedOnce.current = false;
         }
         
-        // Update ref only if poolConfigForUserBalances is not null, to avoid resetting it to null if it was previously set
-        // and to ensure the comparison in the next render cycle is against the latest processed config.
         if (poolConfigForUserBalances !== null) {
              prevPoolConfigRef.current = poolConfigForUserBalances;
-        } else if (userPublicKey === null) {
-            // If user disconnects, also clear the prevPoolConfigRef so that if they reconnect,
-            // and poolConfigForUserBalances is still null initially, it doesn't incorrectly think config hasn't changed.
+        } else if (userPublicKey === null || !enabled) {
             prevPoolConfigRef.current = null;
         }
 
-    }, [userPublicKey, poolConfigForUserBalances, rateLimitedFetch, fetchBalancesAndSetState, isLoadingUserData]);
+    }, [enabled, userPublicKey, poolConfigForUserBalances, rateLimitedFetch, fetchBalancesAndSetState, isLoadingUserData]);
 
     return {
         userWlqiBalance,

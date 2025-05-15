@@ -180,7 +180,7 @@ export const Header: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2 sm:space-x-3">
-                        {isMounted && (
+                        {/* {isMounted && ( */} 
                             <>
                                 {feeLevel && (
                                     <div 
@@ -221,7 +221,6 @@ export const Header: React.FC = () => {
                                 )}
 
                                 <Popover className="relative">
-                                    {/* Reverted to HUI controlling its open state, PopoverStateSync bridges it */}
                                     {({ open: internalPopoverOpenState, close: internalPopoverCloseFunction }) => (
                                         <>
                                             <PopoverStateSync 
@@ -243,7 +242,7 @@ export const Header: React.FC = () => {
                                             {/* Overlay: shown when our context modal is open. */}
                                             <Transition
                                                 as={Fragment}
-                                                show={isSettingsModalOpen} // Show overlay when our modal is open
+                                                show={isSettingsModalOpen} 
                                                 enter="transition-opacity ease-linear duration-100"
                                                 enterFrom="opacity-0"
                                                 enterTo="opacity-100"
@@ -266,7 +265,7 @@ export const Header: React.FC = () => {
                                             {/* Panel: shown when our context modal is open. */}
                                             <Transition
                                                 as={Fragment}
-                                                show={isSettingsModalOpen} // Show panel when our modal is open
+                                                show={isSettingsModalOpen} 
                                                 enter="transition ease-out duration-100"
                                                 enterFrom="transform opacity-0 scale-95"
                                                 enterTo="transform opacity-100 scale-100"
@@ -300,7 +299,7 @@ export const Header: React.FC = () => {
                                     }}
                                 />
                             </>
-                        )}
+                        {/* )} */} 
                     </div>
                 </div>
             </nav>

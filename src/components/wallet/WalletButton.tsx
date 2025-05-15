@@ -4,7 +4,9 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { WalletIcon } from './WalletIcon';
 import { useTranslation } from 'react-i18next';
 import { useWalletModal } from './WalletModalProvider';
+import { useWalletProfile } from '@/contexts/WalletProfileContext';
 import { WalletReadyState } from '@solana/wallet-adapter-base';
+import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 interface CustomButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     startIcon?: React.ReactNode;
@@ -49,55 +51,61 @@ const ArrowIcon: FC<{ isOpen: boolean }> = ({ isOpen }) => (
 );
 
 export const WalletButton: FC<CustomButtonProps> = (props) => {
-    const { publicKey, wallet, disconnect } = useWallet();
+    const { publicKey, wallet, connecting, disconnect } = useWallet();
     const { setVisible, visible } = useWalletModal();
-    const [copied, setCopied] = useState(false);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const { openWalletProfile, isWalletProfileOpen } = useWalletProfile();
+    
     const base58 = useMemo(() => publicKey?.toBase58(), [publicKey]);
     const { t } = useTranslation();
 
-    const handleCopyAddress = async () => {
-        if (publicKey) {
-            await navigator.clipboard.writeText(publicKey.toString());
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+    const [notDetectedDropdownOpen, setNotDetectedDropdownOpen] = useState(false);
+    const notDetectedDropdownRef = useRef<HTMLDivElement>(null);
+
+    const toggleNotDetectedDropdown = useCallback(() => {
+        setNotDetectedDropdownOpen(prev => !prev);
+    }, []);
+
+    const closeNotDetectedDropdown = useCallback(() => {
+        setNotDetectedDropdownOpen(false);
+    }, []);
+
+    useEffect(() => {
+        const listener = (event: globalThis.MouseEvent | TouchEvent) => {
+            const node = notDetectedDropdownRef.current;
+            if (!node || node.contains(event.target as Node)) return;
+            closeNotDetectedDropdown();
+        };
+        if (wallet && !base58 && wallet.adapter.readyState === WalletReadyState.NotDetected) {
+            document.addEventListener('mousedown', listener);
+            document.addEventListener('touchstart', listener);
         }
-    };
+        return () => {
+            document.removeEventListener('mousedown', listener);
+            document.removeEventListener('touchstart', listener);
+        };
+    }, [wallet, base58, closeNotDetectedDropdown]);
 
-    const toggleDropdown = useCallback(() => {
-        setDropdownOpen(prev => !prev);
-    }, []);
-
-    const closeDropdown = useCallback(() => {
-        setDropdownOpen(false);
-    }, []);
-
-    const openModal = useCallback(() => {
+    const openModalForChange = useCallback(() => {
         setVisible(true);
-        closeDropdown();
-    }, [setVisible, closeDropdown]);
+        closeNotDetectedDropdown();
+    }, [setVisible, closeNotDetectedDropdown]);
 
     const handleDownloadWallet = useCallback(() => {
         if (wallet?.adapter.url) {
             window.open(wallet.adapter.url, '_blank', 'noopener,noreferrer');
         }
-        closeDropdown();
-    }, [wallet, closeDropdown]);
+        closeNotDetectedDropdown();
+    }, [wallet, closeNotDetectedDropdown]);
 
-    useEffect(() => {
-        const listener = (event: globalThis.MouseEvent | TouchEvent) => {
-            const node = dropdownRef.current;
-            if (!node || node.contains(event.target as Node)) return;
-            closeDropdown();
-        };
-        document.addEventListener('mousedown', listener);
-        document.addEventListener('touchstart', listener);
-        return () => {
-            document.removeEventListener('mousedown', listener);
-            document.removeEventListener('touchstart', listener);
-        };
-    }, [closeDropdown]);
+    const handleDisconnectFromDropdown = useCallback(async () => {
+        try {
+            await disconnect();
+        } catch (error) {
+            console.error("Error disconnecting from dropdown:", error);
+            // Optionally show a toast error
+        }
+        closeNotDetectedDropdown();
+    }, [disconnect, closeNotDetectedDropdown]);
 
     const mainButtonProps = {
         ...props,
@@ -107,7 +115,7 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
         return (
             <CustomButton
                 {...mainButtonProps}
-                onClick={openModal}
+                onClick={openModalForChange}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md cursor-pointer flex items-center gap-2"
                 endIcon={<ArrowIcon isOpen={visible} />}
             >
@@ -118,41 +126,40 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
 
     if (!base58) {
         const isNotDetected = wallet.adapter.readyState === WalletReadyState.NotDetected;
-        
         return (
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={notDetectedDropdownRef}>
                 <CustomButton
                     {...mainButtonProps}
-                    disabled={wallet.adapter.connecting}
+                    disabled={connecting}
                     startIcon={<WalletIcon wallet={wallet} />}
-                    onClick={isNotDetected ? toggleDropdown : openModal}
+                    onClick={isNotDetected ? toggleNotDetectedDropdown : openModalForChange}
                     isconnectedbutton="true"
                     className="cursor-pointer flex items-center gap-2"
-                    endIcon={<ArrowIcon isOpen={dropdownOpen} />}
+                    endIcon={<ArrowIcon isOpen={notDetectedDropdownOpen} />}
                 >
-                    {wallet.adapter.name}
+                    {wallet.adapter.name} 
+                    {connecting && <span className="text-xs ml-1">({t('header.walletModal.connecting')})</span>}
+                    {!connecting && isNotDetected && <span className="text-xs ml-1">({t('header.walletModal.notDetected')})</span>}
                 </CustomButton>
-                {isNotDetected && dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50">
+                {isNotDetected && notDetectedDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-md shadow-lg py-1 z-50">
                         <button
                             onClick={handleDownloadWallet}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                         >
-                            {t('header.walletModal.downloadExtension')}
+                            {t('header.walletModal.downloadExtension', { walletName: wallet.adapter.name })}
                         </button>
                         <button
-                            onClick={openModal}
+                            onClick={openModalForChange}
                             className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
                         >
                             {t('header.walletModal.changeWallet')}
                         </button>
                         <button
-                            onClick={() => {
-                                disconnect();
-                                closeDropdown();
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
+                            onClick={handleDisconnectFromDropdown}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer flex items-center"
                         >
+                            <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
                             {t('header.walletModal.disconnect')}
                         </button>
                     </div>
@@ -162,40 +169,16 @@ export const WalletButton: FC<CustomButtonProps> = (props) => {
     }
 
     return (
-        <div className="relative" ref={dropdownRef}>
-            <CustomButton
-                {...mainButtonProps}
-                onClick={toggleDropdown}
-                className="bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-md flex items-center cursor-pointer px-2 sm:px-4"
-                startIcon={<WalletIcon wallet={wallet} />}
-                endIcon={<ArrowIcon isOpen={dropdownOpen} />}
-            >
-                <span className="text-sm block max-[380px]:hidden whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0">
-                    {base58.slice(0, 4) + '...' + base58.slice(-4)}
-                </span>
-            </CustomButton>
-            {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50">
-                    <button
-                        onClick={handleCopyAddress}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
-                    >
-                        {copied ? t('header.walletModal.copied') : t('header.walletModal.copyAddress')}
-                    </button>
-                    <button
-                        onClick={openModal}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
-                    >
-                        {t('header.walletModal.changeWallet')}
-                    </button>
-                    <button
-                        onClick={() => disconnect()}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 cursor-pointer"
-                    >
-                        {t('header.walletModal.disconnect')}
-                    </button>
-                </div>
-            )}
-        </div>
+        <CustomButton
+            {...mainButtonProps}
+            onClick={openWalletProfile}
+            className="bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-md flex items-center cursor-pointer px-2 sm:px-4"
+            startIcon={<WalletIcon wallet={wallet} />}
+            endIcon={<ArrowIcon isOpen={isWalletProfileOpen} />}
+        >
+            <span className="text-sm block max-[380px]:hidden whitespace-nowrap overflow-hidden text-ellipsis flex-shrink min-w-0">
+                {base58.slice(0, 4) + '...' + base58.slice(-4)}
+            </span>
+        </CustomButton>
     );
 }; 

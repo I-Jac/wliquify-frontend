@@ -175,6 +175,7 @@
       "changeWallet": "Cambiar billetera",
       "disconnect": "Desconectar",
       "downloadExtension": "Descargar extensión",
+      "disconnectError": "Error al desconectar: Por favor intenta de nuevo.",
       "tooltips": {
         "connectWallet": "Conecta tu billetera Solana para interactuar con el protocolo",
         "detected": "Billetera detectada y lista para conectar",
@@ -182,6 +183,13 @@
         "copyAddress": "Copia tu dirección de billetera al portapapeles",
         "changeWallet": "Cambia a una billetera diferente",
         "disconnect": "Desconecta tu billetera actual"
+      },
+      "walletProfile": {
+        "totalValue": "Valor total",
+        "portfolio": "Portafolio",
+        "loading": "Cargando...",
+        "noOtherTokensFound": "No hay otros tokens en tu billetera.",
+        "valueUnavailable": "USD N/A" 
       }
     }
   },

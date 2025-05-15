@@ -28,6 +28,7 @@ interface UsePoolDataProps {
     readOnlyProvider: AnchorProvider | null;
     connection: Connection;
     wallet: WalletContextState;
+    enabled?: boolean;
 }
 
 export function usePoolData({
@@ -36,6 +37,7 @@ export function usePoolData({
     readOnlyProvider,
     connection,
     wallet,
+    enabled = true,
 }: UsePoolDataProps) {
     // --- State managed by the hook for PUBLIC data ---
     const [poolConfig, setPoolConfig] = useState<PoolConfig | null>(null);
@@ -74,6 +76,7 @@ export function usePoolData({
         userPublicKey: wallet.publicKey,
         poolConfigForUserBalances: poolConfig ? { wliMint: poolConfig.wliMint, supportedTokens: poolConfig.supportedTokens } : null,
         rateLimitedFetch: rateLimitedFetch,
+        enabled: enabled,
     });
 
     // --- Fetch Public Pool Data ---
