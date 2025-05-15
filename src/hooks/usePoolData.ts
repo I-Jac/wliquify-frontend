@@ -15,7 +15,7 @@ import {
 } from '@/utils/core/types';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool';
 import { useOracleData } from './useOracleData';
-import { createRateLimitedFetch } from '@/utils/network/hookUtils';
+import { createRateLimitedFetch } from '@/utils/network/rateLimitUtils';
 import { processSingleToken } from '@/utils/app/singleTokenProcessing';
 import { useSubscriptions } from '@/hooks/useSubscriptions';
 import { useUserData } from '@/hooks/useUserData';
