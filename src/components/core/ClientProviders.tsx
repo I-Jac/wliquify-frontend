@@ -25,6 +25,24 @@ import { I18nextProvider } from 'react-i18next'; // Added
 import i18nPromise from '../../i18n'; // Renamed from i18n
 import { WalletModalProvider } from '../wallet/WalletModalProvider'; // Import our custom WalletModalProvider
 
+// Simple full screen loader component
+const FullScreenLoader: React.FC = () => {
+    return (
+        <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            width: '100vw',
+            backgroundColor: '#1f2937', // Corresponds to gray-800
+            color: 'white',
+            fontSize: '1.5rem'
+        }}>
+            Loading Application...
+        </div>
+    );
+};
+
 // Component to handle dynamic fee updates
 function DynamicFeeUpdater() {
     const { rpcEndpoint, fetchDynamicFees, isSettingsModalOpen } = useSettings();
@@ -103,7 +121,8 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
     if (!resolvedI18nInstance) {
         // You can render a loader here if you want
         // For now, returning null to prevent rendering children until i18n is ready
-        return null; 
+        // return null; 
+        return <FullScreenLoader />;
     }
 
     return (

@@ -49,6 +49,7 @@ export function usePoolData({
     const [isLoadingPublicData, setIsLoadingPublicData] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const hasFetchedPublicData = useRef(false);
+    const isLoadingFullDataRef = useRef(false); // To prevent concurrent full refreshes
 
     const rateLimitedFetch = useMemo(() => createRateLimitedFetch(connection), [connection]);
 
@@ -74,26 +75,44 @@ export function usePoolData({
     });
 
     // --- Fetch Public Pool Data ---
-    const fetchPublicPoolData = useCallback(async () => {
+    const fetchPublicPoolData = useCallback(async (options?: { isBackgroundRefresh?: boolean }) => {
+        const isBackground = options?.isBackgroundRefresh ?? false;
+
+        if (!isBackground) {
+            if (isLoadingFullDataRef.current) {
+                // console.log("usePoolData: Full fetch already in progress, skipping new full fetch request.");
+                return;
+            }
+            isLoadingFullDataRef.current = true;
+        }
+
+        // console.log(`usePoolData: fetchPublicPoolData START. isBackground: ${isBackground}, hasFetchedPublicData.current: ${hasFetchedPublicData.current}, isLoadingFullDataRef: ${isLoadingFullDataRef.current}`);
         const activeProvider = provider || readOnlyProvider;
         const currentProgram = program;
         const currentConnection = activeProvider?.connection ?? connection;
 
         if (!currentProgram || !currentConnection) {
-            console.warn("usePoolData Hook: Fetch public data skipped: Program or Connection not ready.");
-            setIsLoadingPublicData(false);
+            // console.warn("usePoolData: Fetch skipped - Program or Connection not ready.");
+            if (!isBackground) setIsLoadingPublicData(false);
             return;
         }
-        setIsLoadingPublicData(true);
-        setError(null);
-        setPoolConfig(null);
-        setPoolConfigPda(null);
-        setWlqiSupply(null);
-        setWlqiDecimals(null);
-        setDynamicData(new Map());
-        setHistoricalData(new Map());
-        setTotalPoolValueScaled(null);
-        hasFetchedPublicData.current = false;
+
+        if (!isBackground) {
+            setIsLoadingPublicData(true);
+            setError(null);
+            // console.log("usePoolData: Resetting state for full refresh.");
+            setPoolConfig(null);
+            setPoolConfigPda(null);
+            setWlqiSupply(null);
+            setWlqiDecimals(null);
+            setDynamicData(new Map());
+            setHistoricalData(new Map());
+            setTotalPoolValueScaled(null);
+            // DO NOT set hasFetchedPublicData.current = false here. Let the initial useEffect control its first run.
+            // It will be set to true upon successful completion of a non-background fetch.
+        } else {
+            // console.log("usePoolData: Background refresh initiated.");
+        }
 
         try {
             const coreDataResult = await fetchCorePoolConfigAndWLQI(
@@ -101,21 +120,29 @@ export function usePoolData({
                 currentConnection,
                 rateLimitedFetch as RateLimitedFetchFn 
             );
+            // console.log("usePoolData: Core data fetched.", coreDataResult.poolConfig ? 'Config OK' : 'Config FAIL', coreDataResult.error ? `Error: ${coreDataResult.error}` : '');
+
             if (coreDataResult.error || !coreDataResult.poolConfig || !coreDataResult.poolConfigPda || coreDataResult.wlqiSupply === null || coreDataResult.wlqiDecimals === null || !coreDataResult.wLqiMint) {
-                setError(coreDataResult.error || "Failed to load essential pool configuration or wLQI data.");
-                setPoolConfig(coreDataResult.poolConfig || null);
-                setPoolConfigPda(coreDataResult.poolConfigPda || null);
-                setWlqiSupply(coreDataResult.wlqiSupply || null);
-                setWlqiDecimals(coreDataResult.wlqiDecimals || null);
-                setIsLoadingPublicData(false);
+                const errorMsg = coreDataResult.error || "Failed to load essential pool configuration or wLQI data.";
+                // console.error("usePoolData: Error with core pool data:", errorMsg);
+                if (!isBackground) {
+                    setError(errorMsg);
+                    // Potentially set partial data if useful, or ensure clean slate
+                    setPoolConfig(coreDataResult.poolConfig || null);
+                    setPoolConfigPda(coreDataResult.poolConfigPda || null);
+                }
+                // No matter what, if core data fails on a full refresh, we stop and set loading false.
+                if (!isBackground) setIsLoadingPublicData(false);
                 return;
             }
+            
             const fetchedConfig = coreDataResult.poolConfig;
             setPoolConfig(fetchedConfig);
             setPoolConfigPda(coreDataResult.poolConfigPda);
             setTotalPoolValueScaled(fetchedConfig.currentTotalPoolValueScaled);
             setWlqiSupply(coreDataResult.wlqiSupply);
             setWlqiDecimals(coreDataResult.wlqiDecimals);
+            // console.log("usePoolData: Core states updated. TotalPoolValue:", fetchedConfig.currentTotalPoolValueScaled?.toString());
 
             const supportedTokensDataResult = await fetchSupportedTokensPublicData(
                 currentConnection,
@@ -123,129 +150,151 @@ export function usePoolData({
                 fetchedConfig.supportedTokens,
                 rateLimitedFetch as RateLimitedFetchFn
             );
+            // console.log("usePoolData: Supported tokens data fetched.", supportedTokensDataResult.dynamicData ? `DynamicData Count: ${supportedTokensDataResult.dynamicData.size}` : 'DynamicData FAIL', supportedTokensDataResult.error ? `Error: ${supportedTokensDataResult.error}` : '');
+
             if (supportedTokensDataResult.error) {
-                setError(prevError => prevError ? `${prevError}; ${supportedTokensDataResult.error}` : (supportedTokensDataResult.error ?? null));
+                const tokenDataErrorMsg = supportedTokensDataResult.error ?? "Error fetching token dynamic/historical data.";
+                // console.error("usePoolData: Error with supported tokens data:", tokenDataErrorMsg);
+                if (!isBackground) {
+                     setError(prevError => prevError ? `${prevError}; ${tokenDataErrorMsg}` : tokenDataErrorMsg);
+                }
+                // If dynamic data fails on a full refresh, we might still have core data.
+                // Set loading to false. Decide if historical/dynamic should be cleared.
+                if (!isBackground) setIsLoadingPublicData(false); // Allow UI to update even if only partial data.
+                // We're not returning here, so dynamic/historical will be set below, possibly to empty maps.
             }
-            setDynamicData(supportedTokensDataResult.dynamicData as Map<string, DynamicTokenData>); 
-            setHistoricalData(supportedTokensDataResult.historicalData);
-            hasFetchedPublicData.current = true;
+            
+            setDynamicData(supportedTokensDataResult.dynamicData as Map<string, DynamicTokenData> || new Map()); 
+            setHistoricalData(supportedTokensDataResult.historicalData || new Map());
+
+            if (!isBackground) {
+                hasFetchedPublicData.current = true; // Mark success for full refresh
+                // console.log("usePoolData: Full refresh SUCCESS. hasFetchedPublicData.current = true.");
+            }
+            // console.log("usePoolData: fetchPublicPoolData successful (end of try block).");
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            console.error("usePoolData Hook: Error fetching public pool data:", errorMessage);
-            setError(`Failed to load public pool data: ${errorMessage}`);
-            setPoolConfig(null); setPoolConfigPda(null); setWlqiSupply(null); setWlqiDecimals(null);
-            setDynamicData(new Map()); setHistoricalData(new Map()); setTotalPoolValueScaled(null);
+            // console.error(`usePoolData: CATCH block error (background: ${isBackground}):`, errorMessage);
+            if (!isBackground) {
+                setError(`Failed to load public pool data: ${errorMessage}`);
+                // Ensure state is reset cleanly on major error for non-background
+                setPoolConfig(null); setPoolConfigPda(null); setWlqiSupply(null); setWlqiDecimals(null);
+                setDynamicData(new Map()); setHistoricalData(new Map()); setTotalPoolValueScaled(null);
+            }
         } finally {
-            setIsLoadingPublicData(false);
+            if (!isBackground) {
+                isLoadingFullDataRef.current = false; // Reset on completion or error for non-background fetches
+                setIsLoadingPublicData(false);
+                // console.log("usePoolData: setIsLoadingPublicData(false) and isLoadingFullDataRef.current=false in FINALLY (full refresh).");
+            }
+            // console.log(`usePoolData: fetchPublicPoolData END. hasFetchedPublicData.current: ${hasFetchedPublicData.current}, isLoadingFullDataRef: ${isLoadingFullDataRef.current}`);
         }
     }, [program, provider, readOnlyProvider, connection, rateLimitedFetch]);
 
-    // --- Refresh Functions ---
-    const refreshPublicData = useCallback(() => {
-        hasFetchedPublicData.current = false;
-        fetchPublicPoolData();
+    const triggerFullPublicDataRefresh = useCallback(() => {
+        // console.log("usePoolData: Manual refresh triggered (triggerFullPublicDataRefresh).");
+        // For manual refresh, explicitly set hasFetched to false so it behaves like initial load
+        // if we want to show skeletons etc. Or, keep it true and just re-fetch.
+        // For now, let's ensure it re-triggers the loading state fully.
+        hasFetchedPublicData.current = false; 
+        fetchPublicPoolData({ isBackgroundRefresh: false });
     }, [fetchPublicPoolData]);
+
+    const handleSubscriptionUpdate = useCallback(() => {
+        // console.log("usePoolData: Subscription triggered background data refresh.");
+        fetchPublicPoolData({ isBackgroundRefresh: true });
+    }, [fetchPublicPoolData]);
+
+    const refreshPublicData = useCallback(() => {
+        triggerFullPublicDataRefresh();
+    }, [triggerFullPublicDataRefresh]);
 
     const refreshUserData = useCallback(async () => {
         await refreshUserDataFromHook();
     }, [refreshUserDataFromHook]);
 
     const refreshAllData = useCallback(() => {
-        hasFetchedPublicData.current = false;
-        fetchPublicPoolData().then(() => {
+        // console.log("usePoolData: refreshAllData triggered.");
+        // This will set isLoadingPublicData true via fetchPublicPoolData directly
+        hasFetchedPublicData.current = false; // Ensure it acts like a full refresh trigger
+        fetchPublicPoolData({ isBackgroundRefresh: false }).then(() => {
             refreshUserDataFromHook();
         });
     }, [fetchPublicPoolData, refreshUserDataFromHook]);
 
-    // --- Calculate Derived Values ---
-
     const wLqiValueScaled = useMemo(() => {
-        if (totalPoolValueScaled === null || wLqiSupply === null || wLqiDecimals === null) {
-            return null;
-        }
+        // Minimal logging here unless an issue is suspected
+        if (totalPoolValueScaled === null || wLqiSupply === null || wLqiDecimals === null) return null;
         try {
             return calculateWLqiValue(totalPoolValueScaled, wLqiSupply, wLqiDecimals);
         } catch (e) {
-            console.error("usePoolData Hook: Error calculating wLqiValueScaled:", e);
+            console.error("usePoolData: Error calculating wLqiValueScaled:", e);
             setError(prev => prev ? prev + "; Failed to calculate wLQI value" : "Failed to calculate wLQI value");
             return null;
         }
     }, [totalPoolValueScaled, wLqiSupply, wLqiDecimals]);
 
     const memoizedNewProcessedData = useMemo(() => {
-        if (!poolConfig || !dynamicData || dynamicData.size === 0 || !historicalData || historicalData.size === 0 || !oracleData?.data || totalPoolValueScaled === null) {
+        // console.log("usePoolData: Calculating memoizedNewProcessedData. Relevant states:", { hasPoolConfig: !!poolConfig, dynamicDataSize: dynamicData.size, hasOracleData: !!oracleData?.data, hasTotalPoolValue: !!totalPoolValueScaled });
+        if (!poolConfig || !dynamicData || dynamicData.size === 0 || !historicalData || !oracleData?.data || totalPoolValueScaled === null) {
+            // console.log("usePoolData: memoizedNewProcessedData returning null (missing dependencies).");
             return null;
         }
-
         try {
             const oracleTokenMap = new Map<string, ParsedOracleTokenInfo>(oracleData.data.map(info => [info.address, info]));
-            
-            return Array.from(dynamicData.entries())
+            const result = Array.from(dynamicData.entries())
                 .map(([mintAddress, data]) => {
                     const tokenConfig = poolConfig.supportedTokens.find((st: SupportedToken) => st.mint?.toBase58() === mintAddress);
                     const oracleInfo = oracleTokenMap.get(mintAddress);
                     const history = historicalData.get(mintAddress);
                     const userBalanceForToken = userTokenBalances.get(mintAddress) ?? null;
-
-                    if (!tokenConfig || history === undefined || data.decimals === null) {
-                        return null;
-                    }
-
-                    return processSingleToken({
-                        mintAddress,
-                        data: {
-                            vaultBalance: data.vaultBalance,
-                            priceFeedInfo: data.priceFeedInfo,
-                            decimals: data.decimals,
-                            userBalance: userBalanceForToken,
-                        },
-                        tokenConfig,
-                        oracleInfo,
-                        history,
-                        currentTvlFromState: totalPoolValueScaled,
-                        userBalance: userBalanceForToken,
-                    });
-                })
-                .filter((data): data is ProcessedTokenData => data !== null);
+                    if (!tokenConfig || history === undefined || data.decimals === null) return null;
+                    return processSingleToken({ mintAddress, data: { vaultBalance: data.vaultBalance, priceFeedInfo: data.priceFeedInfo, decimals: data.decimals, userBalance: userBalanceForToken }, tokenConfig, oracleInfo, history, currentTvlFromState: totalPoolValueScaled, userBalance: userBalanceForToken });
+                }).filter((data): data is ProcessedTokenData => data !== null);
+            // console.log("usePoolData: memoizedNewProcessedData SUCCESS, result count:", result.length);
+            return result;
         } catch (e) {
-            console.error("usePoolData Hook: Error memoizing newProcessedData:", e);
+            // console.error("usePoolData: Error processing token data:", e);
+            console.error("usePoolData: Error in memoizedNewProcessedData:", e);
             setError(prev => prev ? prev + "; Failed to process token data" : "Failed to process token data");
             return null;
         }
     }, [poolConfig, dynamicData, historicalData, oracleData?.data, userTokenBalances, totalPoolValueScaled]);
     
     useEffect(() => {
+        // console.log(`usePoolData: Effect for processedTokenData. isLoadingPublic: ${isLoadingPublicData}, isLoadingUser: ${isLoadingUserData}, memoizedDataIsNull: ${memoizedNewProcessedData === null}`);
         if (isLoadingPublicData || isLoadingUserData) {
-            // Don't update processedTokenData while main data is loading; it will keep its previous state.
-            // wLqiValueScaled will also update independently via its useMemo when its deps are ready.
+            // console.log("usePoolData: ProcessedTokenData update bailed (main data loading).");
             return;
         }
-
-        // If memoizedNewProcessedData is null (due to its own guards or error), set processedTokenData to null
         if (memoizedNewProcessedData === null) {
-            setProcessedTokenData(null);
-            // If wLqiValueScaled calculation also resulted in null, ensure error state reflects potential issues.
-            if (wLqiValueScaled === null && (!wLqiSupply || wLqiDecimals === null || totalPoolValueScaled === null)) {
-                // This condition might be too specific or redundant if useMemo for wLqiValueScaled already sets an error.
+            if (processedTokenData !== null) {
+                // console.log("usePoolData: Setting processedTokenData to null.");
+                 setProcessedTokenData(null);
             }
             return;
         }
-
-        setProcessedTokenData(prevProcessedTokenData => {
-            if (JSON.stringify(prevProcessedTokenData) !== JSON.stringify(memoizedNewProcessedData)) {
-                return memoizedNewProcessedData;
-            }
-            return prevProcessedTokenData;
-        });
-
-    }, [memoizedNewProcessedData, isLoadingPublicData, isLoadingUserData, wLqiValueScaled, wLqiSupply, wLqiDecimals, totalPoolValueScaled]);
-
-    // --- Effect for Initial Public Data Fetch ---
-    useEffect(() => {
-        if (program && (provider || readOnlyProvider) && connection && !hasFetchedPublicData.current) {
-            fetchPublicPoolData();
+        if (JSON.stringify(processedTokenData) !== JSON.stringify(memoizedNewProcessedData)) {
+            // console.log("usePoolData: Updating processedTokenData.");
+            setProcessedTokenData(memoizedNewProcessedData);
         }
-    }, [program, provider, readOnlyProvider, connection, fetchPublicPoolData]);
+    }, [memoizedNewProcessedData, isLoadingPublicData, isLoadingUserData, processedTokenData]);
+
+    useEffect(() => {
+        // console.log(`usePoolData: Initial fetch effect check. Program: ${!!program}, Connection: ${!!connection}, HasFetched: ${hasFetchedPublicData.current}, IsLoadingFull: ${isLoadingFullDataRef.current}`);
+        if (program && connection && !hasFetchedPublicData.current) {
+            if (!isLoadingFullDataRef.current) { // Check if a full fetch is already running
+                // console.log(`usePoolData: Initial fetch RUNNING (condition met: not fetched yet and no full fetch in progress).`);
+                fetchPublicPoolData({ isBackgroundRefresh: false });
+            } else {
+                // console.log(`usePoolData: Initial fetch SKIPPED (condition met: not fetched yet BUT a full fetch is already in progress).`);
+            }
+        } else if (program && connection && hasFetchedPublicData.current) {
+            // console.log(`usePoolData: Initial fetch SKIPPED (already fetched successfully).`);
+        } else {
+            // console.log(`usePoolData: Initial fetch SKIPPED (program or connection not ready, or other condition not met).`);
+        }
+    }, [program, connection, fetchPublicPoolData]); // fetchPublicPoolData is a dependency because it's called.
 
     // --- CENTRALIZED SUBSCRIPTIONS ---
     useSubscriptions({
@@ -253,8 +302,8 @@ export function usePoolData({
         poolConfig,
         poolConfigPda,
         userPublicKey: wallet.publicKey,
-        refreshPublicData,
-        refreshOracleData,
+        refreshPublicData: handleSubscriptionUpdate, // Changed from refreshPublicData
+        refreshOracleData, // Assuming oracle data refresh can be handled similarly or is less disruptive
         setUserWlqiBalance,
         setUserTokenBalances,
     });

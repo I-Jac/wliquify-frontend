@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Connection, PublicKey, SystemProgram } from '@solana/web3.js';
 import { PoolConfig, SupportedToken } from '@/utils/core/types';
 import { cleanupSubscriptions, setupSubscription, setupUserTokenSubscription } from '@/utils/subscriptions/subscriptionUtils';
@@ -32,75 +32,94 @@ export function useSubscriptions({
     setUserWlqiBalance,
     setUserTokenBalances
 }: UseSubscriptionsProps) {
-    const subscriptionIdsRef = useRef<number[]>([]);
-
-    // Memoize the cleanup function to prevent unnecessary recreations
-    const cleanup = useCallback((connection: Connection, subscriptions: number[]) => {
-        if (subscriptions.length > 0) {
-            console.log('useSubscriptions: Cleaning up subscriptions...');
-            cleanupSubscriptions(connection, subscriptions);
-        }
-    }, []);
+    const subscriptionIdsRef = useRef<{ publicSet: Set<number>, userSet: Set<number> }>({ 
+        publicSet: new Set(), 
+        userSet: new Set() 
+    });
 
     // --- Public Data Subscriptions (PoolConfig, Oracle, Vaults) ---
+    const actualOracleAggregatorAccount = poolConfig?.oracleAggregatorAccount;
+    const oracleAddressStringForDep = useMemo(() => 
+        actualOracleAggregatorAccount && !actualOracleAggregatorAccount.equals(SystemProgram.programId)
+            ? actualOracleAggregatorAccount.toBase58() 
+            : null,
+    [actualOracleAggregatorAccount]);
+
+    const supportedTokensForDeps = poolConfig?.supportedTokens;
+    const vaultAddressesStringForDep = useMemo(() => 
+        supportedTokensForDeps
+            ?.map(token => token.vault?.toBase58() ?? 'null')
+            .sort()
+            .join(',') ?? '',
+    [supportedTokensForDeps]);
+
     useEffect(() => {
-        if (!connection || !poolConfig || !poolConfigPda) {
+        const currentPublicSubs = new Set<number>();
+        const refCurrent = subscriptionIdsRef.current;
+
+        if (!connection || !poolConfigPda) {
+            cleanupSubscriptions(connection, Array.from(refCurrent.publicSet));
+            refCurrent.publicSet.clear();
             return;
         }
 
-        console.log("useSubscriptions: Setting up PoolConfig/Oracle/Vault subscriptions...");
-        const subscriptions: number[] = [];
+        const poolConfigSub = setupSubscription(connection, poolConfigPda, refreshPublicData, 'PoolConfig');
+        if (poolConfigSub) currentPublicSubs.add(poolConfigSub);
 
-        // Subscribe to PoolConfig changes
-        const poolConfigSub = setupSubscription(
-            connection,
-            poolConfigPda,
-            refreshPublicData,
-            'PoolConfig'
-        );
-        if (poolConfigSub) subscriptions.push(poolConfigSub);
-
-        // Subscribe to Oracle Aggregator changes if valid
-        if (poolConfig.oracleAggregatorAccount && !poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
-            const oracleSub = setupSubscription(
-                connection,
-                poolConfig.oracleAggregatorAccount,
-                refreshOracleData,
-                'Oracle'
-            );
-            if (oracleSub) subscriptions.push(oracleSub);
+        if (poolConfig?.oracleAggregatorAccount && !poolConfig.oracleAggregatorAccount.equals(SystemProgram.programId)) {
+            const oracleSub = setupSubscription(connection, poolConfig.oracleAggregatorAccount, refreshOracleData, 'Oracle');
+            if (oracleSub) currentPublicSubs.add(oracleSub);
         }
 
-        // Subscribe to Vault balance changes
-        poolConfig.supportedTokens.forEach((token: SupportedToken) => {
+        poolConfig?.supportedTokens?.forEach((token: SupportedToken) => {
             if (token?.vault && token?.mint) {
-                const vaultSub = setupSubscription(
-                    connection,
-                    token.vault,
-                    refreshPublicData,
-                    `Vault for ${token.mint.toBase58()}`
-                );
-                if (vaultSub) subscriptions.push(vaultSub);
+                const vaultSub = setupSubscription(connection, token.vault, refreshPublicData, `Vault for ${token.mint.toBase58()}`);
+                if (vaultSub) currentPublicSubs.add(vaultSub);
             }
         });
 
-        subscriptionIdsRef.current = subscriptions;
+        cleanupSubscriptions(connection, Array.from(refCurrent.publicSet));
+        refCurrent.publicSet = currentPublicSubs;
 
-        return () => cleanup(connection, subscriptions);
-    }, [connection, poolConfig, poolConfigPda, refreshPublicData, refreshOracleData, cleanup]);
+        return () => {
+            cleanupSubscriptions(connection, Array.from(currentPublicSubs));
+            if (refCurrent) {
+                refCurrent.publicSet.clear(); 
+            }
+        };
+    }, [
+        connection, 
+        poolConfigPda, 
+        oracleAddressStringForDep, 
+        vaultAddressesStringForDep,  
+        refreshPublicData, 
+        refreshOracleData, 
+        poolConfig?.oracleAggregatorAccount, 
+        poolConfig?.supportedTokens
+    ]);
 
     // --- User Account Subscriptions ---
-    useEffect(() => {
-        const subscriptionIds: number[] = [];
+    const wLqiMintAddressForDep = useMemo(() => 
+        poolConfig?.wliMint?.toBase58() ?? null,
+    [poolConfig?.wliMint]);
 
-        if (!connection || !poolConfig || !userPublicKey || !poolConfig.wliMint) {
-            // If essential data for subscriptions isn't ready, clean up existing and exit.
-            cleanup(connection, subscriptionIdsRef.current);
-            subscriptionIdsRef.current = [];
+    const userSubTokenMintsStringForDep = useMemo(() => 
+        supportedTokensForDeps
+            ?.map(t => t.mint?.toBase58() ?? 'null')
+            .sort()
+            .join(',') ?? '',
+    [supportedTokensForDeps]);
+
+    useEffect(() => {
+        const currentUserSubs = new Set<number>();
+        const refCurrent = subscriptionIdsRef.current;
+
+        if (!connection || !userPublicKey || !wLqiMintAddressForDep || !poolConfig?.wliMint || !poolConfig?.supportedTokens) {
+            cleanupSubscriptions(connection, Array.from(refCurrent.userSet));
+            refCurrent.userSet.clear();
             return;
         }
-
-        // Subscribe to wLQI balance changes
+        
         const wLqiSub = setupUserTokenSubscription(
             connection,
             getAssociatedTokenAddressSync(poolConfig.wliMint, userPublicKey, true),
@@ -109,9 +128,8 @@ export function useSubscriptions({
                 setUserWlqiBalance(newBalance);
             }
         );
-        if (wLqiSub) subscriptionIds.push(wLqiSub);
+        if (wLqiSub) currentUserSubs.add(wLqiSub);
 
-        // Subscribe to other token balance changes
         poolConfig.supportedTokens.forEach(token => {
             if (!token.mint) return;
             const userAta = getAssociatedTokenAddressSync(token.mint, userPublicKey, true);
@@ -127,15 +145,33 @@ export function useSubscriptions({
                     });
                 }
             );
-            if (sub) subscriptionIds.push(sub);
+            if (sub) currentUserSubs.add(sub);
         });
 
-        subscriptionIdsRef.current = subscriptionIds;
+        cleanupSubscriptions(connection, Array.from(refCurrent.userSet));
+        refCurrent.userSet = currentUserSubs;
 
         return () => {
-            cleanup(connection, subscriptionIds);
+            cleanupSubscriptions(connection, Array.from(currentUserSubs));
+            if (refCurrent) {
+                refCurrent.userSet.clear(); 
+            }
         };
-    }, [connection, poolConfig, userPublicKey, setUserWlqiBalance, setUserTokenBalances, cleanup]);
+    }, [
+        connection, 
+        userPublicKey, 
+        wLqiMintAddressForDep, 
+        userSubTokenMintsStringForDep,
+        setUserWlqiBalance, 
+        setUserTokenBalances,
+        poolConfig?.wliMint, 
+        poolConfig?.supportedTokens
+    ]);
 
-    return subscriptionIdsRef;
+    // Return a memoized, flattened array of all current subscription IDs
+    const allSubscriptionIds = useMemo(() => {
+        return Array.from(new Set([...subscriptionIdsRef.current.publicSet, ...subscriptionIdsRef.current.userSet]));
+    }, [subscriptionIdsRef.current.publicSet, subscriptionIdsRef.current.userSet]);
+    
+    return allSubscriptionIds;
 } 

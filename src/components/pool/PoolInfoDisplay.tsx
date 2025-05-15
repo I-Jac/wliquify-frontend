@@ -105,6 +105,7 @@ export const PoolInfoDisplay = ({
     // Determine the effective loading state to pass down and use locally
     const effectiveIsLoadingPublic = isLoadingPublicData || isAwaitingPostLoadProcessing;
     const effectiveIsLoadingUser = isLoadingUserData || isAwaitingPostLoadProcessing;
+    // console.log("PoolInfoDisplay Effective Loading:", { effectiveIsLoadingPublic, effectiveIsLoadingUser, isAwaitingPostLoadProcessing });
     // --- State Synchronization Logic --- END
 
     // --- Pass refreshAllData prop down to usePoolInteractions ---
@@ -156,6 +157,7 @@ export const PoolInfoDisplay = ({
 
     // Determine if we should show the full initial skeleton state (Uses props)
     const showInitialSkeletons = effectiveIsLoadingPublic && !processedTokenData;
+    // console.log("PoolInfoDisplay Skeleton/Error Logic:", { showInitialSkeletons, showProcessingError: !effectiveIsLoadingPublic && !error && processedTokenData === null });
 
     // Determine if we should show the "could not process" message (Uses props)
     const showProcessingError = !effectiveIsLoadingPublic && !error && processedTokenData === null;
@@ -170,6 +172,7 @@ export const PoolInfoDisplay = ({
     }, []);
 
     if (showInitialSkeletons) {
+        // console.log("PoolInfoDisplay: Rendering Initial Skeletons.");
         // Render full skeleton UI only on initial load when no data exists yet
         return (
             <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full max-w-[950px] mx-auto font-[family-name:var(--font-geist-mono)]">
@@ -191,9 +194,16 @@ export const PoolInfoDisplay = ({
         );
     }
 
-    if (error) return <div className="text-center p-4 text-red-500">Error: {error}</div>; // Use error prop
-    if (showProcessingError) return <div className="text-center p-4">Pool data could not be fully processed.</div>;
+    if (error) {
+        // console.log("PoolInfoDisplay: Rendering Error Message:", error);
+        return <div className="text-center p-4 text-red-500">Error: {error}</div>; // Use error prop
+    }
+    if (showProcessingError) {
+        // console.log("PoolInfoDisplay: Rendering Processing Error Message.");
+        return <div className="text-center p-4">Pool data could not be fully processed.</div>;
+    }
 
+    // console.log("PoolInfoDisplay: Rendering Main Content.");
     // Render the main UI, potentially indicating refresh state via button disable
     return (
         <div className="bg-gray-800 text-white p-6 rounded-lg shadow-md w-full max-w-[950px] mx-auto font-[family-name:var(--font-geist-mono)]">
