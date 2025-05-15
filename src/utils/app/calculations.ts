@@ -1,6 +1,6 @@
 'use client';
 
-import { PublicKey, LAMPORTS_PER_SOL as SOLANA_LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { BN } from '@coral-xyz/anchor';
 import { 
     USD_SCALE,
@@ -15,8 +15,7 @@ import {
     BN_WITHDRAW_MAX_FEE_BPS,
     BN_DOMINANCE_SCALE,
     PRECISION_SCALE_FACTOR,
-    DELISTED_WITHDRAW_BONUS_BPS,
-    TRANSACTION_COMPUTE_UNITS
+    DELISTED_WITHDRAW_BONUS_BPS
 } from "../core/constants";
 import { formatUnits, parseUnits } from 'ethers';
 import { DecodedPriceData, ProcessedTokenData } from '@/utils/core/types';
@@ -207,38 +206,6 @@ export function calculateTotalTargetDominance(processedTokens: ProcessedTokenDat
  */
 
 // --- Formatting Helpers ---
-
-/**
- * Calculates and formats the effective priority fee in SOL for display in the settings modal.
- */
-export const calculateEffectiveDisplayFeeSol = (
-    solForLevelFromContext: number | undefined, 
-    defaultFeeMicroLamportsPerCuForLevel: number, 
-    maxCapSolString?: string
-): string => {
-    let totalEstimatedPriorityFeeSol: number;
-
-    if (solForLevelFromContext !== undefined) {
-        totalEstimatedPriorityFeeSol = solForLevelFromContext;
-    } else {
-        if (defaultFeeMicroLamportsPerCuForLevel < 0) {
-            totalEstimatedPriorityFeeSol = 0;
-        } else {
-            totalEstimatedPriorityFeeSol = (defaultFeeMicroLamportsPerCuForLevel * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * SOLANA_LAMPORTS_PER_SOL);
-        }
-    }
-    
-    let effectiveFeeSol = totalEstimatedPriorityFeeSol;
-
-    if (maxCapSolString !== undefined) {
-        const maxCapSolNum = parseFloat(maxCapSolString);
-        if (!isNaN(maxCapSolNum) && maxCapSolNum >= 0) {
-            effectiveFeeSol = Math.min(totalEstimatedPriorityFeeSol, maxCapSolNum);
-        }
-    }
-
-    return effectiveFeeSol.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 9 });
-};
 
 /**
  * Formats a raw token amount string using its native decimals, optionally capping display decimals.

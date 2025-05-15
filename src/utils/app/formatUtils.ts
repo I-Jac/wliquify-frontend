@@ -1,7 +1,6 @@
 'use client';
 
 import { BN } from '@coral-xyz/anchor';
-// import { BN_PERCENTAGE_CALC_SCALE } from '../core/constants'; // Removed unused import
 
 /**
  * Formats a standard number (representing a percentage) into a percentage string.
