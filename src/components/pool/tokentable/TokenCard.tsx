@@ -6,9 +6,9 @@ import {
     calculateTargetPercentageScaled,
     formatScaledBnToDollarString,
     formatRawAmountString,
-    formatScaledToPercentageString,
     usdToWlqiAmount
 } from '@/utils/app/calculations';
+import { formatScaledToPercentageString } from '@/utils/app/formatUtils';
 import { calculateButtonStates } from '@/utils/app/buttonState';
 import { calculateFees } from '@/utils/app/fees';
 import { TokenInputControls } from './TokenInputControls';
@@ -21,7 +21,7 @@ import {
     DEFAULT_EXPLORER_OPTIONS,
     DEFAULT_PREFERRED_EXPLORER,
 } from '@/utils/core/constants';
-import { parseUnits } from 'ethers';
+import { parseUnits, formatUnits } from 'ethers';
 import { TokenRowProps } from './TokenRow';
 import { safeConvertBnToNumber } from '@/utils/core/helpers';
 import { useTranslation } from 'react-i18next';
@@ -192,7 +192,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         try {
             const T_usd_scaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
             if (T_usd_scaled && T_usd_scaled.gtn(0)) {
-                const vaultBalanceUsd = T_usd_scaled.toNumber() / Math.pow(10, USD_SCALE);
+                const vaultBalanceUsdString = formatUnits(T_usd_scaled.toString(), USD_SCALE);
+                const vaultBalanceUsd = parseFloat(vaultBalanceUsdString);
                 const bonusAmount = vaultBalanceUsd * (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE);
                 delistedFullWithdrawBonusAmountString = bonusAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 delistedFullWithdrawBonusPercentString = (Math.abs(DELISTED_WITHDRAW_BONUS_BPS) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
