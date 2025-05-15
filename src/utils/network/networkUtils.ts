@@ -1,5 +1,5 @@
 import { Connection } from '@solana/web3.js';
-import { showToast } from './notifications';
+import { showToast } from '../ui/notifications';
 
 export async function getRpcLatency(url: string): Promise<number | null> {
     try {
