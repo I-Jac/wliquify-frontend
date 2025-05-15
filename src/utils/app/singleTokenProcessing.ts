@@ -6,7 +6,7 @@ import {
     ProcessedTokenData,
     SupportedToken
 } from '@/utils/core/types';
-import { formatScaledBnToDollarString } from '@/utils/app/calculations';
+import { formatScaledBnToDollarString } from '@/utils/app/formatUtils';
 import { USD_SCALE } from '@/utils/core/constants';
 import { priceDataCacheManager } from './priceDataUtils';
 import { 

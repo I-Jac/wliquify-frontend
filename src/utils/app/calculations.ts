@@ -5,7 +5,6 @@ import { BN } from '@coral-xyz/anchor';
 import { 
     USD_SCALE,
     BN_PERCENTAGE_CALC_SCALE,
-    BPS_SCALE,
     BN_BPS_SCALE,
     BN_BASE_FEE_BPS,
     BN_FEE_K_FACTOR_NUMERATOR,
@@ -239,24 +238,6 @@ export const calculateEffectiveDisplayFeeSol = (
     }
 
     return effectiveFeeSol.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 9 });
-};
-
-/**
- * Formats a BN representing a scaled USD value into a $ string.
- */
-export const formatScaledBnToDollarString = (scaledValue: BN | null | undefined, scale: number): string => {
-    if (scaledValue === null || scaledValue === undefined) return '$ --,--'; // Use comma for placeholder
-    try {
-        const scaleFactor = new BN(10).pow(new BN(scale));
-        const dollars = scaledValue.div(scaleFactor);
-        const cents = scaledValue.mod(scaleFactor).abs().toString(10).padStart(scale, '0').slice(0, 2);
-        // Format with space for thousands and comma for decimal
-        const formattedDollars = dollars.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " "); 
-        return `$${formattedDollars},${cents}`; 
-    } catch (error) {
-        console.error("Error formatting BN to dollar string:", error);
-        return '$ Error';
-    }
 };
 
 /**
@@ -563,27 +544,6 @@ export const estimateFeeBpsBN = (
     } catch (e) {
         console.error(`Error estimating ${isDeposit ? 'deposit' : 'withdraw'} fee:`, e);
         return BN_BASE_FEE_BPS;
-    }
-};
-
-// --- MOVED: Fee/Bonus Formatting --- 
-export const formatFeeBonusString = (bpsBN: BN | null, isDeposit: boolean): { feeString: string, title: string } => {
-    // ... (Existing implementation as moved from TokenTable) ...
-    if (bpsBN === null) {
-        return { feeString: "(N/A)", title: "Deposit not applicable for delisted tokens" };
-    }
-
-    const bpsNum = bpsBN.toNumber(); // Convert BN to number for comparison/display
-    const displayPercent = (Math.abs(bpsNum) / BPS_SCALE * 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    if (bpsNum < 0) {
-        return { feeString: `(~${displayPercent}% Bonus)`, title: `Est. Bonus: ~${displayPercent}%` };
-    } else if (bpsNum === 0) {
-        const isWithdrawFloor = !isDeposit && BN_WITHDRAW_FEE_FLOOR_BPS.eq(bpsBN);
-        const title = isWithdrawFloor ? "Minimum fee applied (0.00%)" : "Est. Total Fee: 0.00%";
-        return { feeString: `(0.00%)`, title: title };
-    } else { // bpsNum > 0
-        return { feeString: `(~${displayPercent}% Fee)`, title: `Est. Total Fee: ~${displayPercent}%` };
     }
 };
 

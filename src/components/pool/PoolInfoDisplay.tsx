@@ -10,9 +10,9 @@ import {
 } from '@/utils/core/constants';
 import { ProcessedTokenData } from '@/utils/core/types';
 import {
-    formatScaledBnToDollarString,
     formatRawAmountString,
 } from '@/utils/app/calculations';
+import { formatScaledBnToDollarString } from '@/utils/app/formatUtils';
 import { TokenTable } from './tokentable/TokenTable';
 import { usePoolInteractions } from '@/hooks/usePoolInteractions';
 import { SkeletonBlock } from '../ui/skeletons/SkeletonBlock';
