@@ -282,35 +282,24 @@ export const WalletProfilePanel: React.FC = () => {
     }
     
     const handleTokenRowClick = (mintAddress: string) => {
-        if (!mintAddress) return;
-
         const currentPreferredExplorer = preferredExplorer || DEFAULT_PREFERRED_EXPLORER;
         const currentExplorerOptions = explorerOptions || DEFAULT_EXPLORER_OPTIONS;
-
         const explorerInfo = currentExplorerOptions[currentPreferredExplorer] || currentExplorerOptions[DEFAULT_PREFERRED_EXPLORER];
         const clusterQuery = explorerInfo.getClusterQueryParam(EXPLORER_CLUSTER);
-        
-        const templateUrl = explorerInfo.tokenUrlTemplate || explorerInfo.addressUrlTemplate;
+
+        const templateUrl = explorerInfo.tokenUrlTemplate;
 
         if (!templateUrl) {
-            console.warn(`No token or address URL template found for explorer: ${explorerInfo.name}, falling back to Solscan.`);
+            console.warn(`No token URL template found for explorer: ${explorerInfo.name}, falling back to Solscan.`);
             const fallbackExplorer = DEFAULT_EXPLORER_OPTIONS['Solscan'];
-            const fallbackTemplateUrl = fallbackExplorer.tokenUrlTemplate || fallbackExplorer.addressUrlTemplate;
-            if (fallbackTemplateUrl) {
-                 const url = fallbackTemplateUrl
-                    .replace('{token_address}', mintAddress)
-                    .replace('{address}', mintAddress) 
-                    .replace('{cluster}', fallbackExplorer.getClusterQueryParam(EXPLORER_CLUSTER));
+            if (fallbackExplorer.tokenUrlTemplate) {
+                const url = fallbackExplorer.tokenUrlTemplate.replace('{token_address}', mintAddress).replace('{cluster}', fallbackExplorer.getClusterQueryParam(EXPLORER_CLUSTER));
                 window.open(url, '_blank', 'noopener,noreferrer');
             }
             return;
         }
-
-        const url = templateUrl
-            .replace('{token_address}', mintAddress)
-            .replace('{address}', mintAddress) 
-            .replace('{cluster}', clusterQuery);
         
+        const url = templateUrl.replace('{token_address}', mintAddress).replace('{cluster}', clusterQuery);
         window.open(url, '_blank', 'noopener,noreferrer');
     };
 
@@ -362,10 +351,14 @@ export const WalletProfilePanel: React.FC = () => {
                                 className="w-6 h-6 rounded-full" 
                             />}
                         <span className="text-lg font-semibold text-white">{shortenedAddress}</span>
-                        <button onClick={handleCopyAddress} title={t('header.walletModal.copyAddress')} className="p-1 text-gray-400 hover:text-white">
+                        <button onClick={handleCopyAddress} title={t('header.walletModal.copy')} className="p-1 text-gray-400 hover:text-white cursor-pointer">
                             <DocumentDuplicateIcon className="w-5 h-5" />
                         </button>
-                        <button onClick={handleOpenAddressExplorer} title={t('walletProfile.viewAddressOnExplorer', { explorerName: (explorerOptions || DEFAULT_EXPLORER_OPTIONS)[preferredExplorer || DEFAULT_PREFERRED_EXPLORER]?.name || 'Explorer' })} className="p-1 text-gray-400 hover:text-white">
+                        <button 
+                            onClick={handleOpenAddressExplorer} 
+                            title={t('walletProfile.viewAddressOnExplorer', { explorerName: (explorerOptions || DEFAULT_EXPLORER_OPTIONS)[preferredExplorer || DEFAULT_PREFERRED_EXPLORER]?.name || 'Explorer' })}
+                            className="p-1 text-gray-400 hover:text-white cursor-pointer"
+                        >
                             <ArrowTopRightOnSquareIcon className="w-5 h-5" />
                         </button>
                     </div>
@@ -383,7 +376,14 @@ export const WalletProfilePanel: React.FC = () => {
 
                     {/* wLQI Specific Display */}
                     {connected && wlqiTokenInfo && (
-                        <div className="pt-2 pb-1 border-t border-b border-gray-700/50 my-1">
+                        <div 
+                            className="pt-2 pb-1 border-t border-b border-gray-700/50 my-3 hover:bg-gray-700/50 rounded-md cursor-pointer p-3"
+                            onClick={() => handleTokenRowClick(wlqiTokenInfo.mint)}
+                            title={t('walletProfile.viewOnExplorer', { 
+                                symbol: wlqiTokenInfo.symbol, 
+                                explorerName: (explorerOptions || DEFAULT_EXPLORER_OPTIONS)[preferredExplorer || DEFAULT_PREFERRED_EXPLORER]?.name || 'Explorer'
+                            })}
+                        >
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center">
                                     {wlqiTokenInfo.logoURI && (
@@ -414,17 +414,17 @@ export const WalletProfilePanel: React.FC = () => {
                     <div className="flex space-x-2">
                         <button 
                             onClick={handleChangeWallet}
-                            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-3 rounded-md text-sm font-medium flex items-center justify-center space-x-1.5"
+                            className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-gray-500 cursor-pointer"
                         >
-                            <ArrowsRightLeftIcon className="w-4 h-4" />
-                            <span>{t('header.walletModal.changeWallet')}</span>
+                            <ArrowsRightLeftIcon className="w-5 h-5 mr-2" />
+                            {t('header.walletModal.changeWallet')}
                         </button>
                         <button 
                             onClick={handleDisconnect}
-                            className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 px-3 rounded-md text-sm font-medium flex items-center justify-center space-x-1.5"
+                            className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-red-500 hover:text-red-400 hover:bg-red-700/20 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-500 cursor-pointer"
                         >
-                           <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                           <span>{t('header.walletModal.disconnect')}</span>
+                           <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2" />
+                           {t('header.walletModal.disconnect')}
                         </button>
                     </div>
                 </div>
