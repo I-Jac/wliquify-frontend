@@ -17,7 +17,7 @@ import {
     PRECISION_SCALE_FACTOR,
     DELISTED_WITHDRAW_BONUS_BPS
 } from "../core/constants";
-import { formatUnits, parseUnits } from 'ethers';
+import { parseUnits } from 'ethers';
 import { DecodedPriceData, ProcessedTokenData } from '@/utils/core/types';
 
 // --- Calculation Functions ---
@@ -206,45 +206,6 @@ export function calculateTotalTargetDominance(processedTokens: ProcessedTokenDat
  */
 
 // --- Formatting Helpers ---
-
-/**
- * Formats a raw token amount string using its native decimals, optionally capping display decimals.
- */
-export const formatRawAmountString = (
-    amount: string | BN | bigint | null | undefined,
-    decimals: number | null,
-    showDecimals: boolean = true,
-    maxDisplayDecimals?: number // Optional: Cap the displayed decimals
-): string | null => {
-    if (amount === null || amount === undefined || decimals === null) return null;
-    try {
-        // Convert input to string for formatUnits
-        const amountString = typeof amount === 'object' && amount !== null && 'toString' in amount 
-                             ? amount.toString() // Handles BN
-                             : String(amount); // Handles string, bigint, number
-                             
-        const formatted = formatUnits(amountString, decimals);
-        const number = parseFloat(formatted);
-        if (isNaN(number)) return null;
-
-        // Determine the number of decimal places to display
-        let displayDecimalPlaces = showDecimals ? decimals : 0;
-        if (showDecimals && maxDisplayDecimals !== undefined) {
-             displayDecimalPlaces = Math.min(decimals, maxDisplayDecimals); // Apply the cap
-        }
-        // Ensure minimum 2 decimals if showDecimals is true and cap allows
-        const minDecimals = (showDecimals && (maxDisplayDecimals === undefined || maxDisplayDecimals >= 2)) ? 2 : 0;
-
-        // Use 'fr-FR' locale for space thousands separator and comma decimal separator
-        return number.toLocaleString('fr-FR', { 
-            minimumFractionDigits: minDecimals, 
-            maximumFractionDigits: displayDecimalPlaces // Use calculated display decimals
-        });
-    } catch (error) {
-        console.error("Error formatting raw amount string:", error);
-        return null;
-    }
-};
 
 /**
  * Calculates the total value of the pool and individual token metrics.

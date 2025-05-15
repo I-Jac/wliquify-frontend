@@ -4,10 +4,9 @@ import Image from 'next/image';
 import {
     calculateTokenValueUsdScaled,
     calculateTargetPercentageScaled,
-    formatRawAmountString,
     usdToWlqiAmount
 } from '@/utils/app/calculations';
-import { formatScaledToPercentageString, formatScaledBnToDollarString } from '@/utils/app/formatUtils';
+import { formatScaledToPercentageString, formatScaledBnToDollarString, formatRawAmountString } from '@/utils/app/formatUtils';
 import { calculateButtonStates } from '@/utils/app/buttonState';
 import { calculateFees } from '@/utils/app/fees';
 import { TokenInputControls } from './TokenInputControls';

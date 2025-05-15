@@ -1,6 +1,7 @@
 'use client';
 
 import { BN } from '@coral-xyz/anchor';
+import { formatUnits } from 'ethers';
 
 /**
  * Formats a standard number (representing a percentage) into a percentage string.
@@ -63,5 +64,51 @@ export const formatScaledBnToDollarString = (scaledValue: BN | null | undefined,
     } catch (error) {
         console.error("Error formatting BN to dollar string:", error);
         return '$ Error';
+    }
+}; 
+
+/**
+ * Formats a raw token amount string using its native decimals, optionally capping display decimals.
+ * @param amount - The raw token amount (string, BN, bigint, or number).
+ * @param decimals - The number of decimals for the token.
+ * @param showDecimals - Whether to show decimal places in the output.
+ * @param maxDisplayDecimals - Optional cap on the number of decimal places shown.
+ * @returns Formatted string or null if formatting fails.
+ */
+export const formatRawAmountString = (
+    amount: string | BN | bigint | null | undefined,
+    decimals: number | null,
+    showDecimals: boolean = true,
+    maxDisplayDecimals?: number // Optional: Cap the displayed decimals
+): string | null => {
+    if (amount === null || amount === undefined || decimals === null) {
+        return null; 
+    }
+    try {
+        // Convert input to string for formatUnits
+        const amountString = typeof amount === 'object' && amount !== null && 'toString' in amount 
+                             ? amount.toString() // Handles BN
+                             : String(amount); // Handles string, bigint, number
+                             
+        const formatted = formatUnits(amountString, decimals);
+        const number = parseFloat(formatted);
+        if (isNaN(number)) return null;
+
+        // Determine the number of decimal places to display
+        let displayDecimalPlaces = showDecimals ? decimals : 0;
+        if (showDecimals && maxDisplayDecimals !== undefined) {
+             displayDecimalPlaces = Math.min(decimals, maxDisplayDecimals); // Apply the cap
+        }
+        // Ensure minimum 2 decimals if showDecimals is true and cap allows
+        const minDecimals = (showDecimals && (maxDisplayDecimals === undefined || maxDisplayDecimals >= 2)) ? 2 : 0;
+
+        // Use 'fr-FR' locale for space thousands separator and comma decimal separator
+        return number.toLocaleString('fr-FR', { 
+            minimumFractionDigits: minDecimals, 
+            maximumFractionDigits: displayDecimalPlaces // Use calculated display decimals
+        });
+    } catch (error) {
+        console.error("Error formatting raw amount string:", error);
+        return null;
     }
 }; 
