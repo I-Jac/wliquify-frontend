@@ -171,6 +171,7 @@ export function useSubscriptions({
     // Return a memoized, flattened array of all current subscription IDs
     const allSubscriptionIds = useMemo(() => {
         return Array.from(new Set([...subscriptionIdsRef.current.publicSet, ...subscriptionIdsRef.current.userSet]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [subscriptionIdsRef.current.publicSet, subscriptionIdsRef.current.userSet]);
     
     return allSubscriptionIds;
