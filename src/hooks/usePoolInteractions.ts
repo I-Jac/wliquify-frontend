@@ -25,17 +25,19 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { TRANSACTION_COMPUTE_UNITS } from '@/utils/core/constants';
 import i18next from 'i18next';
 
+import { createAtaIfNeeded } from '@/utils/solana/ataUtils';
 import {
     checkSolBalance,
     validatePriceFeed,
+    validatePreFlightChecks,
+    validateSignTransaction
+} from '@/utils/solana/transactionValidation';
+import {
     buildTransactionWithComputeBudget,
     signAndSendTransaction,
-    validatePreFlightChecks,
-    validateSignTransaction,
-    createAtaIfNeeded,
     handleTransactionSuccess,
     handleTransactionErrorAndCleanup
-} from '@/utils/solana/interactionUtils';
+} from '@/utils/solana/transactionLifecycle';
 
 interface UsePoolInteractionsProps {
     program: Program<WLiquifyPool> | null;
