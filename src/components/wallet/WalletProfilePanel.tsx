@@ -155,20 +155,6 @@ export const WalletProfilePanel: React.FC = () => {
         const others: TokenDisplayInfo[] = [];
         const otherTokensWithNumericUsd: (TokenDisplayInfo & { numericUsdValue: number })[] = [];
 
-        // --- DEBUG LOGGING START ---
-        console.log('[WalletProfilePanel] useMemo: Recalculating token info...');
-        console.log('[WalletProfilePanel] useMemo values:', {
-            poolConfigExists: !!poolConfig,
-            connected,
-            publicKeyExists: !!publicKey,
-            userWlqiBalance,
-            wLqiDecimals,
-            wLqiValueScaled,
-            isLoadingUserData,
-            isLoadingPublicData,
-        });
-        // --- DEBUG LOGGING END ---
-
         if (poolConfig && connected && publicKey) {
             // Only attempt to populate if data loading is complete for this panel's hook instance
             if (!isLoadingUserData && !isLoadingPublicData) {
@@ -196,7 +182,6 @@ export const WalletProfilePanel: React.FC = () => {
                         totalUsd += wlqiUsd;
                         wlqiUsdStr = wlqiUsd.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
                     } else {
-                        console.log('[WalletProfilePanel] Setting USD N/A for wLQI. Original wLqiValueScaled:', wLqiValueScaled, 'Converted wLqiPriceAsNumber:', wLqiPriceAsNumber, 'isLoadingPublicData:', isLoadingPublicData, 'isLoadingUserData:', isLoadingUserData);
                         wlqiUsdStr = t('walletProfile.valueUnavailable', 'USD N/A'); // Fallback if t not ready or key missing
                     }
 
@@ -271,11 +256,6 @@ export const WalletProfilePanel: React.FC = () => {
     }, [poolConfig, processedTokenData, userWlqiBalance, wLqiDecimals, wLqiValueScaled, connected, publicKey, isLoadingPublicData, isLoadingUserData, t]);
 
     const isLoading = isLoadingPublicData || isLoadingUserData;
-
-    // --- DEBUG LOGGING START ---
-    console.log('[WalletProfilePanel] Render: wlqiTokenInfo:', wlqiTokenInfo);
-    console.log('[WalletProfilePanel] Render: connected:', connected);
-    // --- DEBUG LOGGING END ---
 
     if (!isWalletProfileOpen || !portalNode) {
         return null;
