@@ -1,6 +1,6 @@
 import { AccountInfo } from '@solana/web3.js';
 import { DecodedPriceData } from '@/utils/core/types';
-import { decodePriceData } from '@/utils/app/calculations';
+import { decodePriceData } from '@/utils/app/decodingUtils';
 
 interface PriceDataCache {
     data: DecodedPriceData;
