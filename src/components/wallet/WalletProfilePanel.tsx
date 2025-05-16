@@ -21,6 +21,7 @@ import {
     DEFAULT_PREFERRED_EXPLORER,
     USD_SCALE,
 } from '@/utils/core/constants';
+import { formatScaledBnToDollarString } from '@/utils/app/formatUtils';
 
 interface TokenDisplayInfo {
     mint: string;
@@ -155,6 +156,19 @@ export const WalletProfilePanel: React.FC = () => {
         const others: TokenDisplayInfo[] = [];
         const otherTokensWithNumericUsd: (TokenDisplayInfo & { numericUsdValue: number })[] = [];
 
+        // Helper function to safely create BN instances
+        const createSafeBn = (value: number): BN | null => {
+            if (!Number.isFinite(value)) {
+                return null;
+            }
+            const roundedValue = Math.round(value);
+            // Math.round on a finite number produces a finite number.
+            if (Math.abs(roundedValue) > Number.MAX_SAFE_INTEGER) {
+                return new BN(roundedValue.toString(10));
+            }
+            return new BN(roundedValue);
+        };
+
         if (poolConfig && connected && publicKey) {
             // Only attempt to populate if data loading is complete for this panel's hook instance
             if (!isLoadingUserData && !isLoadingPublicData) {
@@ -179,10 +193,17 @@ export const WalletProfilePanel: React.FC = () => {
                     if (typeof wLqiPriceAsNumber === 'number' && !isNaN(wLqiPriceAsNumber)) {
                         const pricePerTokenCorrectlyScaled = wLqiPriceAsNumber / Math.pow(10, USD_SCALE);
                         const wlqiUsd = wlqiAmount * pricePerTokenCorrectlyScaled;
-                        totalUsd += wlqiUsd;
-                        wlqiUsdStr = wlqiUsd.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+                        
+                        if (Number.isFinite(wlqiUsd)) {
+                            totalUsd += wlqiUsd;
+                        }
+
+                        const rawWlqiUsdScaled = wlqiUsd * Math.pow(10, USD_SCALE);
+                        const wlqiUsdScaledBn = createSafeBn(rawWlqiUsdScaled);
+                        wlqiUsdStr = formatScaledBnToDollarString(wlqiUsdScaledBn, USD_SCALE);
                     } else {
-                        wlqiUsdStr = t('walletProfile.valueUnavailable', 'USD N/A'); // Fallback if t not ready or key missing
+                        // wlqiUsdStr = t('walletProfile.valueUnavailable', '$ --,--'); // Old fallback
+                        wlqiUsdStr = formatScaledBnToDollarString(null, USD_SCALE); // Standardized fallback
                     }
 
                     wlqiInfo = {
@@ -204,7 +225,7 @@ export const WalletProfilePanel: React.FC = () => {
                         name: 'Wrapped Liquidity Index',
                         logoURI: '/tokens/default.png',
                         balanceAmount: (0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                        balanceUsd: (0).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' }),
+                        balanceUsd: formatScaledBnToDollarString(new BN(0), USD_SCALE),
                         decimals: wLqiDecimals, // Keep decimals for consistency, even if balance is 0
                     };
                 }
@@ -227,7 +248,9 @@ export const WalletProfilePanel: React.FC = () => {
                         const pricePerToken = Number(ptd.priceData.price) * Math.pow(10, ptd.priceData.expo);
                         tokenUsdValue = balanceAmount * pricePerToken;
                     }
-                    totalUsd += tokenUsdValue;
+                    if (Number.isFinite(tokenUsdValue)) {
+                        totalUsd += tokenUsdValue;
+                    }
 
                     otherTokensWithNumericUsd.push({
                         mint: ptd.mintAddress,
@@ -235,7 +258,11 @@ export const WalletProfilePanel: React.FC = () => {
                         name: ptd.symbol, // Use symbol as name, as ProcessedTokenData doesn't have a separate 'name'
                         logoURI: ptd.icon || `/tokens/${ptd.symbol.toUpperCase()}.png`, // Fallback logo pattern
                         balanceAmount: balanceAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: ptd.decimals > 5 ? 5 : ptd.decimals }),
-                        balanceUsd: tokenUsdValue.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' }),
+                        balanceUsd: (() => {
+                            const rawTokenUsdScaled = tokenUsdValue * Math.pow(10, USD_SCALE);
+                            const tokenUsdScaledBn = createSafeBn(rawTokenUsdScaled);
+                            return formatScaledBnToDollarString(tokenUsdScaledBn, USD_SCALE);
+                        })(),
                         decimals: ptd.decimals,
                         numericUsdValue: tokenUsdValue, // Store numeric USD value for sorting
                     });
@@ -248,12 +275,16 @@ export const WalletProfilePanel: React.FC = () => {
             }
         }
 
+        const finalRawTotalUsdScaled = totalUsd * Math.pow(10, USD_SCALE);
+        const totalUsdScaledBn = createSafeBn(finalRawTotalUsdScaled);
+        const finalTotalPortfolioUsdString = formatScaledBnToDollarString(totalUsdScaledBn, USD_SCALE);
+
         return { 
             wlqiTokenInfo: wlqiInfo, 
             otherTokensInfo: others, 
-            totalPortfolioUsd: totalUsd.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' })
+            totalPortfolioUsd: finalTotalPortfolioUsdString
         };
-    }, [poolConfig, processedTokenData, userWlqiBalance, wLqiDecimals, wLqiValueScaled, connected, publicKey, isLoadingPublicData, isLoadingUserData, t]);
+    }, [poolConfig, processedTokenData, userWlqiBalance, wLqiDecimals, wLqiValueScaled, connected, publicKey, isLoadingPublicData, isLoadingUserData]);
 
     const isLoading = isLoadingPublicData || isLoadingUserData;
 

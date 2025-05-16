@@ -28,7 +28,7 @@ export function formatScaledToPercentageString(scaledBn: BN | null | undefined):
         const divisor = new BN(10000);
         if (divisor.isZero()) { // Safety check
             console.error("Percentage divisor is zero!");
-            return 'Error %'; // Restore original error return
+            return 'Error'; // Restore original error return
         }
 
         // Use precision factor for division (4 decimal places)
@@ -42,10 +42,10 @@ export function formatScaledToPercentageString(scaledBn: BN | null | undefined):
         const percentageValue = percentageScaledForDisplay.toNumber() / Math.pow(10, 4); 
 
         // Format to 4 decimal places
-        return percentageValue.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) + '%'; // Add % sign
+        return percentageValue.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
     } catch (error) {
         console.error("Error formatting scaled BN to percentage string:", error);
-        return 'Error %'; // Restore original error return
+        return 'Error'; // Restore original error return
     }
 } 
 
