@@ -1,7 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css"; // Import wallet adapter styles
-import type { Viewport } from 'next' // Import Viewport type
+import type { Viewport, Metadata } from 'next' // Import Viewport and Metadata types
+import Script from 'next/script'; // Import Next.js Script component
 
 import { ClientProviders } from "@/components/core/ClientProviders"; // Import the new wrapper
 import { Header } from "@/components/layout/Header"; // Import the Header component
@@ -25,11 +26,10 @@ export const viewport: Viewport = {
   userScalable: true, // Ensure user can zoom
 }
 
-// Metadata can remain static for now
-// export const metadata: Metadata = {
-//     title: "wLiquify Pool",
-//     description: "Frontend for wLiquify Index Pool",
-// };
+export const metadata: Metadata = {
+  title: "wLiquify",
+  description: "Decentralized Liquidity Provisioning Protocol",
+};
 
 export default function RootLayout({
     children,
@@ -38,10 +38,12 @@ export default function RootLayout({
 }>) {
 
     return (
-        <html lang="en">
-            <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-            >
+        <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+            <head>
+                {/* Jupiter Terminal Script using next/script for better handling */}
+                <Script src='https://terminal.jup.ag/main-v4.js' data-preload strategy="beforeInteractive" />
+            </head>
+            <body>
                 <ClientProviders>
                     <Header />
                     <main className="">

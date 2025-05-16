@@ -100,6 +100,10 @@
       "priorityLabel": "Transaction priority affects confirmation speed and fee",
       "approximateFee": "Estimated fee for the current transaction priority"
     },
+    "nav": {
+      "swap": "Swap",
+      "pool": "Pool"
+    },
 
     "settings": {
       "buttonTitle": "Settings",

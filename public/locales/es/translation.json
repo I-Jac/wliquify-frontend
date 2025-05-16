@@ -100,6 +100,10 @@
       "priorityLabel": "La prioridad de la transacción afecta la velocidad de confirmación y la tarifa",
       "approximateFee": "Tarifa estimada para la prioridad de transacción actual"
     },
+    "nav": {
+      "swap": "Intercambiar",
+      "pool": "Pool"
+    },
 
     "settings": {
       "buttonTitle": "Configuración",
