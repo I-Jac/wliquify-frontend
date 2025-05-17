@@ -172,25 +172,23 @@ export const Header: React.FC = () => {
                             wLiquify
                         </span>
                         <div className="hidden md:flex items-center space-x-2 ml-4">
-                            <Link href="/" passHref legacyBehavior>
-                                <a className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer 
+                            <Link href="/" 
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer 
                                     ${
                                         isPoolActive
                                             ? 'bg-blue-500 text-white' 
                                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                >
-                                    {isMounted ? t('header.nav.pool') : 'Pool'}
-                                </a>
+                            >
+                                {isMounted ? t('header.nav.pool') : 'Pool'}
                             </Link>
-                            <Link href="/swap" passHref legacyBehavior>
-                                <a className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer 
+                            <Link href="/swap" 
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer 
                                     ${
                                         isSwapActive
                                             ? 'bg-blue-500 text-white' 
                                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                >
-                                    {isMounted ? t('header.nav.swap') : 'Swap'}
-                                </a>
+                            >
+                                {isMounted ? t('header.nav.swap') : 'Swap'}
                             </Link>
                         </div>
                         <button
@@ -385,27 +383,23 @@ export const Header: React.FC = () => {
                                     </button>
                                 </div>
                                 <div ref={flexGrowDivRef} className="flex-grow p-4 space-y-2 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                                    <Link href="/" passHref legacyBehavior>
-                                        <a onClick={toggleMobileMenu}
-                                            className={`block w-full text-left px-3 py-2.5 rounded-md text-base font-medium transition-colors cursor-pointer 
-                                                ${
-                                                    isPoolActive
-                                                        ? 'bg-blue-500 text-white' 
-                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                        >
-                                            {t('header.nav.pool', 'Pool')}
-                                        </a>
+                                    <Link href="/" 
+                                        className={`block w-full text-left px-3 py-2.5 rounded-md text-base font-medium transition-colors cursor-pointer 
+                                            ${
+                                                isPoolActive
+                                                    ? 'bg-blue-500 text-white' 
+                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                    >
+                                        {t('header.nav.pool', 'Pool')}
                                     </Link>
-                                    <Link href="/swap" passHref legacyBehavior>
-                                        <a onClick={toggleMobileMenu}
-                                            className={`block w-full text-left px-3 py-2.5 rounded-md text-base font-medium transition-colors cursor-pointer 
-                                                ${
-                                                    isSwapActive
-                                                        ? 'bg-blue-500 text-white' 
-                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                        >
-                                            {t('header.nav.swap', 'Swap')}
-                                        </a>
+                                    <Link href="/swap" 
+                                        className={`block w-full text-left px-3 py-2.5 rounded-md text-base font-medium transition-colors cursor-pointer 
+                                            ${
+                                                isSwapActive
+                                                    ? 'bg-blue-500 text-white' 
+                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                    >
+                                        {t('header.nav.swap', 'Swap')}
                                     </Link>
                                     <div className="border-t border-gray-700 pt-3 mt-3">
                                         <button 
