@@ -13,7 +13,13 @@ export const SwapViewContainer: React.FC = () => {
                 This container centers the title and the swap terminal.
                 The terminal itself will define its appearance (background, border-radius).
             */}
-            <div className="w-full max-w-[420px]">
+            <div 
+                className="w-full max-w-[420px] border-4 border-red-500" 
+                style={{ 
+                    minHeight: '700px', // Temporary explicit min height
+                    overflow: 'visible !important' as any // Temporary, forcing overflow
+                }}
+            >
                 <h2 className="text-2xl font-bold text-white mb-4 text-center">
                     {t('swapView.title', 'Swap Tokens')}
                 </h2>

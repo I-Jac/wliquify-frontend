@@ -38,3 +38,35 @@ body {
     font-size: 0.8rem; /* Optionally slightly smaller font on mobile */
   }
 }
+
+/* === START JUPITER MODAL DEBUG CSS === */
+/* Remove or comment out the previous #jupiter-terminal > div.absolute rule */
+
+/* Target the modal root (still useful for overall visibility check) */
+#jupiter-terminal > div.absolute.top-0.left-0.h-full.w-full {
+    z-index: 9999 !important;
+    background-color: rgba(255, 0, 0, 0.1) !important; /* Light Red background for modal root */
+    border: 2px solid red !important;
+    overflow: visible !important; /* Ensure modal root itself is not clipping */
+}
+
+/* Target the suspected list container's parent */
+#jupiter-terminal > div.absolute.top-0.left-0.h-full.w-full > div > div.mt-2[style*="flex-grow: 1"] {
+    background-color: rgba(0, 255, 0, 0.2) !important; /* Light Green background */
+    border: 2px solid green !important;
+    min-height: 400px !important; /* Give it some minimum height */
+    overflow: visible !important;
+}
+
+/* Target the suspicious zero-dimension div directly */
+#jupiter-terminal > div.absolute.top-0.left-0.h-full.w-full > div > div.mt-2[style*="flex-grow: 1"] > div[style*="height: 0px"] {
+    background-color: rgba(0, 0, 255, 0.2) !important; /* Light Blue background */
+    border: 2px solid blue !important;
+    min-height: 300px !important; /* Force a minimum height */
+    min-width: 300px !important; /* Force a minimum width */
+    height: auto !important; /* Try to override inline style */
+    width: auto !important; /* Try to override inline style */
+    overflow: visible !important;
+    display: block !important; /* Ensure it's not display: none */
+}
+/* === END JUPITER MODAL DEBUG CSS === */
