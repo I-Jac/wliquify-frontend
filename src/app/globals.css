@@ -118,3 +118,8 @@ body:has(#jupiter-terminal > div[class*="absolute"][class*="bg-"][class*="overfl
 }
 
 /* Rule 4 - Commented out */
+
+/* Hide Jupiter Terminal Wallet Display */
+#integrated-terminal-swap-page #jupiter-terminal .flex.space-x-1.items-center > .cursor-pointer.relative {
+  display: none !important;
+}

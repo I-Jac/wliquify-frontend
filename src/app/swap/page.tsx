@@ -72,14 +72,24 @@ export default function SwapPage() {
   // Initialize Jupiter Terminal
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Jupiter) {
-      // console.log("Attempting to initialize Jupiter Terminal...");
       window.Jupiter.init({
         displayMode: "integrated",
         integratedTargetId: "integrated-terminal-swap-page",
-        endpoint: connection?.rpcEndpoint || 'https://api.mainnet-beta.solana.com',
+        endpoint: 'https://misty-thrilling-scion.solana-mainnet.quiknode.pro/cf8404eb59e4ff88ff2ef1904ea16e8de1de0135/',
         enableWalletPassthrough: true,
         onFormUpdate: (form: any) => {
-          // console.log("Jupiter onFormUpdate:", form); // Optional: remove if not needed
+          // console.log("Jupiter onFormUpdate:", form);
+        },
+        onSuccess: ({ txid, swapResult }) => {
+          console.log("Swap successful:", { txid, swapResult });
+          // Immediately attempt to re-sync wallet state with Jupiter after a successful swap
+          if (window.Jupiter && window.Jupiter.syncProps && wallet) {
+            window.Jupiter.syncProps({
+              passthroughWalletContextState: wallet, // wallet object from useWallet()
+              platformFeeAndAccounts: Object.keys(platformFeeAndAccounts).length > 0 ? platformFeeAndAccounts : undefined,
+              endpoint: 'https://misty-thrilling-scion.solana-mainnet.quiknode.pro/cf8404eb59e4ff88ff2ef1904ea16e8de1de0135/',
+            });
+          }
         },
         platformFeeAndAccounts: Object.keys(platformFeeAndAccounts).length > 0 ? platformFeeAndAccounts : undefined,
         formProps: {
@@ -87,20 +97,19 @@ export default function SwapPage() {
           initialOutputMint: "So11111111111111111111111111111111111111112",
         },
       });
-      // console.log("Jupiter Terminal init called.");
     }
-  }, [connection?.rpcEndpoint]);
+  }, [wallet, platformFeeAndAccounts]); // Ensure wallet and platformFeeAndAccounts are in dependency array if used in onSuccess's syncProps
 
-  // Sync wallet state with Jupiter Terminal
+  // Sync wallet state with Jupiter Terminal (this handles initial sync and ongoing changes)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Jupiter && window.Jupiter.syncProps && wallet) {
       window.Jupiter.syncProps({
         passthroughWalletContextState: wallet,
         platformFeeAndAccounts: Object.keys(platformFeeAndAccounts).length > 0 ? platformFeeAndAccounts : undefined,
-        endpoint: connection?.rpcEndpoint || 'https://api.mainnet-beta.solana.com',
+        endpoint: 'https://misty-thrilling-scion.solana-mainnet.quiknode.pro/cf8404eb59e4ff88ff2ef1904ea16e8de1de0135/',
       });
     }
-  }, [wallet, wallet.connected, wallet.publicKey, platformFeeAndAccounts, connection?.rpcEndpoint]);
+  }, [wallet, wallet.connected, wallet.publicKey, platformFeeAndAccounts]); // Removed connection?.rpcEndpoint
 
   return (
     <div className="flex flex-col items-center pt-[calc(56px_+_1rem)] px-4 sm:px-8 lg:px-16 pb-8 font-[family-name:var(--font-geist-sans)] relative">
