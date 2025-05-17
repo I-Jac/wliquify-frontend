@@ -45,11 +45,13 @@ export default function RootLayout({
             </head>
             <body>
                 <ClientProviders>
-                    <Header />
-                    <main className="">
-                        {children}
-                    </main>
-                    <Footer />
+                    <div className="flex flex-col min-h-screen">
+                        <Header />
+                        <main className="flex-grow">
+                            {children}
+                        </main>
+                        <Footer />
+                    </div>
                     <AlertModal />
                 </ClientProviders>
             </body>

@@ -103,9 +103,9 @@ export default function SwapPage() {
   }, [wallet, wallet.connected, wallet.publicKey, platformFeeAndAccounts, connection?.rpcEndpoint]);
 
   return (
-    <div className="grid grid-rows-[auto_1fr_auto] items-start justify-items-center min-h-screen pt-[calc(56px_+_1rem)] px-4 sm:px-8 lg:px-16 pb-20 gap-8 font-[family-name:var(--font-geist-sans)] relative">
-      <main className="flex flex-col items-center justify-start w-full max-w-7xl mx-auto">
-        <div id="integrated-terminal-swap-page" className="w-full max-w-[420px] min-h-[600px] bg-gray-800 rounded-xl shadow-xl overflow-hidden"></div>
+    <div className="flex flex-col items-center pt-[calc(56px_+_1rem)] px-4 sm:px-8 lg:px-16 pb-8 font-[family-name:var(--font-geist-sans)] relative">
+      <main className="relative z-40 flex flex-col items-center justify-start w-full max-w-7xl mx-auto">
+        <div id="integrated-terminal-swap-page" className="w-full max-w-[420px] min-h-[600px] bg-gray-800 rounded-xl shadow-xl overflow-hidden mb-20"></div>
       </main>
     </div>
   );

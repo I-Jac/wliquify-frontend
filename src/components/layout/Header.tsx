@@ -164,7 +164,7 @@ export const Header: React.FC = () => {
     const isSwapActive = pathname === '/swap';
 
     return (
-        <header className="sticky top-0 z-30 bg-gray-800 shadow-md w-full">
+        <header className="sticky top-0 z-50 bg-gray-800 shadow-md w-full">
             <nav className="px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-14">
                     <div className="flex items-center">
