@@ -121,6 +121,7 @@ export const PREDEFINED_SLIPPAGE_OPTIONS = [
 
 export const PREDEFINED_RPCS: RpcOption[] = [
     { name: 'Solana Devnet', url: 'https://api.devnet.solana.com' },
+    { name: 'wLiquify Mainnet (QuikNode)', url: 'https://misty-thrilling-scion.solana-mainnet.quiknode.pro/cf8404eb59e4ff88ff2ef1904ea16e8de1de0135/' },
     // { name: 'dRPC Devnet', url: 'https://solana.drpc.org' }, // Commented out for now
 ];
 
