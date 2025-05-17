@@ -4,7 +4,7 @@ import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WLiquifyPool } from '@/programTarget/type/w_liquify_pool'; 
 import idl from '@/programTarget/idl/w_liquify_pool.json'; // Import the IDL JSON
 import { PublicKey, Connection } from '@solana/web3.js';
-import { RPC_URL } from '@/utils/core/constants'; // Import RPC_URL
+import { useSettings } from '@/contexts/SettingsContext'; // Import useSettings
 
 // Define commitment level as a constant
 const COMMITMENT = 'confirmed' as const;
@@ -32,6 +32,7 @@ interface AnchorProgramProviderProps {
 export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) {
     const { connection } = useConnection();
     const anchorWallet = useAnchorWallet();
+    const { rpcEndpoint } = useSettings(); // Get rpcEndpoint from settings
     const [provider, setProviderState] = useState<AnchorProvider | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
@@ -43,9 +44,10 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
     }), []);
 
     // Memoize the read-only connection to prevent unnecessary recreations
-    const readOnlyConnection = useMemo(() => 
-        new Connection(RPC_URL, COMMITMENT),
-    []);
+    const readOnlyConnection = useMemo(() => {
+        console.log(`[useAnchorProgram] Creating readOnlyConnection with RPC: ${rpcEndpoint}`);
+        return new Connection(rpcEndpoint, COMMITMENT);
+    }, [rpcEndpoint]);
 
     // Handle provider initialization
     useEffect(() => {

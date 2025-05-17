@@ -147,10 +147,10 @@ export const ClientProviders: React.FC<{ children: React.ReactNode }> = ({ child
     return (
         <Suspense fallback={<FullScreenLoader />}>
             <I18nextProvider i18n={resolvedI18nInstance}> {/* Use resolved instance */}
-                <SolanaNetworkProvider>
-                    <AutoConnectProvider>
-                        <WalletContextProvider>
-                            <SettingsProvider>
+                <SettingsProvider> {/* Moved SettingsProvider up */}
+                    <SolanaNetworkProvider>
+                        <AutoConnectProvider>
+                            <WalletContextProvider>
                                 <AlertProvider>
                                     <WalletProfileProvider>
                                         <AnchorProgramProvider>
@@ -162,10 +162,10 @@ export const ClientProviders: React.FC<{ children: React.ReactNode }> = ({ child
                                         </AnchorProgramProvider>
                                     </WalletProfileProvider>
                                 </AlertProvider>
-                            </SettingsProvider>
-                        </WalletContextProvider>
-                    </AutoConnectProvider>
-                </SolanaNetworkProvider>
+                            </WalletContextProvider>
+                        </AutoConnectProvider>
+                    </SolanaNetworkProvider>
+                </SettingsProvider>
             </I18nextProvider>
         </Suspense>
     );

@@ -70,7 +70,7 @@ export const WalletProfilePanel: React.FC = () => {
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-                // closeWalletProfile();
+                closeWalletProfile();
             }
         };
 
@@ -288,8 +288,8 @@ export const WalletProfilePanel: React.FC = () => {
 
     const isLoading = isLoadingPublicData || isLoadingUserData;
 
-    if (!isWalletProfileOpen || !portalNode) {
-        return null;
+    if (!isWalletProfileOpen || !portalNode || !connected || !wallet ) {
+        return null; 
     }
     
     const handleTokenRowClick = (mintAddress: string) => {
@@ -340,15 +340,22 @@ export const WalletProfilePanel: React.FC = () => {
     );
 
     return createPortal(
-        <div
-            className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ease-in-out ${isWalletProfileOpen ? 'backdrop-blur-sm' : ''}`}
-            onClick={closeWalletProfile}
-            aria-hidden={!isWalletProfileOpen}
-        >
+        <>
+            {/* Backdrop */}
+            <div
+                aria-hidden="true"
+                onClick={() => {
+                    // console.log("Backdrop clicked");
+                    closeWalletProfile(); // Commented out to prevent accidental close on any backdrop click
+                }}
+                className={`fixed inset-0 z-[1050] bg-black/50 transition-opacity duration-300 ease-in-out ${isWalletProfileOpen ? 'backdrop-blur-sm' : ''}`}
+            />
+
+            {/* Panel */}
             <div
                 ref={panelRef}
                 onClick={(e) => e.stopPropagation()}
-                className={`fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-md bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out ${isWalletProfileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`fixed inset-y-0 right-0 z-[1060] flex flex-col w-full max-w-md bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out ${isWalletProfileOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -472,7 +479,7 @@ export const WalletProfilePanel: React.FC = () => {
                     )}
                 </div>
             </div>
-        </div>,
+        </>,
         portalNode
     );
 };

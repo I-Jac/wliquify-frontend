@@ -28,8 +28,11 @@ export interface PlatformFeeAndAccounts {
   feeAccounts?: Map<string, TransactionFee>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type QuoteResponse = any; // Replace with actual type if available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SwapResult = any; // Replace with actual type if available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type TransactionError = any; // Replace with actual type if available
 
 export type IForm = {
@@ -64,6 +67,7 @@ export type IScreen =
 
 
 export interface JupiterTerminal {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _instance: any; // Replace with a more specific type if known
   init: (props: {
     displayMode?: 'integrated' | 'modal' | 'widget';
@@ -75,7 +79,9 @@ export interface JupiterTerminal {
     endpoint: string;
     cluster?: 'mainnet-beta' | 'testnet' | 'devnet';
     enableWalletPassthrough?: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     passthroughWalletContextState?: any; // Consider using a more specific type from wallet-adapter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onRequestIxCallback?: (ix: any) => void; // V3
     onSwapError?: (params: { error: TransactionError; quoteResponseMeta: QuoteResponse | null }) => void;
     onSuccess?: (params: { txid: string; swapResult: SwapResult; quoteResponseMeta: QuoteResponse | null }) => void;
@@ -98,6 +104,7 @@ export interface JupiterTerminal {
     showNonStrictTokenWarning?: boolean;
     styleOverrides?: Record<string, string>;
   }) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   syncProps: (props: { passthroughWalletContextState?: any, platformFeeAndAccounts?: PlatformFeeAndAccounts, endpoint?: string, formProps?: FormProps }) => void; // Add other syncable props as needed
   resume: () => void;
   close: () => void;
