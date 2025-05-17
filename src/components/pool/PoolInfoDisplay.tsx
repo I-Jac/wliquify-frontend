@@ -255,12 +255,11 @@ export const PoolInfoDisplay = ({
                      />
                  ) : (
                      // Handle case where there was data, but now it's empty after refresh (or initially empty)
-                     <div className="text-center text-gray-400 italic p-4">
-                          {(effectiveIsLoadingPublic || effectiveIsLoadingUser) ? "Refreshing tokens..." : "No active token data found."}
-                     </div>
+                     (<div className="text-center text-gray-400 italic p-4">
+                         {(effectiveIsLoadingPublic || effectiveIsLoadingUser) ? "Refreshing tokens..." : "No active token data found."}
+                     </div>)
                  )}
             </div>
-
             {delistedTokens.length > 0 && (
                 <div className="mt-8 border-t border-dashed border-gray-500 pt-4">
                     <h3 className="text-lg font-semibold text-center text-gray-400 mb-3">

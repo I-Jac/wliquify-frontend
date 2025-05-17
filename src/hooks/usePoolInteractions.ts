@@ -80,7 +80,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             return;
         }
 
-        if (!await checkSolBalance(connection, publicKey!)) {
+        if (!(await checkSolBalance(connection, publicKey!))) {
             return;
         }
 
@@ -143,7 +143,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 signTransaction
             );
 
-            if (!await handleTransactionSuccess(
+            if (!(await handleTransactionSuccess(
                 connection,
                 txid,
                 blockhash,
@@ -157,7 +157,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsDepositing,
                 preferredExplorer,
                 explorerOptions
-            )) {
+            ))) {
                 return;
             }
 
@@ -195,7 +195,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
             return;
         }
 
-        if (!await checkSolBalance(connection, publicKey!)) {
+        if (!(await checkSolBalance(connection, publicKey!))) {
             return;
         }
 
@@ -267,7 +267,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 signTransaction
             );
 
-            if (!await handleTransactionSuccess(
+            if (!(await handleTransactionSuccess(
                 connection,
                 txid,
                 blockhash,
@@ -281,7 +281,7 @@ export function usePoolInteractions({ program, poolConfig, poolConfigPda, oracle
                 setIsWithdrawing,
                 preferredExplorer,
                 explorerOptions
-            )) {
+            ))) {
                 return;
             }
 

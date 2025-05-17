@@ -189,7 +189,7 @@ export const handleTransactionSuccess = async (
         action
     );
 
-    if (!await handleTransactionConfirmation(confirmationResult, program, connection, txid, toastId, action)) {
+    if (!(await handleTransactionConfirmation(confirmationResult, program, connection, txid, toastId, action))) {
         setIsLoading(false);
         return false;
     }
