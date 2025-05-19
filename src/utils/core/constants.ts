@@ -56,6 +56,9 @@ export const BN_DEPOSIT_MAX_FEE_BPS = new BN(DEPOSIT_MAX_FEE_BPS);
 export const WITHDRAW_MAX_FEE_BPS = 9999; // Max total withdraw fee is 99.99%
 export const BN_WITHDRAW_MAX_FEE_BPS = new BN(WITHDRAW_MAX_FEE_BPS);
 
+// Centralized fee confirmation threshold for high-fee actions
+export const FEE_CONFIRM_BPS = 500; // 5%
+
 // Dominance Scale (BN version) - Based on DOMINANCE_SCALE_FACTOR
 export const BN_DOMINANCE_SCALE = new BN(DOMINANCE_SCALE_FACTOR.toString()); // Use existing DOMINANCE_SCALE_FACTOR
 

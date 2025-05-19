@@ -29,6 +29,12 @@
     }
   },
 
+  "confirmModal": {
+    "title": "Confirmation Required",
+    "proceed": "Proceed",
+    "cancel": "Cancel"
+  },
+
   "toast": {
     "error": "Error",
     "success": "Success",
@@ -88,7 +94,8 @@
     "poolDataLoading": "Pool data loading...",
     "depositsDisabledDelisted": "Deposits disabled for delisted tokens.",
     "depositAction": "deposit",
-    "withdrawalAction": "withdrawal"
+    "withdrawalAction": "withdrawal",
+    "highFeeConfirmation": "You are about to {{action}} with a fee of at least {{percent}}%. This will cause a loss of at least {{percent}}% of your {{action}}. Do you want to proceed?"
   },
 
   "header": {

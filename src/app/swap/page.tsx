@@ -177,9 +177,8 @@ export default function SwapPage() {
         <div className="w-full max-w-[420px] p-3 mb-4 text-xs text-yellow-200 bg-yellow-700 bg-opacity-30 border border-yellow-600 rounded-md">
           <p className="font-semibold">Network Configuration Note:</p>
           <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
-            <li>App is set to: <strong>{appNetworkDisplayName}</strong> (RPC: {rpcEndpoint})</li>
-            <li>For token lists and balances to align with this setting, please ensure your wallet (e.g., Phantom) is also set to <strong>{appNetworkDisplayName}</strong>.</li>
-            <li>Swaps will be executed on the network your wallet is currently connected to.</li>
+            <li><strong>Swaps are executed on Mainnet only.</strong></li>
+            <li>The displayed token lists and balances will always be Mainnet, regardless of your settings.</li>
           </ul>
         </div>
 

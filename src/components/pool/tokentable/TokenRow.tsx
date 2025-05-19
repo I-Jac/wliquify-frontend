@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import Image from 'next/image';
 import { ProcessedTokenData } from '@/utils/core/types';
@@ -19,11 +19,14 @@ import {
     EXPLORER_CLUSTER,
     DEFAULT_EXPLORER_OPTIONS,
     DEFAULT_PREFERRED_EXPLORER,
+    FEE_CONFIRM_BPS,
 } from '@/utils/core/constants';
 import { parseUnits, formatUnits } from 'ethers';
 import { safeConvertBnToNumber } from '@/utils/core/helpers';
 import { useTranslation } from 'react-i18next';
 import { PublicKey } from '@solana/web3.js';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { createPortal } from 'react-dom';
 
 // --- TokenRow Props ---
 export interface TokenRowProps {
@@ -88,6 +91,9 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     // Destructure token object inside the function
     const { mintAddress, symbol, icon, priceData, vaultBalance, decimals, targetDominance, isDelisted } = token;
     const [currentIconSrc, setCurrentIconSrc] = useState(icon);
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
+    const [confirmMessage, setConfirmMessage] = useState('');
 
     // --- Action Disabled Flag ---
     const actionDisabled = isDepositing || isWithdrawing || isLoadingPublicData || isLoadingUserData;
@@ -203,12 +209,26 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
             setVisible(true);
             return;
         }
+        if (estimatedDepositFeeBps >= FEE_CONFIRM_BPS) {
+            const percent = (FEE_CONFIRM_BPS / 100).toFixed(2);
+            setConfirmMessage(t('poolInteractions.highFeeConfirmation', { action: t('poolInteractions.depositAction'), percent }));
+            setPendingAction(() => () => onDeposit(mintAddress, currentDepositAmount, decimals));
+            setConfirmModalOpen(true);
+            return;
+        }
         onDeposit(mintAddress, currentDepositAmount, decimals);
     };
 
     const handleActualWithdraw = () => {
         if (!publicKey) {
             setVisible(true);
+            return;
+        }
+        if (estimatedWithdrawFeeBps >= FEE_CONFIRM_BPS) {
+            const percent = (FEE_CONFIRM_BPS / 100).toFixed(2);
+            setConfirmMessage(t('poolInteractions.highFeeConfirmation', { action: t('poolInteractions.withdrawalAction'), percent }));
+            setPendingAction(() => () => onWithdraw(mintAddress, currentWithdrawAmount, false));
+            setConfirmModalOpen(true);
             return;
         }
         onWithdraw(mintAddress, currentWithdrawAmount, false);
@@ -297,129 +317,144 @@ export const TokenRow: React.FC<TokenRowProps> = React.memo(({
     });
 
     return (
-        <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
-            {showRankColumn && (
-                <td className="p-2 align-middle text-center" style={{ width: '40px' }}>
-                    {isDelisted ? (
-                        <div className="text-gray-500 italic font-normal">N/A</div>
-                    ) : (
-                        targetRank !== null ? <span className="font-semibold text-sm">{targetRank}</span> : ''
-                    )}
+        <>
+            <tr key={mintAddress} className={`border-b border-gray-600 ${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} hover:bg-gray-600 ${actionDisabled ? 'opacity-50' : ''} ${isDelisted ? 'bg-red-900/30' : ''}`}>
+                {showRankColumn && (
+                    <td className="p-2 align-middle text-center" style={{ width: '40px' }}>
+                        {isDelisted ? (
+                            <div className="text-gray-500 italic font-normal">N/A</div>
+                        ) : (
+                            targetRank !== null ? <span className="font-semibold text-sm">{targetRank}</span> : ''
+                        )}
+                    </td>
+                )}
+                <td className="p-0 font-semibold align-middle text-left whitespace-nowrap truncate" style={{ width: '85px' }}>
+                    <div 
+                        className="flex items-center h-full space-x-1 px-1 cursor-pointer"
+                        title={tooltipContent}
+                        onClick={handleSymbolClick}
+                    >
+                        <Image
+                            src={currentIconSrc}
+                            alt={symbol}
+                            className="w-6 h-6 rounded-full"
+                            width={24}
+                            height={24}
+                            onError={() => {
+                                if (currentIconSrc !== '/tokens/default.png') {
+                                    setCurrentIconSrc('/tokens/default.png');
+                                }
+                            }}
+                        />
+                        <span className="truncate">{displaySymbol}</span>
+                    </div>
                 </td>
-            )}
-            <td className="p-0 font-semibold align-middle text-left whitespace-nowrap truncate" style={{ width: '85px' }}>
-                <div 
-                    className="flex items-center h-full space-x-1 px-1 cursor-pointer"
-                    title={tooltipContent}
-                    onClick={handleSymbolClick}
-                >
-                    <Image
-                        src={currentIconSrc}
-                        alt={symbol}
-                        className="w-6 h-6 rounded-full"
-                        width={24}
-                        height={24}
-                        onError={() => {
-                            if (currentIconSrc !== '/tokens/default.png') {
-                                setCurrentIconSrc('/tokens/default.png');
-                            }
-                        }}
-                    />
-                    <span className="truncate">{displaySymbol}</span>
-                </div>
-            </td>
-            <td className="p-2 align-middle text-center whitespace-nowrap truncate" style={{ width: '155px' }}>
-                <div className="truncate">{displayValue}</div>
-                <div className="text-gray-400 truncate">{displayBalance} {displaySymbol}</div>
-            </td>
-            <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
-                {displayActualPercent}%
-            </td>
-            <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
-                {displayTargetPercent}%
-            </td>
-            {!hideDepositColumn && (
+                <td className="p-2 align-middle text-center whitespace-nowrap truncate" style={{ width: '155px' }}>
+                    <div className="truncate">{displayValue}</div>
+                    <div className="text-gray-400 truncate">{displayBalance} {displaySymbol}</div>
+                </td>
+                <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
+                    {displayActualPercent}%
+                </td>
+                <td className="p-2 align-middle text-center" style={{ width: '80px' }}>
+                    {displayTargetPercent}%
+                </td>
+                {!hideDepositColumn && (
+                    <td className="p-2 align-middle" style={{ width: '230px' }}>
+                        {isDelisted ? (
+                            <div className="text-center text-gray-500 italic">N/A</div>
+                        ) : (
+                            <div className="flex flex-col space-y-1">
+                                <TokenInputControls
+                                    mintAddress={mintAddress}
+                                    symbol={symbol}
+                                    action="deposit"
+                                    currentAmount={currentDepositAmount}
+                                    decimals={decimals}
+                                    priceData={priceData}
+                                    wLqiValueScaled={wLqiValueScaled}
+                                    wLqiDecimals={wLqiDecimals}
+                                    userBalance={token.userBalance}
+                                    actionDisabled={actionDisabled}
+                                    isDelisted={isDelisted}
+                                    handleAmountChange={handleAmountChange}
+                                    handleSetAmount={handleSetAmount}
+                                    handleSetTargetAmount={handleSetTargetAmount}
+                                    showTargetButton={!actionDisabled && actualPercentBN?.lt(targetScaled)}
+                                    isMobile={false}
+                                />
+                                <button onClick={handleActualDeposit} disabled={depositButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={depositTitle}>{depositLabel}</button>
+                            </div>
+                        )}
+                    </td>
+                )}
                 <td className="p-2 align-middle" style={{ width: '230px' }}>
-                    {isDelisted ? (
-                        <div className="text-center text-gray-500 italic">N/A</div>
-                    ) : (
-                        <div className="flex flex-col space-y-1">
-                            <TokenInputControls
-                                mintAddress={mintAddress}
-                                symbol={symbol}
-                                action="deposit"
-                                currentAmount={currentDepositAmount}
-                                decimals={decimals}
-                                priceData={priceData}
-                                wLqiValueScaled={wLqiValueScaled}
-                                wLqiDecimals={wLqiDecimals}
-                                userBalance={token.userBalance}
-                                actionDisabled={actionDisabled}
-                                isDelisted={isDelisted}
-                                handleAmountChange={handleAmountChange}
-                                handleSetAmount={handleSetAmount}
-                                handleSetTargetAmount={handleSetTargetAmount}
-                                showTargetButton={!actionDisabled && actualPercentBN?.lt(targetScaled)}
-                                isMobile={false}
-                            />
-                            <button onClick={handleActualDeposit} disabled={depositButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${depositBtnClass} ${depositButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={depositTitle}>{depositLabel}</button>
-                        </div>
-                    )}
+                    <div className="flex flex-col space-y-1">
+                        <TokenInputControls
+                            mintAddress={mintAddress}
+                            symbol={symbol}
+                            action="withdraw"
+                            currentAmount={currentWithdrawAmount}
+                            decimals={decimals}
+                            priceData={priceData}
+                            wLqiValueScaled={wLqiValueScaled}
+                            wLqiDecimals={wLqiDecimals}
+                            userBalance={userWlqiBalance}
+                            actionDisabled={actionDisabled}
+                            isDelisted={isDelisted}
+                            handleAmountChange={handleAmountChange}
+                            handleSetAmount={handleSetAmount}
+                            handleSetTargetAmount={handleSetTargetAmount}
+                            showTargetButton={!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled)}
+                            isMobile={false}
+                        />
+                        <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={withdrawTitle}>{withdrawLabel}</button>
+                        {isDelisted && (
+                            <div className="mt-1">
+                                <button
+                                    onClick={handleFullDelistedWithdraw}
+                                    disabled={actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn}
+                                    className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                                    title={actionDisabled ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.actionInProgress') :
+                                           (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.poolEmpty', { symbol }) :
+                                           !requiredWlqiForDelistedFormatted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.calcError') :
+                                           !userHasEnoughForDelisted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.needWlqi', { amount: requiredWlqiForDelistedFormatted }) :
+                                           (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                                t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
+                                                    bonusPercent: delistedFullWithdrawBonusPercentString,
+                                                    bonusUsd: delistedFullWithdrawBonusAmountString
+                                                }) :
+                                                t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
+                                >
+                                    {actionDisabled ? (isWithdrawing ? t('main.poolInfoDisplay.tokenTable.buttonState.withdrawing') : t('main.poolInfoDisplay.tokenTable.delisted.actionInProgress')) :
+                                     (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.poolEmpty') :
+                                     !requiredWlqiForDelistedBn ? t('main.poolInfoDisplay.tokenTable.delisted.calcError') :
+                                     (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
+                                        t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
+                                            bonusPercent: delistedFullWithdrawBonusPercentString,
+                                            bonusUsd: delistedFullWithdrawBonusAmountString
+                                        }) :
+                                        t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </td>
+            </tr>
+            {confirmModalOpen && typeof window !== 'undefined' && createPortal(
+                <ConfirmModal
+                    open={confirmModalOpen}
+                    message={confirmMessage}
+                    onProceed={() => {
+                        setConfirmModalOpen(false);
+                        if (pendingAction) pendingAction();
+                    }}
+                    onCancel={() => {
+                        setConfirmModalOpen(false);
+                    }}
+                />, document.body
             )}
-            <td className="p-2 align-middle" style={{ width: '230px' }}>
-                <div className="flex flex-col space-y-1">
-                    <TokenInputControls
-                        mintAddress={mintAddress}
-                        symbol={symbol}
-                        action="withdraw"
-                        currentAmount={currentWithdrawAmount}
-                        decimals={decimals}
-                        priceData={priceData}
-                        wLqiValueScaled={wLqiValueScaled}
-                        wLqiDecimals={wLqiDecimals}
-                        userBalance={userWlqiBalance}
-                        actionDisabled={actionDisabled}
-                        isDelisted={isDelisted}
-                        handleAmountChange={handleAmountChange}
-                        handleSetAmount={handleSetAmount}
-                        handleSetTargetAmount={handleSetTargetAmount}
-                        showTargetButton={!isDelisted && !actionDisabled && actualPercentBN?.gt(targetScaled)}
-                        isMobile={false}
-                    />
-                    <button onClick={handleActualWithdraw} disabled={withdrawButtonDisabled} className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${withdrawBtnClass} ${withdrawButtonDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} title={withdrawTitle}>{withdrawLabel}</button>
-                    {isDelisted && (
-                        <div className="mt-1">
-                            <button
-                                onClick={handleFullDelistedWithdraw}
-                                disabled={actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn}
-                                className={`w-full px-1 py-0.5 text-xs font-medium rounded text-white ${BTN_DELISTED_WITHDRAW} ${(actionDisabled || (!vaultBalance || vaultBalance.isZero()) || !requiredWlqiForDelistedBn) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                                title={actionDisabled ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.actionInProgress') :
-                                       (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.poolEmpty', { symbol }) :
-                                       !requiredWlqiForDelistedFormatted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.calcError') :
-                                       !userHasEnoughForDelisted ? t('main.poolInfoDisplay.tokenTable.delisted.tooltips.needWlqi', { amount: requiredWlqiForDelistedFormatted }) :
-                                       (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
-                                            t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
-                                                bonusPercent: delistedFullWithdrawBonusPercentString,
-                                                bonusUsd: delistedFullWithdrawBonusAmountString
-                                            }) :
-                                            t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
-                            >
-                                {actionDisabled ? (isWithdrawing ? t('main.poolInfoDisplay.tokenTable.buttonState.withdrawing') : t('main.poolInfoDisplay.tokenTable.delisted.actionInProgress')) :
-                                 (!vaultBalance || vaultBalance.isZero()) ? t('main.poolInfoDisplay.tokenTable.delisted.poolEmpty') :
-                                 !requiredWlqiForDelistedBn ? t('main.poolInfoDisplay.tokenTable.delisted.calcError') :
-                                 (delistedFullWithdrawBonusAmountString && delistedFullWithdrawBonusPercentString) ?
-                                    t('main.poolInfoDisplay.tokenTable.delisted.withdrawFullBalanceBonus', {
-                                        bonusPercent: delistedFullWithdrawBonusPercentString,
-                                        bonusUsd: delistedFullWithdrawBonusAmountString
-                                    }) :
-                                    t('main.poolInfoDisplay.tokenTable.delisted.tooltips.withdrawEntireBalanceNoBonus', { symbol, amount: requiredWlqiForDelistedFormatted })}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </td>
-        </tr>
+        </>
     );
 });
 TokenRow.displayName = 'TokenRow';

@@ -389,6 +389,9 @@ export const Header: React.FC = () => {
                                                 isPoolActive
                                                     ? 'bg-blue-500 text-white' 
                                                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        onClick={() => {
+                                            if (!isPoolActive) setIsMobileMenuOpen(false);
+                                        }}
                                     >
                                         {t('header.nav.pool', 'Pool')}
                                     </Link>
@@ -398,6 +401,9 @@ export const Header: React.FC = () => {
                                                 isSwapActive
                                                     ? 'bg-blue-500 text-white' 
                                                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        onClick={() => {
+                                            if (!isSwapActive) setIsMobileMenuOpen(false);
+                                        }}
                                     >
                                         {t('header.nav.swap', 'Swap')}
                                     </Link>

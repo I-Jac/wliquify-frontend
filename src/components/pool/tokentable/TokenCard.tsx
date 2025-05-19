@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import Image from 'next/image';
 import {
@@ -18,6 +18,7 @@ import {
     EXPLORER_CLUSTER,
     DEFAULT_EXPLORER_OPTIONS,
     DEFAULT_PREFERRED_EXPLORER,
+    FEE_CONFIRM_BPS,
 } from '@/utils/core/constants';
 import { parseUnits, formatUnits } from 'ethers';
 import { TokenRowProps } from './TokenRow';
@@ -25,6 +26,7 @@ import { safeConvertBnToNumber } from '@/utils/core/helpers';
 import { useTranslation } from 'react-i18next';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '../../wallet/WalletModalProvider';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 // --- TokenCard Props (Omit 'index' from TokenRowProps) ---
 export type TokenCardProps = Omit<TokenRowProps, 'index'>;
@@ -157,9 +159,20 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         : null;
 
     // Button callbacks
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
+    const [confirmMessage, setConfirmMessage] = useState('');
+
     const handleActualDeposit = () => {
         if (!walletPublicKey) {
             setWalletModalVisible(true);
+            return;
+        }
+        if (estimatedDepositFeeBps >= FEE_CONFIRM_BPS) {
+            const percent = (FEE_CONFIRM_BPS / 100).toFixed(2);
+            setConfirmMessage(t('poolInteractions.highFeeConfirmation', { action: t('poolInteractions.depositAction'), percent }));
+            setPendingAction(() => () => onDeposit(mintAddress, currentDepositAmount, decimals));
+            setConfirmModalOpen(true);
             return;
         }
         onDeposit(mintAddress, currentDepositAmount, decimals);
@@ -168,6 +181,13 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     const handleActualWithdraw = () => {
         if (!walletPublicKey) {
             setWalletModalVisible(true);
+            return;
+        }
+        if (estimatedWithdrawFeeBps >= FEE_CONFIRM_BPS) {
+            const percent = (FEE_CONFIRM_BPS / 100).toFixed(2);
+            setConfirmMessage(t('poolInteractions.highFeeConfirmation', { action: t('poolInteractions.withdrawalAction'), percent }));
+            setPendingAction(() => () => onWithdraw(mintAddress, currentWithdrawAmount, false));
+            setConfirmModalOpen(true);
             return;
         }
         onWithdraw(mintAddress, currentWithdrawAmount, false);
@@ -388,6 +408,18 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                open={confirmModalOpen}
+                message={confirmMessage}
+                onProceed={() => {
+                    setConfirmModalOpen(false);
+                    if (pendingAction) pendingAction();
+                }}
+                onCancel={() => {
+                    setConfirmModalOpen(false);
+                }}
+            />
         </div>
     );
 });

@@ -29,6 +29,12 @@
     }
   },
 
+  "confirmModal": {
+    "title": "Confirmación requerida",
+    "proceed": "Continuar",
+    "cancel": "Cancelar"
+  },
+
   "toast": {
     "error": "Error",
     "success": "Éxito",
@@ -88,7 +94,8 @@
     "poolDataLoading": "Cargando datos del pool...",
     "depositsDisabledDelisted": "Depósitos deshabilitados para tokens excluidos.",
     "depositAction": "depósito",
-    "withdrawalAction": "retiro"
+    "withdrawalAction": "retiro",
+    "highFeeConfirmation": "Estás a punto de {{action}} con una comisión de al menos {{percent}}%. Esto causará una pérdida de al menos {{percent}}% de tu {{action}}. ¿Deseas continuar?"
   },
 
   "header": {
