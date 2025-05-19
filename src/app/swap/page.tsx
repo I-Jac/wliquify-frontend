@@ -31,15 +31,6 @@ const getJupiterCluster = (rpcUrl: string): 'mainnet-beta' | 'devnet' | 'testnet
   return undefined; // Let Jupiter infer if we can't determine
 };
 
-// Helper to get a display-friendly network name
-const getNetworkDisplayName = (rpcUrl: string): string => {
-  if (rpcUrl.includes('mainnet')) return 'Mainnet';
-  if (rpcUrl.includes('devnet')) return 'Devnet';
-  if (rpcUrl.includes('testnet')) return 'Testnet';
-  if (rpcUrl.includes('localhost') || rpcUrl.includes('127.0.0.1')) return 'Localhost';
-  return 'Custom Network';
-};
-
 export default function SwapPage() {
   const walletContext = useWallet();
   const { rpcEndpoint } = useSettings();
@@ -166,8 +157,6 @@ export default function SwapPage() {
       });
     }
   }, [walletContext, platformFeeAndAccounts, rpcEndpoint]);
-
-  const appNetworkDisplayName = getNetworkDisplayName(rpcEndpoint);
 
   return (
     <div className="flex flex-col items-center pt-[calc(56px_+_1rem)] px-4 sm:px-8 lg:px-16 pb-8 font-[family-name:var(--font-geist-sans)] relative">
