@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
             id: 'resources',
             titleKey: 'footer.sections.resources.title',
             links: [
-                { id: 'docs', nameKey: 'footer.sections.resources.links.docs', href: '#', external: true }, 
+                { id: 'docs', nameKey: 'footer.sections.resources.links.docs', href: 'https://wliquify.gitbook.io/wliquify-docs', external: true }, 
                 { id: 'github', nameKey: 'footer.sections.resources.links.github', href: '#', external: true },
             ],
         },

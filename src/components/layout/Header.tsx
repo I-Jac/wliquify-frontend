@@ -61,6 +61,11 @@ const PopoverStateSync: React.FC<PopoverStateSyncProps> = ({
     return null;
 };
 
+// External link icon SVG
+const ExternalLinkIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1 inline-block align-text-bottom" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+);
+
 export const Header: React.FC = () => {
     const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
     const devToolsRef = useRef<HTMLDivElement>(null);
@@ -190,6 +195,24 @@ export const Header: React.FC = () => {
                             >
                                 {isMounted ? t('header.nav.swap') : 'Swap'}
                             </Link>
+                            <Popover className="relative">
+                                {({ open }) => (
+                                    <>
+                                        <Popover.Button className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center">
+                                            {t('header.more', 'More')}
+                                            <svg className={`ml-1 w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </Popover.Button>
+                                        <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
+                                            <Popover.Panel className="absolute left-0 mt-2 w-40 origin-top-left rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-50">
+                                                <a href="https://wliquify.gitbook.io/wliquify-docs" target="_blank" rel="noopener noreferrer" className="flex flex-row items-center space-x-1 px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white rounded-md">
+                                                    <span>{t('footer.sections.resources.links.docs', 'Docs')}</span>
+                                                    <ExternalLinkIcon />
+                                                </a>
+                                            </Popover.Panel>
+                                        </Transition>
+                                    </>
+                                )}
+                            </Popover>
                         </div>
                         <button
                             onClick={toggleMobileMenu}
@@ -407,6 +430,10 @@ export const Header: React.FC = () => {
                                     >
                                         {t('header.nav.swap', 'Swap')}
                                     </Link>
+                                    <a href="https://wliquify.gitbook.io/wliquify-docs" target="_blank" rel="noopener noreferrer" className="block w-full text-left px-3 py-2.5 rounded-md text-base font-medium transition-colors cursor-pointer bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center mt-2">
+                                        <span>{t('footer.sections.resources.links.docs', 'Docs')}</span>
+                                        <ExternalLinkIcon />
+                                    </a>
                                     <div className="border-t border-gray-700 pt-3 mt-3">
                                         <button 
                                             ref={mobileDevToolsToggleButtonRef}
