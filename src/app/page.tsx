@@ -27,7 +27,7 @@ export default function Home() {
     isLoadingPublicData,
     isLoadingUserData,
     error: poolDataError,
-    refreshAllData,
+    refreshAfterTransaction,
   } = usePoolData({
     program,
     provider,
@@ -61,7 +61,7 @@ export default function Home() {
           userWlqiBalance={userWlqiBalance}
           isLoadingUserData={isLoadingUserData}
           error={poolDataError}
-          refreshAllData={refreshAllData}
+          refreshAfterTransaction={refreshAfterTransaction}
         />
       </main>
 

@@ -90,6 +90,92 @@ export async function fetchCorePoolConfigAndWLQI(
 // Placeholder for the next utility function
 // export async function fetchSupportedTokensPublicData(...)
 
+interface SingleTokenPublicDataResult {
+    dynamicData: Pick<DynamicTokenData, 'vaultBalance' | 'priceFeedInfo' | 'decimals' | 'userBalance'> | null;
+    historicalData: HistoricalTokenDataDecoded | null;
+    error?: string;
+}
+
+/**
+ * Fetches public data for a single supported token.
+ * This includes its vault balance, price feed account info (if available),
+ * mint decimals, and historical data.
+ */
+export async function fetchSingleSupportedTokenPublicData(
+    connection: Connection,
+    programId: PublicKey,
+    token: SupportedToken, // The specific token to fetch data for
+    rateLimitedFetch: RateLimitedFetchFn
+): Promise<SingleTokenPublicDataResult> {
+    if (!token.mint) {
+        return { dynamicData: null, historicalData: null, error: "Token mint address is missing." };
+    }
+    if (!token.vault) {
+        return { dynamicData: null, historicalData: null, error: `Vault address missing for token ${token.mint.toBase58()}.` };
+    }
+
+    const mintAddress = token.mint.toBase58();
+
+    try {
+        const mintInfo = await rateLimitedFetch(
+            () => getMint(connection, token.mint!),
+            `Failed to get mint info for ${mintAddress}`
+        );
+
+        if (!mintInfo) {
+            return { dynamicData: null, historicalData: null, error: `Failed to fetch mint info for ${mintAddress}.` };
+        }
+        const decimals = mintInfo.decimals;
+
+        const addressesToFetch: PublicKey[] = [token.vault];
+        let priceFeedAccIndexInBatch: number | undefined = undefined;
+        let historyPdaIndexInBatch: number;
+        
+        const historyPda = findHistoricalTokenDataPDA(token.mint, programId);
+        
+        if (token.priceFeed && !token.priceFeed.equals(SystemProgram.programId)) {
+            addressesToFetch.push(token.priceFeed);
+            priceFeedAccIndexInBatch = 1; 
+            addressesToFetch.push(historyPda);
+            historyPdaIndexInBatch = 2;
+        } else {
+            addressesToFetch.push(historyPda);
+            historyPdaIndexInBatch = 1;
+        }
+        
+        const accountsInfo = await rateLimitedFetch(
+            () => connection.getMultipleAccountsInfo(addressesToFetch),
+            `Failed to fetch accounts for token ${mintAddress}`
+        );
+
+        if (!accountsInfo) {
+            return { dynamicData: null, historicalData: null, error: `Failed to fetch account info for ${mintAddress}.` };
+        }
+
+        const vaultAccountInfo = accountsInfo[0]; // Always at index 0
+        const priceFeedAccountInfo = priceFeedAccIndexInBatch !== undefined ? accountsInfo[priceFeedAccIndexInBatch] : null;
+        const historicalAccountInfo = accountsInfo[historyPdaIndexInBatch];
+        
+        const dynamicDataResult: Pick<DynamicTokenData, 'vaultBalance' | 'priceFeedInfo' | 'decimals' | 'userBalance'> = {
+            vaultBalance: vaultAccountInfo ? decodeTokenAccountAmountBN(vaultAccountInfo.data) : null,
+            priceFeedInfo: priceFeedAccountInfo, // This is AccountInfo<Buffer> | null
+            decimals: decimals,
+            userBalance: null // User balance fetched separately
+        };
+
+        const historicalDataResult = historicalAccountInfo 
+            ? decodeHistoricalTokenData(historicalAccountInfo) 
+            : null;
+
+        return { dynamicData: dynamicDataResult, historicalData: historicalDataResult };
+
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error(`fetchSingleSupportedTokenPublicData Error for ${mintAddress}:`, errorMessage);
+        return { dynamicData: null, historicalData: null, error: `Failed to load data for token ${mintAddress}: ${errorMessage}` };
+    }
+}
+
 interface SupportedTokensPublicDataResult {
     dynamicData: Map<string, Pick<DynamicTokenData, 'vaultBalance' | 'priceFeedInfo' | 'decimals' | 'userBalance'> >; // UserBalance will be null initially
     historicalData: Map<string, HistoricalTokenDataDecoded | null>;

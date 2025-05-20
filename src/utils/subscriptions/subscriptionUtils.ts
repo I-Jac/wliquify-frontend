@@ -4,12 +4,12 @@ import { showToast } from '../ui/notifications';
 /**
  * Throttles a function to limit execution rate
  */
-const throttle = <T extends (arg: AccountInfo<Buffer>) => void>(fn: T, limit: number) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const throttle = <F extends (...args: any[]) => void>(fn: F, limit: number) => {
     let inThrottle = false;
-    
-    return function(this: unknown, arg: AccountInfo<Buffer>) {
+    return function(this: unknown, ...args: Parameters<F>) {
         if (!inThrottle) {
-            fn.call(this, arg);
+            fn.apply(this, args);
             inThrottle = true;
             setTimeout(() => inThrottle = false, limit);
         }
@@ -36,17 +36,27 @@ export const cleanupSubscriptions = async (connection: Connection, subscriptionI
 
 /**
  * Setup a subscription for an account
+ * @param connection The Solana connection object
+ * @param account The PublicKey of the account to subscribe to
+ * @param callback The function to call when the account changes. It can receive an optional identifier.
+ * @param accountName A descriptive name for the account being subscribed to (for logging).
+ * @param identifier An optional identifier to pass to the callback.
+ * @returns The subscription ID, or null if subscription failed.
  */
-export const setupSubscription = (
+export const setupSubscription = <T = void>(
     connection: Connection,
     account: PublicKey,
-    callback: () => void,
-    accountName: string
+    callback: (identifier?: T) => void, // Callback can now accept an optional identifier
+    accountName: string,
+    identifier?: T // Optional identifier to be passed to the callback
 ): number | null => {
     try {
-        // Throttle the callback to prevent rapid successive calls
-        const throttledCallback = throttle(() => {
-            callback();
+        // Throttle the callback to prevent rapid successive calls.
+        // The original onAccountChange provides AccountInfo<Buffer> and Context, but our generic callback
+        // is simplified to just use the identifier if provided.
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const throttledCallback = throttle((_accountInfo: AccountInfo<Buffer>, _context: unknown) => {
+            callback(identifier); // Pass the identifier to the actual callback
         }, 500); // 500ms throttle time
 
         return connection.onAccountChange(
@@ -67,10 +77,9 @@ export const setupSubscription = (
 export const setupUserTokenSubscription = (
     connection: Connection,
     userAta: PublicKey,
-    onBalanceChange: (accountInfo: AccountInfo<Buffer>) => void
+    onBalanceChange: (accountInfo: AccountInfo<Buffer>) => void // This specific callback uses AccountInfo
 ): number | null => {
     try {
-        // Throttle the callback to prevent rapid successive calls
         const throttledCallback = throttle((accountInfo: AccountInfo<Buffer>) => {
             onBalanceChange(accountInfo);
         }, 500); // 500ms throttle time

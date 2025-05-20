@@ -32,7 +32,7 @@ export interface PoolInfoDisplayProps {
     isLoadingPublicData: boolean;
     isLoadingUserData: boolean;
     error: string | null;
-    refreshAllData: () => Promise<void> | void;
+    refreshAfterTransaction: (mintAddress: string) => Promise<void> | void;
 }
 
 // --- Adjust the component signature to accept props ---
@@ -49,7 +49,7 @@ export const PoolInfoDisplay = ({
     isLoadingPublicData,
     isLoadingUserData,
     error,
-    refreshAllData // Receive refresh function as prop
+    refreshAfterTransaction
 }: PoolInfoDisplayProps) => {
     // Hooks not related to usePoolData
     const { program } = useAnchorProgram(); // Keep if needed by usePoolInteractions
@@ -109,11 +109,18 @@ export const PoolInfoDisplay = ({
     // --- State Synchronization Logic --- END
 
     // --- Pass refreshAllData prop down to usePoolInteractions ---
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const refreshUserBalances = useCallback(async (_affectedMintAddress?: string) => {
-        // console.log(`PoolInfoDisplay: Triggering FULL data refresh via prop. Affected: ${_affectedMintAddress ?? 'None'}`);
-        await refreshAllData(); // Use the prop
-    }, [refreshAllData]);
+    const refreshUserBalances = useCallback(async (affectedMintAddress?: string) => {
+        if (affectedMintAddress) {
+            // console.log(`PoolInfoDisplay: Triggering refreshAfterTransaction for mint: ${affectedMintAddress}`);
+            await refreshAfterTransaction(affectedMintAddress);
+        } else {
+            // Fallback or error if mint address is unexpectedly missing
+            console.warn("PoolInfoDisplay: affectedMintAddress not provided to onTransactionSuccess. Cannot perform targeted refresh.");
+            // Optionally, could fall back to a broader refresh if absolutely necessary,
+            // but the goal is to use the targeted one.
+            // await refreshAllData(); // This would require refreshAllData to still be a prop if we want this fallback.
+        }
+    }, [refreshAfterTransaction]);
 
     const {
         handleDeposit: actualHandleDeposit,

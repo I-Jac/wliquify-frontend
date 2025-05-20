@@ -15,6 +15,7 @@ interface UseSubscriptionsProps {
     userPublicKey: PublicKey | null;
     refreshPublicData: () => void;
     refreshOracleData: () => void;
+    refreshSpecificTokenDataCallback?: (mintAddress: PublicKey) => void;
     setUserWlqiBalance: (balance: BN) => void;
     setUserTokenBalances: (callback: (prev: Map<string, BN>) => Map<string, BN>) => void;
 }
@@ -29,6 +30,7 @@ export function useSubscriptions({
     userPublicKey,
     refreshPublicData,
     refreshOracleData,
+    refreshSpecificTokenDataCallback,
     setUserWlqiBalance,
     setUserTokenBalances
 }: UseSubscriptionsProps) {
@@ -73,8 +75,22 @@ export function useSubscriptions({
 
         poolConfig?.supportedTokens?.forEach((token: SupportedToken) => {
             if (token?.vault && token?.mint) {
-                const vaultSub = setupSubscription(connection, token.vault, refreshPublicData, `Vault for ${token.mint.toBase58()}`);
-                if (vaultSub) currentPublicSubs.add(vaultSub);
+                if (refreshSpecificTokenDataCallback) {
+                    const vaultSub = setupSubscription(
+                        connection, 
+                        token.vault, 
+                        (mintIdentifier?: PublicKey) => { 
+                            if (mintIdentifier) {
+                                refreshSpecificTokenDataCallback(mintIdentifier);
+                            }
+                        }, 
+                        `Vault for ${token.mint.toBase58()}`,
+                        token.mint
+                    );
+                    if (vaultSub) currentPublicSubs.add(vaultSub);
+                } else {
+                    console.warn(`useSubscriptions: refreshSpecificTokenDataCallback not provided. Vault updates for ${token.mint.toBase58()} may not be granular.`);
+                }
             }
         });
 
@@ -94,8 +110,9 @@ export function useSubscriptions({
         vaultAddressesStringForDep,  
         refreshPublicData, 
         refreshOracleData, 
-        poolConfig?.oracleAggregatorAccount, 
-        poolConfig?.supportedTokens
+        poolConfig?.oracleAggregatorAccount,
+        poolConfig?.supportedTokens,
+        refreshSpecificTokenDataCallback
     ]);
 
     // --- User Account Subscriptions ---

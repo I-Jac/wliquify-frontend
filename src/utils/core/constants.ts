@@ -72,10 +72,10 @@ export const BTN_GRAY = 'bg-gray-500 hover:bg-gray-600';
 export const BTN_DELISTED_WITHDRAW = 'bg-green-700 hover:bg-green-800'; // Darker green for delisted full withdraw
 
 // Rate limiting constants
-export const RATE_LIMIT_DELAY = 40; // Base delay in ms
-export const MAX_RETRIES = 2; // Maximum number of retries
-export const MAX_DELAY = 1000; // Maximum delay in ms
-export const MAX_CONCURRENT_REQUESTS = 8; // Reduced from 10 to 8 to reduce rate limit hits
+export const RATE_LIMIT_DELAY = 500; // Base delay in ms (Changed from 750)
+export const MAX_RETRIES = 4; // Maximum number of retries
+export const MAX_DELAY = 6000; // Maximum delay in ms
+export const MAX_CONCURRENT_REQUESTS = 3; // (Changed from 2)
 
 // Transaction constants
 export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance for transaction fees

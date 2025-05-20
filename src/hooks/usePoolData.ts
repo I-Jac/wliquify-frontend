@@ -19,7 +19,7 @@ import { createRateLimitedFetch } from '@/utils/network/rateLimitUtils';
 import { processSingleToken } from '@/utils/app/singleTokenProcessing';
 import { useSubscriptions } from '@/hooks/useSubscriptions';
 import { useUserData } from '@/hooks/useUserData';
-import { fetchCorePoolConfigAndWLQI, RateLimitedFetchFn } from '@/utils/app/poolDataUtils';
+import { fetchCorePoolConfigAndWLQI, RateLimitedFetchFn, fetchSingleSupportedTokenPublicData } from '@/utils/app/poolDataUtils';
 import { fetchSupportedTokensPublicData } from '@/utils/app/poolDataUtils';
 
 interface UsePoolDataProps {
@@ -54,8 +54,10 @@ export function usePoolData({
     const isLoadingFullDataRef = useRef(false);
     const prevWlqiSupplyRef = useRef<string | null>(null);
     const prevTotalPoolValueScaledRef = useRef<BN | null>(null);
+    const prevIsLoadingPublicRef = useRef(isLoadingPublicData);
 
-    const rateLimitedFetch = useMemo(() => createRateLimitedFetch(connection), [connection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const rateLimitedFetch = useMemo(() => createRateLimitedFetch(), [connection]);
 
     const { oracleData, refreshOracleData } = useOracleData({
         connection,
@@ -75,9 +77,102 @@ export function usePoolData({
         connection,
         userPublicKey: wallet.publicKey,
         poolConfigForUserBalances: poolConfig ? { wliMint: poolConfig.wliMint, supportedTokens: poolConfig.supportedTokens } : null,
-        rateLimitedFetch: rateLimitedFetch,
+        rateLimitedFetch: rateLimitedFetch as RateLimitedFetchFn,
         enabled: enabled,
     });
+
+    // +++ START NEW FUNCTION +++
+    const refreshSpecificTokenData = useCallback(async (updatedMintAddress: PublicKey) => {
+        const functionStartTime = new Date().toLocaleTimeString();
+        console.log(`[${functionStartTime}] refreshSpecificTokenData: START for token ${updatedMintAddress.toBase58()}`);
+
+        const activeProvider = provider || readOnlyProvider;
+        const currentProgram = program;
+        const currentConnection = activeProvider?.connection ?? connection;
+
+        if (!currentProgram || !currentConnection) {
+            console.warn("refreshSpecificTokenData: Program or connection not available.");
+            return;
+        }
+        
+        console.log(`refreshSpecificTokenData: Refreshing data for token ${updatedMintAddress.toBase58()}`);
+
+        try {
+            // Step 1: Re-fetch core pool config to get latest global values
+            console.log(`[${new Date().toLocaleTimeString()}] refreshSpecificTokenData: Fetching core config for ${updatedMintAddress.toBase58()}`);
+            const coreDataResult = await fetchCorePoolConfigAndWLQI(
+                currentProgram,
+                currentConnection,
+                rateLimitedFetch as RateLimitedFetchFn
+            );
+            console.log(`[${new Date().toLocaleTimeString()}] refreshSpecificTokenData: Core config fetched for ${updatedMintAddress.toBase58()}`);
+
+            if (coreDataResult.error || !coreDataResult.poolConfig || !coreDataResult.poolConfigPda || coreDataResult.wlqiSupply === null || coreDataResult.wlqiDecimals === null || !coreDataResult.wLqiMint) {
+                const errorMsg = coreDataResult.error || "Failed to load essential pool configuration or wLQI data during specific token refresh.";
+                console.error("refreshSpecificTokenData:", errorMsg);
+                return;
+            }
+            
+            const newPoolConfig = coreDataResult.poolConfig;
+            setPoolConfig(newPoolConfig);
+            setPoolConfigPda(coreDataResult.poolConfigPda);
+            setTotalPoolValueScaled(newPoolConfig.currentTotalPoolValueScaled);
+            setWlqiSupply(coreDataResult.wlqiSupply);
+            setWlqiDecimals(coreDataResult.wlqiDecimals);
+
+            // Update refs so background refreshes can detect if specific refresh handled it
+            prevWlqiSupplyRef.current = coreDataResult.wlqiSupply;
+            prevTotalPoolValueScaledRef.current = newPoolConfig.currentTotalPoolValueScaled;
+
+            const tokenToUpdate = newPoolConfig.supportedTokens.find(
+                (st: SupportedToken) => st.mint?.toBase58() === updatedMintAddress.toBase58()
+            );
+
+            if (!tokenToUpdate) {
+                console.warn(`refreshSpecificTokenData: Token ${updatedMintAddress.toBase58()} not found in the latest pool config.`);
+                return;
+            }
+
+            console.log(`[${new Date().toLocaleTimeString()}] refreshSpecificTokenData: Fetching single token data for ${updatedMintAddress.toBase58()}`);
+            const singleTokenResult = await fetchSingleSupportedTokenPublicData(
+                currentConnection,
+                currentProgram.programId,
+                tokenToUpdate,
+                rateLimitedFetch as RateLimitedFetchFn
+            );
+            console.log(`[${new Date().toLocaleTimeString()}] refreshSpecificTokenData: Single token data fetched for ${updatedMintAddress.toBase58()}`);
+
+            if (singleTokenResult.error || !singleTokenResult.dynamicData) {
+                console.error(`refreshSpecificTokenData: Error fetching data for token ${updatedMintAddress.toBase58()}: ${singleTokenResult.error}`);
+                return;
+            }
+
+            const mintStr = updatedMintAddress.toBase58();
+            setDynamicData(prevMap => {
+                const nextMap = new Map(prevMap);
+                if (singleTokenResult.dynamicData) {
+                    nextMap.set(mintStr, singleTokenResult.dynamicData as DynamicTokenData);
+                }
+                return nextMap;
+            });
+            setHistoricalData(prevMap => {
+                const nextMap = new Map(prevMap);
+                nextMap.set(mintStr, singleTokenResult.historicalData);
+                return nextMap;
+            });
+            
+            console.log(`[${new Date().toLocaleTimeString()}] refreshSpecificTokenData: Successfully updated data for token ${mintStr}`);
+
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            console.error(`refreshSpecificTokenData: General error for token ${updatedMintAddress.toBase58()}: ${errorMessage}`);
+        }
+    }, [
+        program, provider, readOnlyProvider, connection, rateLimitedFetch, 
+        setPoolConfig, setPoolConfigPda, setTotalPoolValueScaled, setWlqiSupply, setWlqiDecimals,
+        setDynamicData, setHistoricalData
+    ]);
+    // +++ END NEW FUNCTION +++
 
     // --- Fetch Public Pool Data ---
     const fetchPublicPoolData = useCallback(async (options?: { isBackgroundRefresh?: boolean }) => {
@@ -155,8 +250,17 @@ export function usePoolData({
                 prevTotalPoolValueScaledRef.current && 
                 !newTotalPoolValueScaled.eq(prevTotalPoolValueScaledRef.current);
 
+            const noChangeSinceLastUpdate = // New flag
+                isBackground &&
+                prevWlqiSupplyRef.current !== null &&
+                prevTotalPoolValueScaledRef.current !== null &&
+                newWlqiSupply === prevWlqiSupplyRef.current &&
+                newTotalPoolValueScaled && newTotalPoolValueScaled.eq(prevTotalPoolValueScaledRef.current);
+
             if (isMaintainerUpdateScenario) {
                 console.log("usePoolData: Maintainer update detected (total value changed, wLQI supply same). Skipping token vault data refresh.");
+            } else if (noChangeSinceLastUpdate) {
+                console.log("usePoolData: Background refresh detected no change from refs. Skipping token vault data refresh.");
             } else {
                 const supportedTokensDataResult = await fetchSupportedTokensPublicData(
                     currentConnection,
@@ -170,7 +274,7 @@ export function usePoolData({
                     if (!isBackground) {
                          setError(prevError => prevError ? `${prevError}; ${tokenDataErrorMsg}` : tokenDataErrorMsg);
                     }
-                    if (!isBackground) setIsLoadingPublicData(false);
+                    // No setIsLoadingPublicData(false) here, as core data might be fine
                 }
                 
                 setDynamicData(supportedTokensDataResult.dynamicData as Map<string, DynamicTokenData> || new Map()); 
@@ -209,6 +313,19 @@ export function usePoolData({
         fetchPublicPoolData({ isBackgroundRefresh: true });
     }, [fetchPublicPoolData]);
 
+    // --- useSubscriptions Hook ---
+    useSubscriptions({
+        connection,
+        poolConfig,
+        poolConfigPda,
+        userPublicKey: wallet.publicKey,
+        refreshPublicData: handleSubscriptionUpdate, 
+        refreshOracleData: refreshOracleData,       
+        refreshSpecificTokenDataCallback: refreshSpecificTokenData, // Pass the new granular callback
+        setUserWlqiBalance,
+        setUserTokenBalances
+    });
+
     const refreshPublicData = useCallback(() => {
         triggerFullPublicDataRefresh();
     }, [triggerFullPublicDataRefresh]);
@@ -220,9 +337,11 @@ export function usePoolData({
     const refreshAllData = useCallback(() => {
         hasFetchedPublicData.current = false;
         fetchPublicPoolData({ isBackgroundRefresh: false }).then(() => {
-            refreshUserDataFromHook();
+            if (wallet.publicKey) { // Ensure user data is only refreshed if user is connected
+                refreshUserDataFromHook();
+            }
         });
-    }, [fetchPublicPoolData, refreshUserDataFromHook]);
+    }, [fetchPublicPoolData, refreshUserDataFromHook, wallet.publicKey]);
 
     const wLqiValueScaled = useMemo(() => {
         if (totalPoolValueScaled === null || wLqiSupply === null || wLqiDecimals === null) return null;
@@ -248,74 +367,113 @@ export function usePoolData({
                     const history = historicalData.get(mintAddress);
                     const userBalanceForToken = userTokenBalances.get(mintAddress) ?? null;
                     if (!tokenConfig || history === undefined || data.decimals === null) return null;
-                    return processSingleToken({ mintAddress, data: { vaultBalance: data.vaultBalance, priceFeedInfo: data.priceFeedInfo, decimals: data.decimals, userBalance: userBalanceForToken }, tokenConfig, oracleInfo, history, currentTvlFromState: totalPoolValueScaled, userBalance: userBalanceForToken });
-                }).filter((data): data is ProcessedTokenData => data !== null);
+
+                    const isWlqi = tokenConfig.mint?.equals(poolConfig.wliMint);
+                    const processSingleTokenArgs = {
+                        mintAddress: mintAddress,
+                        data: { // Nested data structure as implied by linter
+                            vaultBalance: data.vaultBalance,
+                            priceFeedInfo: data.priceFeedInfo,
+                            decimals: data.decimals,
+                            userBalance: userBalanceForToken // Use the specific user balance here
+                        },
+                        tokenConfig: tokenConfig,
+                        oracleInfo: oracleInfo, // Parameter name to match linter expectation
+                        history: history,       // Parameter name to match linter expectation
+                        currentTvlFromState: totalPoolValueScaled, // Parameter name to match linter expectation
+                        // Retain other parameters that were part of the intended logic
+                        userBalance: userBalanceForToken, // Often passed at top level as well
+                        wlqiDecimals: wLqiDecimals,
+                        wLqiMint: poolConfig.wliMint, 
+                        wLqiValueScaled: isWlqi ? wLqiValueScaled : null
+                    };
+                    return processSingleToken(processSingleTokenArgs);
+                })
+                .filter((item): item is ProcessedTokenData => item !== null);
             return result;
         } catch (e) {
             console.error("usePoolData: Error processing token data:", e);
             setError(prev => prev ? prev + "; Failed to process token data" : "Failed to process token data");
             return null;
         }
-    }, [poolConfig, dynamicData, historicalData, oracleData?.data, userTokenBalances, totalPoolValueScaled]);
-    
+    }, [poolConfig, dynamicData, historicalData, oracleData, totalPoolValueScaled, userTokenBalances, wLqiDecimals, wLqiValueScaled]);
+
     useEffect(() => {
-        if (isLoadingPublicData || isLoadingUserData) {
-            return;
-        }
-        if (memoizedNewProcessedData === null) {
-            if (processedTokenData !== null) {
-                 setProcessedTokenData(null);
-            }
-            return;
-        }
-        if (JSON.stringify(processedTokenData) !== JSON.stringify(memoizedNewProcessedData)) {
+        if (memoizedNewProcessedData) {
             setProcessedTokenData(memoizedNewProcessedData);
         }
-    }, [memoizedNewProcessedData, isLoadingPublicData, isLoadingUserData, processedTokenData]);
+    }, [memoizedNewProcessedData]);
 
+    // Initial fetch of public data
     useEffect(() => {
-        if (program && connection && !hasFetchedPublicData.current) {
-            if (!isLoadingFullDataRef.current) {
-                fetchPublicPoolData({ isBackgroundRefresh: false });
-            }
-        } else if (program && connection && hasFetchedPublicData.current) {
-        } else {
+        if (enabled && !hasFetchedPublicData.current && program && (provider || readOnlyProvider)) {
+            fetchPublicPoolData({ isBackgroundRefresh: false });
         }
-    }, [program, connection, fetchPublicPoolData]);
+    }, [enabled, program, provider, readOnlyProvider, fetchPublicPoolData]);
 
-    // --- CENTRALIZED SUBSCRIPTIONS ---
-    useSubscriptions({
-        connection,
-        poolConfig,
-        poolConfigPda,
-        userPublicKey: wallet.publicKey,
-        refreshPublicData: handleSubscriptionUpdate,
-        refreshOracleData,
-        setUserWlqiBalance,
-        setUserTokenBalances,
-    });
+    // Effect to update prevIsLoadingPublicRef after every render
+    useEffect(() => {
+        prevIsLoadingPublicRef.current = isLoadingPublicData;
+    }); // No dependency array, runs after every render to capture the latest state
 
-    // Combine public data error and user data error for a general error display if needed by UI
-    const combinedError = [error, userDataError].filter(Boolean).join('; ');
+    // Effect to refresh user data when public data has just finished loading and user is connected
+    useEffect(() => {
+        const justFinishedLoadingPublic = prevIsLoadingPublicRef.current === true && isLoadingPublicData === false;
 
+        if (enabled && wallet.publicKey && justFinishedLoadingPublic && !isLoadingUserData) {
+            refreshUserDataFromHook();
+        }
+    }, [enabled, wallet.publicKey, isLoadingPublicData, isLoadingUserData, refreshUserDataFromHook]);
+    
+    // +++ START NEW FUNCTION +++
+    const refreshAfterTransaction = useCallback(async (updatedMintAddressString: string | null) => {
+        const functionStartTime = new Date().toLocaleTimeString();
+        console.log(`[${functionStartTime}] refreshAfterTransaction: START for mint string ${updatedMintAddressString}`);
+
+        if (!updatedMintAddressString) {
+            console.warn("refreshAfterTransaction: Mint address string not provided.");
+            return;
+        }
+        try {
+            const updatedMintAddress = new PublicKey(updatedMintAddressString);
+            console.log(`[${new Date().toLocaleTimeString()}] refreshAfterTransaction: Parsed mint ${updatedMintAddress.toBase58()}. Calling refreshSpecificTokenData.`);
+            await refreshSpecificTokenData(updatedMintAddress);
+            console.log(`[${new Date().toLocaleTimeString()}] refreshAfterTransaction: refreshSpecificTokenData COMPLETED for ${updatedMintAddress.toBase58()}. Calling refreshUserData.`);
+
+            // Then, refresh user-specific balances.
+            await refreshUserData(); // This refreshUserData is from usePoolData's scope, ultimately calling refreshUserDataFromHook
+            console.log(`[${new Date().toLocaleTimeString()}] refreshAfterTransaction: refreshUserData COMPLETED for ${updatedMintAddress.toBase58()}.`);
+            
+            console.log(`[${new Date().toLocaleTimeString()}] refreshAfterTransaction: END for mint ${updatedMintAddress.toBase58()}`);
+        } catch (error) {
+            console.error(`refreshAfterTransaction: Invalid mint address string provided: ${updatedMintAddressString}`, error);
+            // Optionally, trigger a broader refresh or set an error state
+        }
+    }, [refreshSpecificTokenData, refreshUserData]); // Depends on the refreshSpecificTokenData and refreshUserData callbacks from usePoolData
+    // +++ END NEW FUNCTION +++
+    
     return {
         poolConfig,
         poolConfigPda,
-        oracleData,
         dynamicData,
         historicalData,
-        wLqiSupply,
-        wLqiDecimals,
         processedTokenData,
         totalPoolValueScaled,
+        wLqiSupply,
+        wLqiDecimals,
         wLqiValueScaled,
-        userWlqiBalance,
-        userTokenBalances,
         isLoadingPublicData,
         isLoadingUserData,
-        error: combinedError || null,
+        error,
+        userDataError,
+        userWlqiBalance,
+        userTokenBalances,
         refreshPublicData,
+        refreshOracleData,
         refreshUserData,
         refreshAllData,
+        refreshSpecificTokenData, // Expose the new function
+        refreshAfterTransaction, 
+        oracleData
     };
 } 
