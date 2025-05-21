@@ -3,9 +3,9 @@
 import React from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { formatUnits, parseUnits } from 'ethers';
-import { calculateTokenValueUsdScaled } from '@/utils/app/calculations';
+import { calculateTokenValueUsdScaled, usdToWlqiAmount } from '@/utils/app/calculations';
 import { formatScaledBnToDollarString } from '@/utils/app/formatUtils';
-import { USD_SCALE } from '@/utils/core/constants';
+import { USD_SCALE, BPS_SCALE } from '@/utils/core/constants';
 import { DecodedPriceData } from '@/utils/core/types';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -27,6 +27,7 @@ interface TokenInputControlsProps {
     handleSetTargetAmount?: (mintAddress: string, action: 'deposit' | 'withdraw') => void;
     showTargetButton?: boolean;
     isMobile?: boolean;
+    vaultBalance?: BN | null;
 }
 
 export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
@@ -46,6 +47,7 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
     handleSetTargetAmount,
     showTargetButton = false,
     isMobile = false,
+    vaultBalance,
 }) => {
     const { t } = useTranslation();
     const isDeposit = action === 'deposit';
@@ -98,6 +100,57 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
         handleSetAmount(mintAddress, action, fraction);
     };
 
+    const handleSetAllDelisted = () => {
+        if (action !== 'withdraw' || !isDelisted || !vaultBalance || vaultBalance.isZero() || decimals === null || !priceData || !wLqiValueScaled || wLqiValueScaled.isZero() || wLqiDecimals === null) {
+            toast.error(t('poolInteractions.cannotCalculateAllDelisted'));
+            return;
+        }
+        try {
+            // 1. Calculate USD value of the entire vaultBalance for the delisted token
+            const vaultValueUsdScaled = calculateTokenValueUsdScaled(vaultBalance, decimals, priceData);
+            if (!vaultValueUsdScaled || vaultValueUsdScaled.isZero()) {
+                toast.error(t('poolInteractions.cannotCalculateVaultValue'));
+                return;
+            }
+
+            // 2. Account for the 5% program bonus (DELISTED_WITHDRAW_BONUS_BPS = -500)
+            // User effectively pays wLQI for (10000 / (10000 - (-500))) = (10000 / 10500) of the token's USD value.
+            const bonus_bps = new BN(-500); // DELISTED_WITHDRAW_BONUS_BPS from program
+            const bps_scale_bn = new BN(BPS_SCALE.toString()); // 10000
+            
+            const effectiveVaultValueUsdScaled = vaultValueUsdScaled
+                .mul(bps_scale_bn) 
+                .div(bps_scale_bn.sub(bonus_bps)); // This is vaultValueUsd * (10000 / 10500)
+
+            // 3. Convert this 'bonus-adjusted' USD value to the equivalent wLQI amount
+            const requiredWlqiAmountBn = usdToWlqiAmount(effectiveVaultValueUsdScaled, wLqiValueScaled, wLqiDecimals);
+            if (requiredWlqiAmountBn.isZero() || requiredWlqiAmountBn.isNeg()) {
+                toast.error(t('poolInteractions.cannotCalculateWlqiEquivalent'));
+                return;
+            }
+
+            // 4. Add a 1% buffer to this calculated wLQI amount
+            const bufferBpsForInput = new BN(100); // 1% = 100 BPS for frontend input buffer
+            const bufferedWlqiAmountBn = requiredWlqiAmountBn.mul(bps_scale_bn.add(bufferBpsForInput)).div(bps_scale_bn);
+            
+            // Add 1 lamport to ensure it's slightly over, helping with potential dust or rounding
+            const finalWlqiAmountBn = bufferedWlqiAmountBn.add(new BN(1));
+
+            let amountToSet = formatUnits(finalWlqiAmountBn.toString(), wLqiDecimals);
+            if (amountToSet.endsWith('.0')) {
+                amountToSet = amountToSet.substring(0, amountToSet.length - 2);
+            }
+
+            // 5. Call handleAmountChange to populate the withdrawal input field
+            handleAmountChange(mintAddress, 'withdraw', amountToSet, wLqiDecimals);
+            toast.success(t('poolInteractions.allDelistedAmountSet'));
+
+        } catch (error) {
+            console.error('Error in handleSetAllDelisted:', error);
+            toast.error(t('poolInteractions.errorCalculatingAllDelisted'));
+        }
+    };
+
     return (
         <div className="flex flex-col space-y-1">
             <div className="flex items-center justify-between">
@@ -124,6 +177,16 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                     >
                         {t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.max')}
                     </button>
+                    {action === 'withdraw' && isDelisted && (
+                        <button
+                            onClick={handleSetAllDelisted}
+                            disabled={actionDisabled || !vaultBalance || vaultBalance.isZero() || decimals === null || !priceData || !wLqiValueScaled || wLqiValueScaled.isZero() || wLqiDecimals === null}
+                            className={`${buttonClassName} ${(actionDisabled || !vaultBalance || vaultBalance.isZero() || decimals === null || !priceData || !wLqiValueScaled || wLqiValueScaled.isZero() || wLqiDecimals === null) ? 'cursor-not-allowed opacity-50' : ''}`}
+                            title={t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.allDelisted')}
+                        >
+                            {t('main.poolInfoDisplay.tokenTable.tokenInputControls.actions.all')}
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="relative w-full">

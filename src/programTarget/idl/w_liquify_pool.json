@@ -1,5 +1,5 @@
 {
-  "address": "EsKuTFP341vcfKidSAxgKZy91ZVmKqFxRw3CbM6bnfA9",
+  "address": "37wgqGHBFnts5H2u7GNR55PcuR6JcBN7pyKP4WTKLWm7",
   "metadata": {
     "name": "w_liquify_pool",
     "version": "0.1.0",
@@ -837,6 +837,10 @@
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "minimum_lp_tokens_out",
+          "type": "u64"
         }
       ]
     },
@@ -930,6 +934,96 @@
           }
         },
         {
+          "name": "temp_wliq_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "pool_authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wli_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -940,6 +1034,10 @@
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         }
       ],
       "args": [
@@ -1233,6 +1331,13 @@
           ]
         },
         {
+          "name": "temp_wliq_ata",
+          "writable": true,
+          "relations": [
+            "pool_config"
+          ]
+        },
+        {
           "name": "owner_fee_account",
           "writable": true,
           "pda": {
@@ -1447,8 +1552,8 @@
           "type": "u64"
         },
         {
-          "name": "withdraw_full_delisted_balance",
-          "type": "bool"
+          "name": "minimum_underlying_tokens_out",
+          "type": "u64"
         }
       ]
     }
@@ -1794,8 +1899,8 @@
     },
     {
       "code": 6062,
-      "name": "TokenNotDelisted",
-      "msg": "Token is not delisted, cannot perform this operation."
+      "name": "SlippageExceeded",
+      "msg": "Slippage tolerance exceeded."
     },
     {
       "code": 6063,
@@ -1880,6 +1985,10 @@
           {
             "name": "current_total_pool_value_scaled",
             "type": "u128"
+          },
+          {
+            "name": "temp_wliq_ata",
+            "type": "pubkey"
           },
           {
             "name": "supported_tokens",

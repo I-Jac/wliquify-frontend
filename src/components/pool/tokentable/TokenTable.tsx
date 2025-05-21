@@ -36,7 +36,7 @@ interface TokenTableProps {
     wLqiDecimals: number | null;
     userWlqiBalance: BN | null;
     onDeposit: (mintAddress: string, amountString: string, decimals: number | null) => Promise<void>;
-    onWithdraw: (mintAddress: string, amountString: string, isFullDelistedWithdraw?: boolean) => Promise<void>;
+    onWithdraw: (mintAddress: string, wliAmountString: string, minimumUnderlyingTokensOutString: string, outputTokenDecimals: number | null) => Promise<void>;
     isDepositing: boolean;
     isWithdrawing: boolean;
     depositAmounts: Record<string, string>;

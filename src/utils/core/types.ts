@@ -77,6 +77,7 @@ export interface PoolConfig {
     addressLookupTable: PublicKey;
     currentTotalPoolValueScaled: BN;
     supportedTokens: SupportedToken[];
+    tempWliqAta: PublicKey;
 }
 
 // ADDED: Derived type for processed data used by UI components
@@ -143,6 +144,7 @@ export interface FeeCalculationProps {
     wLqiValueScaled: BN | null;
     priceData: DecodedPriceData | null;
     vaultBalance: BN | null;
+    isDelisted: boolean;
 }
 
 // Settings Related Types
@@ -169,6 +171,7 @@ export interface InitialSettings {
     isCustomRpc: boolean;
     customRpcInputValue: string;
     isCustomSlippage: boolean;
+    rawCustomSlippageInput?: string; // Added for storing the raw text input for custom slippage
     preferredLanguage: string;
     preferredCurrency?: string;
     numberFormat?: NumberFormatSettings;

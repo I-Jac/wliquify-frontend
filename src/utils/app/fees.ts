@@ -44,6 +44,7 @@ export const calculateFees = ({
     wLqiValueScaled,
     priceData,
     vaultBalance,
+    isDelisted,
 }: FeeCalculationProps): FeeCalculationResult => {
     let estimatedDepositFeeBps = BASE_FEE_BPS;
     let estimatedWithdrawFeeBps = BASE_FEE_BPS;
@@ -149,10 +150,24 @@ export const calculateFees = ({
 
                 const requiredTokenAmountBn_scaled = usdToTokenAmount(valueChangeUsdScaled, decimals, priceData);
                 const requiredTokenAmountBn = requiredTokenAmountBn_scaled.div(PRECISION_SCALE_FACTOR);
-                if (requiredTokenAmountBn.gt(vaultBalance)) {
-                    withdrawalExceedsLiquidity = true;
-                } else {
-                    withdrawalExceedsLiquidity = false;
+
+                if (vaultBalance && requiredTokenAmountBn) {
+                    if (isDelisted) {
+                        // For delisted tokens, allow a small margin (e.g., 2%) to account for the 1% wLQI buffer 
+                        // from the "All" button and any conversion nuances.
+                        const toleranceNumerator = new BN(102); // 102% (allows for 1% buffer + small discrepancies)
+                        const toleranceDenominator = new BN(100);
+                        const bufferedVaultBalance = vaultBalance.mul(toleranceNumerator).div(toleranceDenominator);
+                        
+                        if (requiredTokenAmountBn.gt(bufferedVaultBalance)) {
+                            withdrawalExceedsLiquidity = true;
+                        }
+                    } else {
+                        // Original logic for non-delisted (active) tokens
+                        if (requiredTokenAmountBn.gt(vaultBalance)) {
+                            withdrawalExceedsLiquidity = true;
+                        }
+                    }
                 }
 
                 if (!withdrawalExceedsLiquidity && !valueChangeUsdScaled.isZero()) {

@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/w_liquify_pool.json`.
  */
 export type WLiquifyPool = {
-  "address": "EsKuTFP341vcfKidSAxgKZy91ZVmKqFxRw3CbM6bnfA9",
+  "address": "37wgqGHBFnts5H2u7GNR55PcuR6JcBN7pyKP4WTKLWm7",
   "metadata": {
     "name": "wLiquifyPool",
     "version": "0.1.0",
@@ -843,6 +843,10 @@ export type WLiquifyPool = {
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "minimumLpTokensOut",
+          "type": "u64"
         }
       ]
     },
@@ -936,6 +940,96 @@ export type WLiquifyPool = {
           }
         },
         {
+          "name": "tempWliqAta",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "poolAuthority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "wliMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -946,6 +1040,10 @@ export type WLiquifyPool = {
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         }
       ],
       "args": [
@@ -1239,6 +1337,13 @@ export type WLiquifyPool = {
           ]
         },
         {
+          "name": "tempWliqAta",
+          "writable": true,
+          "relations": [
+            "poolConfig"
+          ]
+        },
+        {
           "name": "ownerFeeAccount",
           "writable": true,
           "pda": {
@@ -1453,8 +1558,8 @@ export type WLiquifyPool = {
           "type": "u64"
         },
         {
-          "name": "withdrawFullDelistedBalance",
-          "type": "bool"
+          "name": "minimumUnderlyingTokensOut",
+          "type": "u64"
         }
       ]
     }
@@ -1800,8 +1905,8 @@ export type WLiquifyPool = {
     },
     {
       "code": 6062,
-      "name": "tokenNotDelisted",
-      "msg": "Token is not delisted, cannot perform this operation."
+      "name": "slippageExceeded",
+      "msg": "Slippage tolerance exceeded."
     },
     {
       "code": 6063,
@@ -1886,6 +1991,10 @@ export type WLiquifyPool = {
           {
             "name": "currentTotalPoolValueScaled",
             "type": "u128"
+          },
+          {
+            "name": "tempWliqAta",
+            "type": "pubkey"
           },
           {
             "name": "supportedTokens",

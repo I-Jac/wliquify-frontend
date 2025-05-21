@@ -47,7 +47,7 @@ interface DynamicFeeLevels {
     Turbo: number;
 }
 
-interface SettingsContextProps {
+export interface SettingsContextProps {
     feeLevel: FeeLevel;
     setFeeLevel: (level: FeeLevel) => void;
     maxPriorityFeeCapSol: number;
@@ -57,6 +57,7 @@ interface SettingsContextProps {
     fetchDynamicFees: (connection?: Connection) => Promise<void>;
     slippageBps: number;
     setSlippageBps: (bps: number) => void;
+    slippageTolerance: number;
     rpcEndpoint: string;
     setRpcEndpoint: (endpoint: string) => void;
     isSettingsModalOpen: boolean;
@@ -82,6 +83,11 @@ interface SettingsContextProps {
     explorerOptions: Record<string, SolanaExplorerOption>;
     availableLanguages: LanguageOption[];
     availableCurrencies: CurrencyOption[];
+
+    isCustomSlippage: boolean;
+    setIsCustomSlippage: (value: boolean) => void;
+    rawCustomSlippageInput: string;
+    setRawCustomSlippageInput: (value: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextProps | undefined>(undefined);
@@ -109,6 +115,16 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         { code: 'EUR', name: 'Euro', symbol: '€' }
         // Add more currencies as needed
     ], []);
+
+    // ADDED: State for custom slippage mode and raw input string
+    const [isCustomSlippage, setIsCustomSlippage] = useState<boolean>(() => {
+        const savedIsCustom = localStorage.getItem('isCustomSlippage');
+        // If 'isCustomSlippage' is explicitly 'true', then true. Otherwise, default to false.
+        return savedIsCustom === 'true'; 
+    });
+    const [rawCustomSlippageInput, setRawCustomSlippageInput] = useState<string>(() => {
+        return localStorage.getItem('rawCustomSlippageInput') || "";
+    });
 
     const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
     const [alertModalMessage, setAlertModalMessage] = useState('');
@@ -364,6 +380,19 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         return finalMicroLamportsPerCU;
     }, [feeLevel, dynamicFees, maxPriorityFeeCapSol]);
 
+    // ADDED: useEffects to save custom slippage state and raw input to localStorage
+    useEffect(() => {
+        localStorage.setItem('isCustomSlippage', isCustomSlippage.toString());
+    }, [isCustomSlippage]);
+
+    useEffect(() => {
+        localStorage.setItem('rawCustomSlippageInput', rawCustomSlippageInput);
+    }, [rawCustomSlippageInput]);
+
+    useEffect(() => {
+        localStorage.setItem('rpcEndpoint', rpcEndpoint);
+    }, [rpcEndpoint]);
+
     const contextValue = useMemo(() => ({
         feeLevel,
         setFeeLevel,
@@ -374,6 +403,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         fetchDynamicFees,
         slippageBps,
         setSlippageBps,
+        slippageTolerance: slippageBps / 10000, // Assuming slippageBps is out of 10000 (for 100.00%)
         rpcEndpoint,
         setRpcEndpoint,
         isSettingsModalOpen,
@@ -395,7 +425,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setPreferredExplorer,
         explorerOptions,
         availableLanguages,
-        availableCurrencies
+        availableCurrencies,
+        isCustomSlippage,
+        setIsCustomSlippage,
+        rawCustomSlippageInput,
+        setRawCustomSlippageInput
     }), [
         feeLevel, maxPriorityFeeCapSol, priorityFee, dynamicFees, slippageBps, rpcEndpoint, // Added priorityFee to dependencies
         isSettingsModalOpen, isSettingsDirty, isAlertModalOpen, alertModalMessage,
@@ -404,7 +438,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         setFeeLevel, setMaxPriorityFeeCapSol, fetchDynamicFees, setSlippageBps, 
         setRpcEndpoint, setIsSettingsDirty,
         openSettingsModal, closeSettingsModal, openAlertModal, closeAlertModal,
-        setPreferredLanguage, setPreferredCurrency, setNumberFormat, setPreferredExplorer
+        setPreferredLanguage, setPreferredCurrency, setNumberFormat, setPreferredExplorer,
+        isCustomSlippage, rawCustomSlippageInput
     ]);
 
     return (

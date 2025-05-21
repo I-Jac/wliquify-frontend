@@ -407,10 +407,12 @@
             "half": "Half",
             "max": "Max",
             "toTarget": "To Target",
+            "all": "All",
             "tooltips": {
               "half": "Set amount to 50% of your available {{symbol}} balance",
               "max": "Set amount to your full available {{symbol}} balance",
-              "toTarget": "Set amount to reach the target percentage for {{symbol}} in the pool"
+              "toTarget": "Set amount to reach the target percentage for {{symbol}} in the pool",
+              "all": "Set amount to your full available {{symbol}} balance"
             }
           }
         },

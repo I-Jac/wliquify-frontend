@@ -132,7 +132,9 @@ export const PoolInfoDisplay = ({
         poolConfig, // Now from props
         poolConfigPda, // Now from props
         oracleData, // Now from props
+        processedTokenData, // ADDED
         wLqiDecimals, // Pass down wLqiDecimals from props
+        wLqiSupply, // ADDED: Pass down wLqiSupply from props
         onTransactionSuccess: refreshUserBalances, // Use the wrapped refresh function
         onClearInput: handleClearInput
     });

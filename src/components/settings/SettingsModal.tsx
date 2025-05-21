@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { FeeLevel, InitialSettings } from '@/utils/core/types';
 import {
-    PREDEFINED_SLIPPAGE_OPTIONS,
     PREDEFINED_RPCS
 } from '@/utils/core/constants';
 import { useConnection } from '@solana/wallet-adapter-react';
@@ -31,6 +30,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         fetchDynamicFees: _fetchDynamicFees,
         slippageBps: contextSlippageBps,
         setSlippageBps: setContextSlippageBps,
+        isCustomSlippage: contextIsCustomSlippage,
+        setIsCustomSlippage: setContextIsCustomSlippage,
+        rawCustomSlippageInput: contextRawCustomSlippageInput,
+        setRawCustomSlippageInput: setContextRawCustomSlippageInput,
         rpcEndpoint: contextRpcEndpoint,
         setRpcEndpoint: setContextRpcEndpoint,
         isSettingsDirty,
@@ -54,10 +57,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     const [localFeeLevel, setLocalFeeLevel] = useState<FeeLevel>(contextFeeLevel);
     const [localMaxPriorityFeeCapSol, setLocalMaxPriorityFeeCapSol] = useState(contextMaxPriorityFeeCapSol.toString());
     const [localSlippageBps, setLocalSlippageBps] = useState(contextSlippageBps.toString());
-    // New state for the custom slippage percentage input string
-    const [localSlippageInput, setLocalSlippageInput] = useState((contextSlippageBps / 100).toFixed(2));
-    // New state to track if custom slippage is active
-    const [localIsCustomSlippageActive, setLocalIsCustomSlippageActive] = useState(false);
+    // Initialize localSlippageInput and localIsCustomSlippageActive based on context values,
+    // the useEffect will refine this based on initialSettingsRef logic.
+    const [localSlippageInput, setLocalSlippageInput] = useState(contextIsCustomSlippage ? contextRawCustomSlippageInput : "");
+    const [localIsCustomSlippageActive, setLocalIsCustomSlippageActive] = useState(contextIsCustomSlippage);
     
     const initialContextRpcIsPredefined = PREDEFINED_RPCS.some(r => r.url === contextRpcEndpoint);
     const initialContextRpcIsCustom = !initialContextRpcIsPredefined;
@@ -78,67 +81,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
     // Effect to initialize/reset local states and initialSettingsRef ONCE on MOUNT
     // or when the modal is effectively re-initialized (e.g. by closing and reopening)
     useEffect(() => {
-        // Only re-initialize fully if isSettingsModalOpen is true AND initialSettingsRef is not yet set.
-        // This means subsequent changes to context values while the modal is open won't cause a full reset.
-        // A more robust solution might track the previous value of isSettingsModalOpen.
         if (isSettingsModalOpen && !initialSettingsRef.current) {
             console.log("[InitializationEffect] Running FULL initialization because modal is open and initialSettingsRef is null.");
-            // Capture initial settings from context when component mounts
             const currentInitialRpcIsPredefined = PREDEFINED_RPCS.some(r => r.url === contextRpcEndpoint);
-            const currentInitialRpcIsCustomDerived = !currentInitialRpcIsPredefined; // Derived value
+            const currentInitialRpcIsCustomDerived = !currentInitialRpcIsPredefined;
 
-            // Determine initial slippage mode and input value
-            const matchingPredefinedSlippage = PREDEFINED_SLIPPAGE_OPTIONS.find(o => o.bps === contextSlippageBps);
-            let initialIsCustomSlippage: boolean;
-            let initialSlippageInputValue: string;
-
-            if (matchingPredefinedSlippage) {
-                initialIsCustomSlippage = false;
-                initialSlippageInputValue = ""; // Clear input if a predefined is active from context
+            // Slippage Initialization - Use direct context values for custom state and raw input
+            let initialDisplaySlippageInput = "";
+            if (contextIsCustomSlippage) {
+                initialDisplaySlippageInput = contextRawCustomSlippageInput || ""; // Use stored raw string from context
             } else {
-                initialIsCustomSlippage = true;
-                initialSlippageInputValue = (contextSlippageBps / 100).toFixed(2);
+                // If not custom, input field is typically blank as predefined buttons are used.
+                // Alternatively, it could display the percentage of the active predefined BPS.
+                // For now, keeping it blank if not custom.
+                initialDisplaySlippageInput = "";
             }
 
-            // First, set initialSettingsRef.current with values derived from context
             initialSettingsRef.current = {
                 feeLevel: contextFeeLevel,
                 maxPriorityFeeCapSol: contextMaxPriorityFeeCapSol,
-                slippageBps: contextSlippageBps,
+                slippageBps: contextSlippageBps, // Actual BPS value from context
                 selectedRpcUrl: currentInitialRpcIsPredefined ? contextRpcEndpoint : (PREDEFINED_RPCS[0]?.url || ''),
                 isCustomRpc: currentInitialRpcIsCustomDerived,
                 customRpcInputValue: currentInitialRpcIsCustomDerived ? contextRpcEndpoint : 'https://',
-                isCustomSlippage: initialIsCustomSlippage,
-                // Add profile settings to initial ref from context
+                isCustomSlippage: contextIsCustomSlippage, // Directly from context
+                rawCustomSlippageInput: contextRawCustomSlippageInput, // Directly from context
                 preferredLanguage: contextPreferredLanguage,
                 preferredExplorer: contextPreferredExplorer,
             };
             console.log("[InitializationEffect] Set initialSettingsRef.current:", initialSettingsRef.current);
 
-            // Then, set local states based on context (or derived values for RPC)
             setLocalFeeLevel(contextFeeLevel);
             setLocalMaxPriorityFeeCapSol(contextMaxPriorityFeeCapSol.toString());
             setLocalSlippageBps(contextSlippageBps.toString());
-            
-            setLocalIsCustomSlippageActive(initialIsCustomSlippage); 
-            setLocalSlippageInput(initialSlippageInputValue);
+            setLocalIsCustomSlippageActive(contextIsCustomSlippage); 
+            setLocalSlippageInput(initialDisplaySlippageInput); // Use the determined display value
 
-            // Set local RPC states directly from derived context values
             setLocalSelectedRpcUrl(currentInitialRpcIsPredefined ? contextRpcEndpoint : (PREDEFINED_RPCS[0]?.url || ''));
             setLocalIsCustomRpc(currentInitialRpcIsCustomDerived);
             setLocalCustomRpcInputValue(currentInitialRpcIsCustomDerived ? contextRpcEndpoint : 'https://');
 
-            // Set local Profile states from context
             setLocalPreferredLanguage(contextPreferredLanguage);
             setLocalPreferredExplorer(contextPreferredExplorer);
             
-            setIsSettingsDirty(false); // Initially, form is not dirty
+            setIsSettingsDirty(false);
         } else if (!isSettingsModalOpen && initialSettingsRef.current) {
-            // If modal is closing, clear the initialSettingsRef so it re-initializes next time it opens.
             console.log("[InitializationEffect] Modal closed. Clearing initialSettingsRef.current.");
             initialSettingsRef.current = null;
-            // Optionally, also reset isSettingsDirty if it shouldn't persist after closing
-            // setIsSettingsDirty(false); // Uncomment if dirty state should reset on close regardless
         }
     }, [
         isSettingsModalOpen,
@@ -148,7 +137,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         contextRpcEndpoint,
         setIsSettingsDirty,
         contextPreferredLanguage,
-        contextPreferredExplorer
+        contextPreferredExplorer,
+        contextIsCustomSlippage,
+        contextRawCustomSlippageInput
     ]);
 
     // ComponentDidMount/Unmount for componentIsMountedRef
@@ -164,15 +155,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         console.log("[DirtyCheckEffect] Running. Local states before check:", {
             localFeeLevel,
             localMaxPriorityFeeCapSol,
-            localSlippageBps,
+            localSlippageBps, // This is the BPS string derived from input or predefined
             localSelectedRpcUrl,
             localIsCustomRpc,
             localCustomRpcInputValue,
-            localIsCustomSlippageActive,
-            // Include local profile states in log
+            localIsCustomSlippageActive, // Boolean: is custom mode UI active?
+            localSlippageInput, // string: the raw text in the custom input field
             localPreferredLanguage,
             localPreferredExplorer,
-            initialSettings: initialSettingsRef.current // Also log what it's comparing against
+            initialSettings: initialSettingsRef.current // Log what it's comparing against
         });
 
         if (!initialSettingsRef.current) {
@@ -181,17 +172,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             return;
         }
 
-        const parsedLocalSlippage = parseInt(localSlippageBps, 10);
         const parsedLocalMaxPriorityFeeCapSol = parseFloat(localMaxPriorityFeeCapSol);
 
         const feeLevelChanged = localFeeLevel !== initialSettingsRef.current.feeLevel;
         const maxPriorityFeeCapSolChanged = (isNaN(parsedLocalMaxPriorityFeeCapSol) || parsedLocalMaxPriorityFeeCapSol < 0 ? -1 : parsedLocalMaxPriorityFeeCapSol) !== initialSettingsRef.current.maxPriorityFeeCapSol;
         
-        // Slippage dirty check
-        const currentSlippageBpsValue = (isNaN(parsedLocalSlippage) || parsedLocalSlippage < 0 ? -1 : parsedLocalSlippage);
-        const slippageBpsValueChanged = currentSlippageBpsValue !== initialSettingsRef.current.slippageBps;
-        const slippageModeChanged = localIsCustomSlippageActive !== initialSettingsRef.current.isCustomSlippage;
-        const slippageDirty = slippageBpsValueChanged || slippageModeChanged;
+        // Revised Slippage dirty check
+        let slippageDirty = false;
+        if (localIsCustomSlippageActive !== initialSettingsRef.current.isCustomSlippage) {
+            slippageDirty = true; // Mode itself changed (e.g., predefined to custom, or custom to predefined)
+        } else {
+            // Mode hasn't changed, check if the relevant value for that mode has changed
+            if (localIsCustomSlippageActive) { // If custom mode is active (both now and initially)
+                if (localSlippageInput !== initialSettingsRef.current.rawCustomSlippageInput) {
+                    slippageDirty = true; // Raw input text changed
+                }
+                // Also consider if the derived BPS changed, though raw input is primary for custom
+                const parsedLocalSlippageBps = parseInt(localSlippageBps, 10);
+                const currentLocalSlippageBps = isNaN(parsedLocalSlippageBps) ? -1 : parsedLocalSlippageBps;
+                if (currentLocalSlippageBps !== initialSettingsRef.current.slippageBps && !slippageDirty) {
+                    // This case might occur if raw input is same but processing changes BPS.
+                    // Or if user types "0.5", then types "0.50" - BPS is same, raw input changed (already caught).
+                    // If rawInput didn't change, but localSlippageBps (derived) did, it's also dirty.
+                    // This primarily ensures that if localSlippageInput didn't make it dirty, but the BPS value *did* (e.g. clearing custom input makes BPS 0), it's caught.
+                    slippageDirty = true;
+                }
+
+            } else { // If predefined mode is active (both now and initially)
+                const parsedLocalSlippageBps = parseInt(localSlippageBps, 10);
+                const currentLocalSlippageBps = isNaN(parsedLocalSlippageBps) ? -1 : parsedLocalSlippageBps; // Ensure consistent comparison
+                if (currentLocalSlippageBps !== initialSettingsRef.current.slippageBps) {
+                    slippageDirty = true; // Selected predefined BPS value changed
+                }
+            }
+        }
         
         let rpcChanged = false;
         if (localIsCustomRpc) {
@@ -219,7 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         localIsCustomRpc, 
         localCustomRpcInputValue, 
         localIsCustomSlippageActive,
-        // Add local profile states to dependency array
+        localSlippageInput, // Log the raw input that's active at save time
         localPreferredLanguage,
         localPreferredExplorer,
         setIsSettingsDirty, 
@@ -254,12 +268,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             localIsCustomRpc,
             localCustomRpcInputValue,
             localIsCustomSlippageActive,
-            // Add local profile states to log
+            localSlippageInput, // Log the raw input that's active at save time
             localPreferredLanguage,
             localPreferredExplorer,
         });
 
-        const slippageNum = parseInt(localSlippageBps, 10);
+        const slippageNum = parseInt(localSlippageBps, 10); // This is the BPS value derived from input (e.g., 0 if input was "0.000001")
         const maxPriorityFeeCapSolNum = parseFloat(localMaxPriorityFeeCapSol);
 
         // Validate and set Fee Level
@@ -270,6 +284,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
         if (!isNaN(slippageNum) && slippageNum >= 0) {
             console.log("[PerformSave] Setting SlippageBps to context:", slippageNum);
             setContextSlippageBps(slippageNum);
+            // Also save custom slippage state and raw input to context
+            setContextIsCustomSlippage(localIsCustomSlippageActive);
+            if (localIsCustomSlippageActive) {
+                setContextRawCustomSlippageInput(localSlippageInput);
+            } else {
+                // If a predefined option was selected, clear the raw custom input in context
+                setContextRawCustomSlippageInput(""); 
+            }
         } else {
             openAlertModal(t('alertModal.invalidSlippageAlert'));
             return false; 
@@ -341,19 +363,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ closePanel }) => {
             initialSettingsRef.current = {
                 feeLevel: localFeeLevel,
                 maxPriorityFeeCapSol: maxPriorityFeeCapSolNum,
-                slippageBps: slippageNum, 
+                slippageBps: slippageNum, // The effective BPS value saved
                 selectedRpcUrl: !localIsCustomRpc ? finalRpcToSave : (PREDEFINED_RPCS[0]?.url || ''),
                 isCustomRpc: localIsCustomRpc,
                 customRpcInputValue: localIsCustomRpc ? finalRpcToSave : 'https://',
-                isCustomSlippage: localIsCustomSlippageActive,
-                // Update initialSettingsRef with saved profile settings
+                isCustomSlippage: localIsCustomSlippageActive, // Save the custom mode state
+                rawCustomSlippageInput: localIsCustomSlippageActive ? localSlippageInput : "", // Save the raw input string if custom was active
                 preferredLanguage: localPreferredLanguage,
                 preferredExplorer: localPreferredExplorer,
             };
             console.log("[PerformSave] Updated initialSettingsRef.current:", initialSettingsRef.current);
         }
-        setIsSettingsDirty(false); // Mark as not dirty
-        return true; // Indicate save was successful
+        setIsSettingsDirty(false); 
+        return true; 
     };
 
     const handleTabChange = (tab: ActiveTabType) => {

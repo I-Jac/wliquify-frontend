@@ -42,20 +42,55 @@ export const TransactionSettingsTab: React.FC<TransactionSettingsTabProps> = ({
 
     const handleCustomSlippageInputFocus = () => {
         setLocalIsCustomSlippageActive(true);
+        // If focusing the custom input and it's currently blank (e.g., after a predefined button was clicked),
+        // default it to the minimum valid custom slippage (0.01% = 1 BPS).
+        if (localSlippageInput.trim() === '') {
+            setLocalSlippageInput("0.01");
+            setLocalSlippageBps("1");
+        }
     };
 
     const handleCustomSlippageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalIsCustomSlippageActive(true);
         const inputValue = e.target.value;
-        setLocalSlippageInput(inputValue);
-        if (inputValue.trim() === '' || isNaN(parseFloat(inputValue))) {
-            // Potentially set BPS to an invalid marker or wait for valid input
-        } else {
-            const percentage = parseFloat(inputValue);
-            if (!isNaN(percentage) && percentage >= 0) {
-                setLocalSlippageBps(Math.round(percentage * 100).toString());
-            }
+
+        if (inputValue.trim() === '') {
+            setLocalSlippageInput('');
+            // When input is cleared, do not change localSlippageBps from its last valid state.
+            // The dirty check in SettingsModal will determine if this empty state is a change.
+            return; 
         }
+
+        // Attempt to parse the input value
+        const percentage = parseFloat(inputValue);
+
+        if (isNaN(percentage)) {
+            setLocalSlippageInput(inputValue); // Show the invalid input as typed
+            // Do not update localSlippageBps for invalid non-numeric input.
+            return; 
+        }
+
+        let finalInputToShow: string;
+        let calculatedBps: number;
+
+        // Enforce minimum of 1 BPS (0.01%) and maximum of 10000 BPS (100%)
+        if (percentage < 0.01) {
+            calculatedBps = 1;
+        } else if (percentage > 100) {
+            calculatedBps = 10000;
+        } else { // 0.01 <= percentage <= 100
+            calculatedBps = Math.ceil(percentage * 100);
+        }
+
+        // Determine the string to display back in the input field
+        if (calculatedBps === 10000) {
+            finalInputToShow = "100";
+        } else {
+            finalInputToShow = (calculatedBps / 100).toFixed(2);
+        }
+
+        setLocalSlippageInput(finalInputToShow);
+        setLocalSlippageBps(calculatedBps.toString());
     };
 
     return (
@@ -149,8 +184,10 @@ export const TransactionSettingsTab: React.FC<TransactionSettingsTabProps> = ({
                                 {option.label}
                             </button>
                         ))}
-                        <div className={`flex items-center bg-gray-750 border border-gray-600 rounded px-3 ml-2 w-24 
-                            ${localIsCustomSlippageActive ? 'ring-2 ring-cyan-500' : ''}`}
+                        <div className={`flex items-center rounded px-3 ml-2 w-24 
+                            ${localIsCustomSlippageActive 
+                                ? 'bg-cyan-600 border-cyan-500 ring-2 ring-cyan-500' 
+                                : 'bg-gray-750 border border-gray-600 hover:border-gray-500'}`}
                         >
                             <input
                                 type="text" 

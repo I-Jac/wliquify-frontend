@@ -407,10 +407,12 @@
             "half": "Mitad",
             "max": "Máx",
             "toTarget": "A objetivo",
+            "all": "Todo",
             "tooltips": {
               "half": "Establecer la cantidad al 50% de tu saldo disponible de {{symbol}}",
               "max": "Establecer la cantidad a tu saldo total disponible de {{symbol}}",
-              "toTarget": "Establecer la cantidad para alcanzar el porcentaje objetivo de {{symbol}} en el pool"
+              "toTarget": "Establecer la cantidad para alcanzar el porcentaje objetivo de {{symbol}} en el pool",
+              "all": "Establecer la cantidad a tu saldo total disponible de {{symbol}}"
             }
           }
         },
