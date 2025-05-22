@@ -73,7 +73,8 @@
     "depositError": "Depósito fallido: {{errorMessage}}",
     "withdrawalError": "Retiro fallido: {{errorMessage}}",
     "unknownError": "Error desconocido",
-    "unknownProgramError": "Ocurrió un error desconocido del programa (Código: {{code}})."
+    "unknownProgramError": "Ocurrió un error desconocido del programa (Código: {{code}}).",
+    "slippageExceededError": "La tolerancia de deslizamiento excedida. Por favor, ajusta la tolerancia de deslizamiento o intenta nuevamente."
   },
   
   "poolInteractions": {

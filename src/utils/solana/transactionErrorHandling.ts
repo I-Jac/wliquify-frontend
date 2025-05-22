@@ -88,7 +88,11 @@ export async function handleTransactionError({
         if (customErrorCode !== null && program?.idl?.errors) {
             const programError = program.idl.errors.find(e => e.code === customErrorCode);
             if (programError && programError.msg) {
-                errorMessage = programError.msg;
+                if (programError.msg === "Slippage tolerance exceeded.") {
+                    errorMessage = t('notifications.slippageExceededError');
+                } else {
+                    errorMessage = programError.msg;
+                }
             } else {
                 errorMessage = t('notifications.unknownProgramError', { code: customErrorCode });
             }

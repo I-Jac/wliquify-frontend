@@ -73,7 +73,8 @@
     "depositError": "Deposit failed: {{errorMessage}}",
     "withdrawalError": "Withdrawal failed: {{errorMessage}}",
     "unknownError": "Unknown error",
-    "unknownProgramError": "An unknown program error occurred (Code: {{code}})."
+    "unknownProgramError": "An unknown program error occurred (Code: {{code}}).",
+    "slippageExceededError": "Transaction failed due to slippage. Try increasing slippage tolerance for a higher chance of success."
   },
   
   "poolInteractions": {
