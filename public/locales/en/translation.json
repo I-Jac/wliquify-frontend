@@ -164,7 +164,7 @@
         "slippageTolerance": "Maximum acceptable price difference between expected and actual transaction price",
         "maxCap": "Maximum amount of SOL you're willing to spend on priority fees per transaction",
         "feeCapped": "Selected priority fee ({{feeLevel}}) is above your Max Cap. Effective fee is capped, potentially reducing priority. Check Settings.",
-        "feeNormal": "Effective priority fee based on current settings.",
+        "feeNormal": "Network fee is solana base network fee plus effective priority fee set in settings.",
         "feeLevel": "{{feeLevel}}: ~{{value}} SOL",
         "feeLevelCapped": "{{feeLevel}} selected, but capped by Max Fee of ~{{maxCapValue}} SOL.",
         "transactionPriority": "Transaction Priority: {{feeLevel}}"

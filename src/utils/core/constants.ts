@@ -82,6 +82,7 @@ export const MIN_SOL_BALANCE_LAMPORTS = 100000; // 0.0001 SOL - minimum balance 
 
 // Compute budget constants
 export const TRANSACTION_COMPUTE_UNITS = 550000; // Increased from 500000
+export const BASE_TRANSACTION_FEE_LAMPORTS = 5000; // Standard fee per signature
 
 // Settings Defaults
 export const SETTINGS_DEFAULT_SLIPPAGE_BPS = 50; // 0.5%

@@ -11,13 +11,19 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Popover, Transition } from '@headlessui/react';
 import { Cog6ToothIcon as SolidCogIcon } from '@heroicons/react/24/solid';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
 import {
     TRANSACTION_COMPUTE_UNITS,
     FAUCET_URL_TOKEN,
     FAUCET_URL_SOL_1,
-    FAUCET_URL_SOL_2
+    FAUCET_URL_SOL_2,
+    BASE_TRANSACTION_FEE_LAMPORTS
 } from '@/utils/core/constants';
 import { useTranslation } from 'react-i18next';
+import { usePoolData } from '@/hooks/usePoolData';
+import type { ProcessedTokenData } from '@/utils/core/types';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useAnchorProgram } from '@/hooks/useAnchorProgram';
 
 // Helper component to manage Popover state synchronization with context
 interface PopoverStateSyncProps {
@@ -81,6 +87,20 @@ export const Header: React.FC = () => {
         isSettingsDirty,
         openAlertModal
     } = useSettings();
+
+    // Prepare arguments for usePoolData
+    const { connection } = useConnection();
+    const wallet = useWallet(); // wallet object itself is needed
+    const { program, provider, readOnlyProvider } = useAnchorProgram(); // Get program and providers
+
+    const { processedTokenData, isLoadingPublicData } = usePoolData({
+        program,
+        provider,
+        readOnlyProvider,
+        connection,
+        wallet,
+        enabled: true // Explicitly enable, or base on other logic if needed
+    });
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
@@ -258,34 +278,57 @@ export const Header: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2 sm:space-x-3">
-                        {feeLevel && (
+                        {feeLevel && (priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (
                             <div 
                                 className="hidden sm:flex items-center bg-gray-700 text-gray-300 text-xs px-2.5 py-1.5 rounded-md whitespace-nowrap"
-                                title={t('header.settings.tooltips.transactionPriority', { feeLevel: t(`header.settings.feeLevel${feeLevel}`)})}
+                                title={t('header.tooltips.networkFeeHover', 'Estimated network fee')}
                             >
-                                <span>{t('header.priorityLabel')}</span>
-                                <span className="text-white font-semibold ml-1.5">{t(`header.settings.feeLevel${feeLevel}`)}</span>
-                                {(priorityFee !== undefined && TRANSACTION_COMPUTE_UNITS > 0) && (() => {
-                                    let tempFeeLevel: Exclude<FeeLevel, 'Custom'> = feeLevel as Exclude<FeeLevel, 'Custom'>;
-                                    if (feeLevel === 'Custom') {
-                                        tempFeeLevel = 'Normal';
-                                    }
-                                    const baseSolForSelectedLevel = dynamicFees[tempFeeLevel];
-                                    let isSelectedLevelCapped = false;
-                                    if (baseSolForSelectedLevel !== undefined && maxPriorityFeeCapSol >= 0) {
-                                        if (baseSolForSelectedLevel > maxPriorityFeeCapSol) {
-                                            isSelectedLevelCapped = true;
+                                <span>{t('header.networkFeeLabel', 'Transaction Fee:')}</span>
+                                
+                                {(() => {
+                                    let isSelectedLevelEffectivelyCapped = false;
+                                    if (feeLevel && feeLevel !== 'Custom' && dynamicFees && dynamicFees[feeLevel] !== undefined && maxPriorityFeeCapSol >= 0) {
+                                        const uncappedPriorityFeeInSolForSelectedLevel = dynamicFees[feeLevel as Exclude<FeeLevel, 'Custom'>];
+                                        if (uncappedPriorityFeeInSolForSelectedLevel > maxPriorityFeeCapSol) {
+                                            isSelectedLevelEffectivelyCapped = true;
                                         }
                                     }
-                                    const displayedSol = (priorityFee * TRANSACTION_COMPUTE_UNITS) / (1_000_000 * LAMPORTS_PER_SOL);
+
+                                    const effectivePriorityFeeInLamports = (priorityFee * TRANSACTION_COMPUTE_UNITS) / 1_000_000;
+                                    const totalFeeInLamports = BASE_TRANSACTION_FEE_LAMPORTS + effectivePriorityFeeInLamports;
+                                    const displayedSol = totalFeeInLamports / LAMPORTS_PER_SOL;
+                                    
+                                    let solPriceUsd = 0;
+                                    if (!isLoadingPublicData && processedTokenData) {
+                                        const solTokenData = processedTokenData.find((token: ProcessedTokenData) => token.symbol === 'SOL');
+                                        if (solTokenData && solTokenData.priceData) {
+                                            const price = new BN(solTokenData.priceData.price);
+                                            const expo = solTokenData.priceData.expo;
+                                            if (expo <= 0) { 
+                                                solPriceUsd = price.toNumber() / Math.pow(10, Math.abs(expo));
+                                            } else { 
+                                                solPriceUsd = price.toNumber() * Math.pow(10, expo);
+                                            }
+                                        }
+                                    }
+                                    const displayedUsd = displayedSol * solPriceUsd;
+
                                     const translatedFeeLevel = t(`header.settings.feeLevel${feeLevel}`);
                                     return (
                                         <span 
-                                            className={`${isSelectedLevelCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
+                                            className={`${isSelectedLevelEffectivelyCapped ? 'text-red-400 font-semibold' : 'text-gray-400'} ml-1`}
                                             data-tooltip-id="app-tooltip"
-                                            data-tooltip-content={isSelectedLevelCapped ? t('header.settings.tooltips.feeCapped', { feeLevel: translatedFeeLevel }) : t('header.settings.tooltips.feeNormal')}
+                                            data-tooltip-content={isSelectedLevelEffectivelyCapped ? 
+                                                t('header.settings.tooltips.feeCapped', { feeLevel: translatedFeeLevel }) : 
+                                                t('header.settings.tooltips.feeNormal')
+                                            }
                                         >
                                             {t('header.approximateFee', { value: displayedSol.toLocaleString(i18n.language, { minimumFractionDigits: 6, maximumFractionDigits: 9 }) })}
+                                            {solPriceUsd > 0 && displayedUsd > 0 && (
+                                                <span className="ml-1">
+                                                    ({`$${displayedUsd.toLocaleString(i18n.language, { minimumFractionDigits: Math.min(2, Math.max(2, (displayedUsd.toString().split('.')[1] || '').length)), maximumFractionDigits: 4 })}`})
+                                                </span>
+                                            )}
                                         </span>
                                     );
                                 })()}

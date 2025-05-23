@@ -164,7 +164,7 @@
         "slippageTolerance": "Diferencia máxima de precio aceptable entre el precio esperado y el real de la transacción",
         "maxCap": "Cantidad máxima de SOL que estás dispuesto a gastar en tarifas de prioridad por transacción",
         "feeCapped": "La tarifa de prioridad seleccionada ({{feeLevel}}) está por encima de tu límite máximo. La tarifa efectiva está limitada, lo que puede reducir la prioridad. Revisa la configuración.",
-        "feeNormal": "Tarifa de prioridad efectiva basada en la configuración actual.",
+        "feeNormal": "La tarifa de red es la tarifa base de la red Solana más la tarifa de prioridad efectiva establecida en la configuración.",
         "feeLevel": "{{feeLevel}}: ~{{value}} SOL",
         "feeLevelCapped": "{{feeLevel}} seleccionado, pero limitado por la tarifa máxima de ~{{maxCapValue}} SOL.",
         "transactionPriority": "Prioridad de transacción: {{feeLevel}}"
