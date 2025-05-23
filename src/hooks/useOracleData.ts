@@ -45,12 +45,9 @@ export function useOracleData({ connection, oracleAggregatorAddress }: UseOracle
             console.error("useOracleData: Error in fetchAndSetOracleData:", errorMessage);
             setError(errorMessage);
             
-            // Only clear oracle data if we don't have any
-            if (!oracleData) {
-                setOracleData(null);
-            }
+            setOracleData(prevOracleData => prevOracleData ? prevOracleData : null);
         }
-    }, [connection, oracleAggregatorAddress, oracleData]);
+    }, [connection, oracleAggregatorAddress]);
 
     // Initial fetch and subscription setup
     useEffect(() => {

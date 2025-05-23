@@ -45,7 +45,6 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
 
     // Memoize the read-only connection to prevent unnecessary recreations
     const readOnlyConnection = useMemo(() => {
-        console.log(`[useAnchorProgram] Creating readOnlyConnection with RPC: ${rpcEndpoint}`);
         return new Connection(rpcEndpoint, COMMITMENT);
     }, [rpcEndpoint]);
 
@@ -64,7 +63,6 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
                 setProviderState(newProvider);
                 setProvider(newProvider); // Set globally for anchor commands if needed
                 setIsInitialized(true);
-                console.log('useAnchorProgram: Anchor provider initialized with wallet.');
             } catch (error) {
                 console.error('Failed to initialize Anchor provider:', error);
                 setProviderState(null);
@@ -90,7 +88,6 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
         // Always attempt to create a read-only provider if connection exists,
         // regardless of wallet.connected state for this specific provider.
         try {
-            console.log('useAnchorProgram: Attempting to create read-only provider.');
             return new AnchorProvider(readOnlyConnection, readOnlyWallet, { commitment: COMMITMENT });
         } catch (error) {
             console.error('Failed to initialize read-only provider:', error);
@@ -102,10 +99,8 @@ export function AnchorProgramProvider({ children }: AnchorProgramProviderProps) 
     const program = useMemo(() => {
         const currentProvider = provider || readOnlyProvider; // Prioritize authenticated provider
         if (currentProvider) {
-            console.log(`useAnchorProgram: Program attempting to initialize with ${provider ? 'main provider' : 'read-only provider'}.`);
             try {
                 const newProgram = new Program<WLiquifyPool>(idl as WLiquifyPool, currentProvider);
-                console.log('useAnchorProgram: Program initialized successfully.');
                 return newProgram;
             } catch (error) {
                 console.error('Failed to initialize program:', error);

@@ -110,7 +110,7 @@ export function calculateTotalPoolValue(processedTokens: ProcessedTokenData[]): 
  * TODO: Implement calculateWLqiValue
  * - Needs total pool value and wLQI supply.
  */
-export function calculateWLqiValue(totalPoolValue: BN, wLqiSupply: string | null, wLqiDecimals: number = 9): BN {
+export function calculateWLqiValue(totalPoolValue: BN, wLqiSupply: string | null, wLqiDecimals: number = 6): BN {
     const zeroValue = new BN(0);
 
     if (!wLqiSupply || wLqiSupply === '0') {
