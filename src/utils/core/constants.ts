@@ -9,7 +9,7 @@ export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.so
 
 // Program IDs
 export const W_LIQUIFY_POOL_PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "4QJUHcEdg4L5xvhTsYCfKjhYWkb2apUXMt6vmj4ZSQQj"
+    process.env.NEXT_PUBLIC_POOL_PROGRAM_ID || "3Xpnn8EWDoeVWExx9hvrVLvDxHKptaQ5T2MTYg4LBPU5"
 );
 export const ORACLE_PROGRAM_ID = new PublicKey(
     process.env.NEXT_PUBLIC_ORACLE_PROGRAM_ID || "3ZfM451hf9LUizdUL14N1R9fwmsPS8M8ZCGai2nm6SVY"

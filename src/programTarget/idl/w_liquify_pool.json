@@ -1,5 +1,5 @@
 {
-  "address": "4QJUHcEdg4L5xvhTsYCfKjhYWkb2apUXMt6vmj4ZSQQj",
+  "address": "3Xpnn8EWDoeVWExx9hvrVLvDxHKptaQ5T2MTYg4LBPU5",
   "metadata": {
     "name": "w_liquify_pool",
     "version": "0.1.0",
@@ -206,6 +206,9 @@
           "relations": [
             "pool_config"
           ]
+        },
+        {
+          "name": "price_feed_account_to_validate"
         },
         {
           "name": "system_program",
@@ -1052,6 +1055,10 @@
         {
           "name": "oracle_program_id",
           "type": "pubkey"
+        },
+        {
+          "name": "trusted_price_feed_owner_program_id",
+          "type": "pubkey"
         }
       ]
     },
@@ -1711,308 +1718,298 @@
     },
     {
       "code": 6002,
-      "name": "IneligibleToken",
-      "msg": "The provided token is ineligible for deposit (e.g., zero target dominance)."
-    },
-    {
-      "code": 6003,
       "name": "InvalidOwner",
       "msg": "Invalid owner for the provided token account."
     },
     {
-      "code": 6004,
+      "code": 6003,
       "name": "UnauthorizedAdmin",
       "msg": "Signer is not the authorized pool admin."
     },
     {
-      "code": 6005,
+      "code": 6004,
       "name": "InvalidWliMint",
       "msg": "Invalid WLI mint provided."
     },
     {
-      "code": 6006,
+      "code": 6005,
       "name": "InvalidMint",
       "msg": "Invalid mint account provided or mismatch."
     },
     {
-      "code": 6007,
+      "code": 6006,
       "name": "InvalidFeeRecipient",
       "msg": "Invalid fee recipient address."
     },
     {
-      "code": 6008,
+      "code": 6007,
       "name": "OracleAccountMismatch",
       "msg": "The provided oracle aggregator account does not match the one in config."
     },
     {
-      "code": 6009,
+      "code": 6008,
       "name": "OracleDeserializationFailed",
       "msg": "Failed to deserialize oracle data."
     },
     {
-      "code": 6010,
+      "code": 6009,
       "name": "OracleDataTooShortForDiscriminator",
       "msg": "Oracle data is too short to contain the discriminator."
     },
     {
-      "code": 6011,
+      "code": 6010,
       "name": "OracleDataTooShortForAuthority",
       "msg": "Oracle data is too short to read the authority."
     },
     {
-      "code": 6012,
+      "code": 6011,
       "name": "OracleDataTooShortForTotalTokens",
       "msg": "Oracle data is too short to read the total_tokens field."
     },
     {
-      "code": 6013,
+      "code": 6012,
       "name": "OracleDataTooShortForVectorLength",
       "msg": "Oracle data is too short to read the token vector length."
     },
     {
-      "code": 6014,
+      "code": 6013,
       "name": "OracleTokenInfoBufferOverflow",
       "msg": "Buffer overflow when deserializing TokenInfo from oracle data."
     },
     {
-      "code": 6015,
+      "code": 6014,
       "name": "OracleTokenInfoDeserializationFailed",
       "msg": "Failed to deserialize a TokenInfo entry from oracle data."
     },
     {
-      "code": 6016,
+      "code": 6015,
       "name": "TokenNotFoundInOracle",
       "msg": "Required token info not found in oracle data."
     },
     {
-      "code": 6017,
-      "name": "InvalidOracleData",
-      "msg": "Oracle data contains invalid UTF-8 or cannot be parsed."
-    },
-    {
-      "code": 6018,
+      "code": 6016,
       "name": "FailedToParsePublicKey",
       "msg": "Failed to parse public key from string."
     },
     {
-      "code": 6019,
-      "name": "FailedToParseFeedId",
-      "msg": "Failed to parse hex string to feed ID."
-    },
-    {
-      "code": 6020,
+      "code": 6017,
       "name": "IncorrectAccountCount",
       "msg": "Incorrect number of remaining accounts provided."
     },
     {
-      "code": 6021,
+      "code": 6018,
       "name": "ZeroAmount",
       "msg": "Deposit or withdraw amount cannot be zero."
     },
     {
-      "code": 6022,
+      "code": 6019,
       "name": "DepositNotAllowed",
       "msg": "Deposits are not allowed for this token (not whitelisted or target is zero)."
     },
     {
-      "code": 6023,
+      "code": 6020,
       "name": "WithdrawalTargetZero",
       "msg": "Withdrawals target amount is zero."
     },
     {
-      "code": 6024,
+      "code": 6021,
       "name": "InvalidPrice",
-      "msg": "Pyth price is invalid (e.g., negative)."
+      "msg": "Price is invalid (e.g., negative)."
     },
     {
-      "code": 6025,
+      "code": 6022,
       "name": "InsufficientWliBalance",
       "msg": "Withdrawal amount exceeds user's WLI balance."
     },
     {
-      "code": 6026,
+      "code": 6023,
       "name": "InsufficientVaultBalance",
       "msg": "Calculated withdrawal amount exceeds vault balance."
     },
     {
-      "code": 6027,
+      "code": 6024,
       "name": "InsufficientLiquidity",
       "msg": "Insufficient liquidity in the target token vault."
     },
     {
-      "code": 6028,
+      "code": 6025,
       "name": "MaxPoolTokensReached",
       "msg": "Pool has reached its maximum token capacity."
     },
     {
-      "code": 6029,
+      "code": 6026,
       "name": "TokenAlreadyExists",
       "msg": "Token already exists in the pool configuration."
     },
     {
-      "code": 6030,
+      "code": 6027,
       "name": "TokenNotFoundInPool",
       "msg": "Token not found in pool configuration for removal/update."
     },
     {
-      "code": 6031,
+      "code": 6028,
       "name": "ZeroWliAmount",
       "msg": "Operation resulted in zero WLI amount."
     },
     {
-      "code": 6032,
+      "code": 6029,
       "name": "ZeroTokenAmount",
       "msg": "Operation resulted in zero token amount."
     },
     {
-      "code": 6033,
+      "code": 6030,
       "name": "DelistedWithdrawalAmountExceedsLimit",
       "msg": "Delisted token withdrawal amount exceeds limit."
     },
     {
-      "code": 6034,
+      "code": 6031,
       "name": "InvalidFeedId",
-      "msg": "The provided Pyth feed ID does not match the expected ID."
+      "msg": "The provided price feed ID is invalid or zero."
     },
     {
-      "code": 6035,
+      "code": 6032,
       "name": "HistoricalDataNotFound",
       "msg": "Historical token data account not found for the specified mint."
     },
     {
-      "code": 6036,
+      "code": 6033,
       "name": "ArithmeticError",
       "msg": "Arithmetic overflow/underflow during calculation."
     },
     {
-      "code": 6037,
-      "name": "FailedToParsePubkey",
-      "msg": "Failed to parse public key from oracle data string."
-    },
-    {
-      "code": 6038,
-      "name": "FailedToParseHexFeedId",
-      "msg": "Failed to parse hex feed ID from oracle data."
-    },
-    {
-      "code": 6039,
+      "code": 6034,
       "name": "IncorrectPriceFeedAccount",
       "msg": "Provided mock price feed account PDA does not match expected."
     },
     {
-      "code": 6040,
+      "code": 6035,
       "name": "PriceFeedDeserializationFailed",
       "msg": "Failed to deserialize mock price feed account data."
     },
     {
-      "code": 6041,
+      "code": 6036,
       "name": "PriceFeedTooShortForSymbolLength",
       "msg": "Price feed data too short to read symbol length."
     },
     {
-      "code": 6042,
+      "code": 6037,
       "name": "PriceFeedTooShortForFields",
       "msg": "Price feed data too short for all fields after accounting for symbol length."
     },
     {
-      "code": 6043,
+      "code": 6038,
       "name": "PriceFeedInvalidSymbolString",
       "msg": "Failed to convert price feed symbol bytes to string."
     },
     {
-      "code": 6044,
+      "code": 6039,
       "name": "PriceFeedNotTrading",
       "msg": "Mock price feed status is not Trading."
     },
     {
-      "code": 6045,
+      "code": 6040,
       "name": "PriceFeedStale",
       "msg": "Mock price feed price data is stale."
     },
     {
-      "code": 6046,
+      "code": 6041,
       "name": "InvalidLutOwner",
       "msg": "Provided address lookup table account has invalid owner."
     },
     {
-      "code": 6047,
+      "code": 6042,
       "name": "LutNotInitialized",
       "msg": "Provided address lookup table account is not initialized."
     },
     {
-      "code": 6048,
+      "code": 6043,
       "name": "LutAuthorityNotSet",
       "msg": "Address lookup table account authority is not set."
     },
     {
-      "code": 6049,
-      "name": "AdminOnly",
-      "msg": "Operation can only be performed by the pool admin."
+      "code": 6044,
+      "name": "LutAlreadySet",
+      "msg": "Address lookup table account is already set in pool configuration."
     },
     {
-      "code": 6050,
-      "name": "InvalidOracleAccount",
-      "msg": "The provided oracle account is invalid or does not match configuration."
+      "code": 6045,
+      "name": "LutNotProvided",
+      "msg": "Address Lookup Table account not found in instruction accounts when it should have been."
     },
     {
-      "code": 6051,
+      "code": 6046,
+      "name": "LutNotSetInPoolConfig",
+      "msg": "Address Lookup Table account is not set in PoolConfig. Must be set by admin first using set_lookup_table."
+    },
+    {
+      "code": 6047,
+      "name": "LutCannotBeDefaultPubkey",
+      "msg": "The Address Lookup Table cannot be the default pubkey."
+    },
+    {
+      "code": 6048,
       "name": "MintNotInitialized",
       "msg": "The provided token mint account is not initialized."
     },
     {
-      "code": 6052,
+      "code": 6049,
       "name": "FailedToDeserialize",
       "msg": "Failed to deserialize account data."
     },
     {
-      "code": 6053,
+      "code": 6050,
       "name": "TokenStillWhitelisted",
       "msg": "Token cannot be cleaned up as it is still whitelisted (or has non-zero dominance)."
     },
     {
-      "code": 6054,
+      "code": 6051,
       "name": "VaultNotEmpty",
       "msg": "Token cannot be cleaned up as its pool vault is not empty."
     },
     {
-      "code": 6055,
+      "code": 6052,
       "name": "HistoricalDataSizeMismatch",
       "msg": "Historical data size mismatch."
     },
     {
-      "code": 6056,
+      "code": 6053,
       "name": "ZeroOutputTokens",
       "msg": "Calculated withdrawal amount is zero, nothing to transfer."
     },
     {
-      "code": 6057,
+      "code": 6054,
       "name": "InvalidInput",
       "msg": "Invalid input provided for the instruction."
     },
     {
-      "code": 6058,
+      "code": 6055,
       "name": "SlippageExceeded",
       "msg": "Slippage tolerance exceeded."
     },
     {
-      "code": 6059,
+      "code": 6056,
       "name": "WhitelistFull",
       "msg": "Whitelist is full."
     },
     {
-      "code": 6060,
+      "code": 6057,
       "name": "HistoricalDataTooShortForDiscriminator",
       "msg": "Historical data account is too short to contain discriminator."
     },
     {
-      "code": 6061,
+      "code": 6058,
       "name": "LutMissingRequiredAccounts",
       "msg": "The provided LUT is missing required accounts for currently supported tokens."
     },
     {
-      "code": 6062,
+      "code": 6059,
       "name": "InsufficientOracleTokens",
       "msg": "Oracle reports fewer tokens than the minimum required threshold."
+    },
+    {
+      "code": 6060,
+      "name": "InvalidPriceFeedOwner",
+      "msg": "Price feed account has an unrecognized or invalid owner."
     }
   ],
   "types": [
@@ -2083,6 +2080,10 @@
           },
           {
             "name": "oracle_aggregator_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "trusted_price_feed_owner_program_id",
             "type": "pubkey"
           },
           {

@@ -74,6 +74,7 @@ export interface PoolConfig {
     poolAuthorityBump: number;
     oracleProgramId: PublicKey;
     oracleAggregatorAccount: PublicKey;
+    trustedPriceFeedOwnerProgramId: PublicKey;
     addressLookupTable: PublicKey;
     currentTotalPoolValueScaled: BN;
     supportedTokens: SupportedToken[];
