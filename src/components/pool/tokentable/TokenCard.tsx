@@ -74,13 +74,28 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     const isDepositInputFilled = currentDepositAmount !== '' && parseFloat(currentDepositAmount) > 0;
     const isWithdrawInputFilled = currentWithdrawAmount !== '' && parseFloat(currentWithdrawAmount) > 0;
 
+    // Helper to truncate withdraw amount string if it exceeds wLQI decimals (Same as in TokenRow.tsx)
+    const getValidatedWithdrawAmountString = (amountStr: string, decimals: number | null): string => {
+        if (decimals === null || amountStr === '' || !amountStr.includes('.')) {
+            return amountStr;
+        }
+        const parts = amountStr.split('.');
+        if (parts.length === 2 && parts[1].length > decimals) {
+            return parts[0] + '.' + parts[1].slice(0, decimals);
+        }
+        return amountStr;
+    };
+
+    const validatedWithdrawAmountString = getValidatedWithdrawAmountString(currentWithdrawAmount, wLqiDecimals);
+
     // Calculate USD value BNs first
     const depositValueUsdBN = isDepositInputFilled && decimals !== null && priceData ?
         calculateTokenValueUsdScaled(new BN(parseUnits(currentDepositAmount, decimals).toString()), decimals, priceData)
         : undefined;
 
+    // Use validatedWithdrawAmountString for USD value calculation
     const withdrawValueUsdBN = isWithdrawInputFilled && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && wLqiDecimals !== null && new BN(10).pow(new BN(wLqiDecimals)).gtn(0) ?
-        new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)))
+        new BN(parseUnits(validatedWithdrawAmountString, wLqiDecimals).toString()).mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)))
         : undefined;
 
     // Insufficient balance checks
@@ -94,7 +109,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
     let withdrawInsufficientBalance = false;
     if (isWithdrawInputFilled && userWlqiBalance && wLqiDecimals !== null) {
         try {
-            const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
+            // Use validatedWithdrawAmountString for balance check
+            const inputWlqiAmountBn = new BN(parseUnits(validatedWithdrawAmountString, wLqiDecimals).toString());
             if (inputWlqiAmountBn.gt(userWlqiBalance)) withdrawInsufficientBalance = true;
         } catch (e) { console.warn("Error parsing withdraw for card balance check:", e); }
     }
@@ -107,8 +123,8 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         targetDominance,
         isDepositInputFilled,
         isWithdrawInputFilled,
-        currentDepositAmount,
-        currentWithdrawAmount,
+        currentDepositAmount, // For deposits, this is fine
+        currentWithdrawAmount: validatedWithdrawAmountString, // Pass the validated string for withdrawals
         decimals,
         wLqiDecimals,
         wLqiValueScaled,
@@ -187,10 +203,11 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
             return;
         }
 
+        // Use validatedWithdrawAmountString for minimumUnderlyingTokensOut calculation
         let minimumUnderlyingTokensOutString = "0";
         if (!isDelisted && wLqiDecimals !== null && wLqiValueScaled && !wLqiValueScaled.isZero() && priceData && decimals !== null) {
             try {
-                const inputWlqiAmountBn = new BN(parseUnits(currentWithdrawAmount, wLqiDecimals).toString());
+                const inputWlqiAmountBn = new BN(parseUnits(validatedWithdrawAmountString, wLqiDecimals).toString());
                 const scaleFactorWlqi = new BN(10).pow(new BN(wLqiDecimals));
                 const withdrawUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(scaleFactorWlqi);
                 
@@ -218,11 +235,12 @@ export const TokenCard: React.FC<TokenCardProps> = React.memo(({
         if (estimatedWithdrawFeeBps >= FEE_CONFIRM_BPS) {
             const percent = (FEE_CONFIRM_BPS / 100).toFixed(2);
             setConfirmMessage(t('poolInteractions.highFeeConfirmation', { action: t('poolInteractions.withdrawalAction'), percent }));
-            setPendingAction(() => () => onWithdraw(mintAddress, currentWithdrawAmount, minimumUnderlyingTokensOutString, decimals));
+            setPendingAction(() => () => onWithdraw(mintAddress, validatedWithdrawAmountString, minimumUnderlyingTokensOutString, decimals));
             setConfirmModalOpen(true);
             return;
         }
-        onWithdraw(mintAddress, currentWithdrawAmount, minimumUnderlyingTokensOutString, decimals);
+        // IMPORTANT: Pass the original currentWithdrawAmount to onWithdraw
+        onWithdraw(mintAddress, validatedWithdrawAmountString, minimumUnderlyingTokensOutString, decimals);
     };
 
     // --- Handle Symbol Click for Explorer Link ---

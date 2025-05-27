@@ -53,6 +53,19 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
     const isDeposit = action === 'deposit';
     const isInputFilled = currentAmount !== '' && parseFloat(currentAmount) > 0;
 
+    // Helper to truncate amount string if it exceeds its relevant decimals
+    // This is particularly for the withdrawal case where currentAmount is wLQI
+    const getValidatedStringForParse = (amountStr: string, relevantDecimals: number | null): string => {
+        if (relevantDecimals === null || amountStr === '' || !amountStr.includes('.')) {
+            return amountStr;
+        }
+        const parts = amountStr.split('.');
+        if (parts.length === 2 && parts[1].length > relevantDecimals) {
+            return parts[0] + '.' + parts[1].slice(0, relevantDecimals);
+        }
+        return amountStr;
+    };
+
     // Format user balance for display
     const displayUserBalance = userBalance !== null && (isDeposit ? decimals : wLqiDecimals) !== null
         ? formatUnits(userBalance.toString(), isDeposit ? decimals! : wLqiDecimals!)
@@ -63,11 +76,18 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
     if (isInputFilled) {
         try {
             if (isDeposit && decimals !== null && priceData) {
-                const inputAmountBn = new BN(parseUnits(currentAmount, decimals).toString());
+                // For DEPOSIT, currentAmount uses 'decimals' of the token being deposited
+                // useAmountState should handle deposit input validation, so direct use is generally okay here
+                // but for safety, especially if rapid input causes issues, validation could be added.
+                // For now, assuming deposit path is less problematic due to how decimals are handled by user vs wLQI.
+                const validatedDepositAmount = getValidatedStringForParse(currentAmount, decimals);
+                const inputAmountBn = new BN(parseUnits(validatedDepositAmount, decimals).toString());
                 const inputUsdValueScaled = calculateTokenValueUsdScaled(inputAmountBn, decimals, priceData);
                 displayInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
             } else if (!isDeposit && wLqiDecimals !== null && wLqiValueScaled) {
-                const inputWlqiAmountBn = new BN(parseUnits(currentAmount, wLqiDecimals).toString());
+                // For WITHDRAW, currentAmount (which is wLQI) uses 'wLqiDecimals'
+                const validatedWithdrawAmount = getValidatedStringForParse(currentAmount, wLqiDecimals);
+                const inputWlqiAmountBn = new BN(parseUnits(validatedWithdrawAmount, wLqiDecimals).toString());
                 const inputUsdValueScaled = inputWlqiAmountBn.mul(wLqiValueScaled).div(new BN(10).pow(new BN(wLqiDecimals)));
                 displayInputUsdValue = formatScaledBnToDollarString(inputUsdValueScaled, USD_SCALE);
             }
@@ -198,7 +218,7 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
                     min="0"
                     placeholder={inputPlaceholder}
                     value={currentAmount}
-                    onChange={(e) => handleAmountChange(mintAddress, action, e.target.value, decimals)}
+                    onChange={(e) => handleAmountChange(mintAddress, action, e.target.value, isDeposit ? decimals : wLqiDecimals)}
                     className={inputClassName}
                     disabled={actionDisabled || (isDeposit && isDelisted)}
                 />
