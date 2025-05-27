@@ -192,7 +192,8 @@ export const TokenInputControls: React.FC<TokenInputControlsProps> = ({
             <div className="relative w-full">
                 <input
                     id={inputId}
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     step="any"
                     min="0"
                     placeholder={inputPlaceholder}
