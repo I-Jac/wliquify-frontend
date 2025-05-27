@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/w_liquify_pool.json`.
  */
 export type WLiquifyPool = {
-  "address": "3Xpnn8EWDoeVWExx9hvrVLvDxHKptaQ5T2MTYg4LBPU5",
+  "address": "Xr85wU8YxexXhkomBRu729Yti3b23PwFMyFUEoP6NdZ",
   "metadata": {
     "name": "wLiquifyPool",
     "version": "0.1.0",
@@ -2016,6 +2016,11 @@ export type WLiquifyPool = {
       "code": 6060,
       "name": "invalidPriceFeedOwner",
       "msg": "Price feed account has an unrecognized or invalid owner."
+    },
+    {
+      "code": 6061,
+      "name": "zeroTvlCalculatedWithSupportedTokens",
+      "msg": "Calculated TVL is zero but there are supported tokens in the pool; indicates stale prices."
     }
   ],
   "types": [
