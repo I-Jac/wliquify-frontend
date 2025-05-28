@@ -3,6 +3,7 @@ import "./globals.css";
 import "@solana/wallet-adapter-react-ui/styles.css"; // Import wallet adapter styles
 import type { Viewport, Metadata } from 'next' // Import Viewport and Metadata types
 import Script from 'next/script'; // Import Next.js Script component
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { ClientProviders } from "@/components/core/ClientProviders"; // Import the new wrapper
 import { Header } from "@/components/layout/Header"; // Import the Header component
@@ -54,6 +55,7 @@ export default function RootLayout({
                     </div>
                     <AlertModal />
                 </ClientProviders>
+                <SpeedInsights />
             </body>
         </html>
     );
