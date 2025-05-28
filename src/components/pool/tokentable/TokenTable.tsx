@@ -75,8 +75,8 @@ export const TokenTable = React.memo<TokenTableProps>(({
     const { publicKey } = useWallet();
     const { setVisible } = useWalletModal();
     const { preferredExplorer, explorerOptions } = useSettings();
-    const [sortKey, setSortKey] = useState<SortableKey | null>('targetPercent');
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [sortKey, setSortKey] = useState<SortableKey | null>('rank');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const mobileTokenListRef = useRef<HTMLDivElement>(null);
 
     const totalTargetDominance = useMemo(() => {

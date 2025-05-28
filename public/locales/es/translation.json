@@ -419,8 +419,10 @@
         },
         "mobileSortControls": {
           "buttonLabelPrefix": "Ordenar: ",
-          "defaultSortLabel": "Por defecto (% objetivo descendente)",
+          "defaultSortLabel": "Por defecto (Rango Asc)",
           "options": {
+            "rankAsc": "Rango: Asc",
+            "rankDesc": "Rango: Desc",
             "symbolAsc": "Símbolo: Z-A",
             "symbolDesc": "Símbolo: A-Z",
             "valueAsc": "Saldo del pool: menor a mayor",

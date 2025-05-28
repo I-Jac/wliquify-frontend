@@ -33,6 +33,8 @@ export const MobileSortControls: React.FC<MobileSortControlsProps> = ({
     const baseSortKeyPath = 'main.poolInfoDisplay.tokenTable.mobileSortControls.options';
 
     const sortOptions: SortOption[] = [
+        { translationKeySuffix: 'rankAsc', key: 'rank', direction: 'asc' },
+        { translationKeySuffix: 'rankDesc', key: 'rank', direction: 'desc' },
         { translationKeySuffix: 'symbolDesc', key: 'symbol', direction: 'desc' },
         { translationKeySuffix: 'symbolAsc', key: 'symbol', direction: 'asc' },
         { translationKeySuffix: 'valueDesc', key: 'value', direction: 'desc' },

@@ -419,8 +419,10 @@
         },
         "mobileSortControls": {
           "buttonLabelPrefix": "Sort: ",
-          "defaultSortLabel": "Default (Target % Desc)",
+          "defaultSortLabel": "Default (Rank Asc)",
           "options": {
+            "rankAsc": "Rank: Asc",
+            "rankDesc": "Rank: Desc",
             "symbolAsc": "Symbol: Z-A",
             "symbolDesc": "Symbol: A-Z",
             "valueAsc": "Pool Balance: Low to High",
